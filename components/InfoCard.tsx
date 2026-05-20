@@ -1,6 +1,6 @@
 // components/InfoCard.tsx
 import React, { useState, useEffect } from 'react';
-import { Calendar } from 'lucide-react';
+import { Calendar, Clock } from 'lucide-react';
 import VisaSelector from './VisaSelector';
 import CityAutocomplete from './CityAutocomplete';
 import SaudiCityAutocomplete from './SaudiCityAutocomplete';
@@ -20,6 +20,8 @@ interface InfoCardProps {
   onAddVisaClick?: () => void;
   /** When this changes, VisaSelector refetches visa list (e.g. after adding via full modal). */
   visaRefetchTrigger?: number;
+  externalFormData?: Record<string, string>;
+  onCancel?: () => void;
 }
 
 function localTodayYmd(): string {
@@ -47,22 +49,22 @@ function clampMusanedContractDateToToday(ymd: string): string {
   return isMusanedContractDateAfterToday(ymd) ? localTodayYmd() : ymd;
 }
 
-export default function InfoCard({ id, title, data, gridCols = 1, actions = [], editable = false, onSave, clientID, disabled = false, bottomMessage, onAddVisaClick, visaRefetchTrigger }: InfoCardProps) {
+export default function InfoCard({ id, title, data, gridCols = 1, actions = [], editable = false, onSave, clientID, disabled = false, bottomMessage, onAddVisaClick, visaRefetchTrigger, externalFormData, onCancel }: InfoCardProps) {
   const [editMode, setEditMode] = useState(false);
+  const [activeTimeField, setActiveTimeField] = useState<string | null>(null);
   const [formData, setFormData] = useState<Record<string, string>>(
     data.reduce((acc, item) => {
-      if (typeof item.value === 'string') {
+      if (item.label.includes('تاريخ ووقت')) {
+        const dateTimeString = item.rawValue || '';
+        acc[`${item.label}_date`] = dateTimeString.split(' ')[0] || '';
+        acc[`${item.label}_time`] = dateTimeString.split(' ')[1] || '';
+      } else if (typeof item.value === 'string') {
         acc[item.label] = item.value;
       } else if (typeof item.value === 'number') {
         // تحويل الأرقام إلى نص (مثل رقم الطلب)
         acc[item.label] = String(item.value);
       } else if (typeof item.rawValue === 'string') {
         acc[item.label] = item.rawValue;
-      } else if (item.label.includes('تاريخ ووقت')) {
-        // Use rawValue if available, otherwise try to extract from JSX
-        const dateTimeString = item.rawValue || '';
-        acc[`${item.label}_date`] = dateTimeString.split(' ')[0] || '';
-        acc[`${item.label}_time`] = dateTimeString.split(' ')[1] || '';
       }
       return acc;
     }, {} as Record<string, string>)
@@ -81,6 +83,12 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
       return { ...prev, 'تاريخ العقد': clamped };
     });
   }, [editMode]);
+
+  useEffect(() => {
+    if (externalFormData) {
+      setFormData((prev) => ({ ...prev, ...externalFormData }));
+    }
+  }, [externalFormData]);
 
   const validateInput = (key: string, value: string): string | null => {
   // Check if "تاريخ العقد" is required
@@ -316,20 +324,20 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
   const handleCancel = () => {
     setEditMode(false);
     setErrors({});
+    if (onCancel) onCancel();
     setFormData(
       data.reduce((acc, item) => {
-        if (typeof item.value === 'string') {
+        if (item.label.includes('تاريخ ووقت')) {
+          const dateTimeString = item.rawValue || '';
+          acc[`${item.label}_date`] = dateTimeString.split(' ')[0] || '';
+          acc[`${item.label}_time`] = dateTimeString.split(' ')[1] || '';
+        } else if (typeof item.value === 'string') {
           acc[item.label] = item.value;
         } else if (typeof item.value === 'number') {
           // تحويل الأرقام إلى نص (مثل رقم الطلب)
           acc[item.label] = String(item.value);
         } else if (typeof item.rawValue === 'string') {
           acc[item.label] = item.rawValue;
-        } else if (item.label.includes('تاريخ ووقت')) {
-          // Use rawValue if available, otherwise try to extract from JSX
-          const dateTimeString = item.rawValue || '';
-          acc[`${item.label}_date`] = dateTimeString.split(' ')[0] || '';
-          acc[`${item.label}_time`] = dateTimeString.split(' ')[1] || '';
         }
         return acc;
       }, {} as Record<string, string>)
@@ -375,13 +383,118 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
                     className="border border-gray-300 rounded-md p-2 text-base text-right flex-1"
                     pattern="\d{4}-\d{2}-\d{2}"
                   />
-                  <input
-                    type="time"
-                    value={formData[`${item.label}_time`] || ''}
-                    onChange={(e) => handleInputChange(`${item.label}_time`, e.target.value)}
-                    className="border border-gray-300 rounded-md p-2 text-base text-right flex-1"
-                    pattern="\d{2}:\d{2}:\d{2}"
-                  />
+                  <div className="relative flex-1">
+                    <div className="relative flex items-center">
+                      <input
+                        type="text"
+                        placeholder="13:45"
+                        value={formData[`${item.label}_time`] || ''}
+                        onFocus={() => setActiveTimeField(item.label)}
+                        onChange={(e) => {
+                          let val = e.target.value.replace(/[^0-9:]/g, ''); // Allow only numbers and colon
+                          // Automatically add colon if user types two numbers
+                          if (val.length === 2 && !val.includes(':') && !e.target.value.endsWith('\u0008')) {
+                            val = val + ':';
+                          }
+                          if (val.length <= 5) {
+                            handleInputChange(`${item.label}_time`, val);
+                          }
+                        }}
+                        onBlur={(e) => {
+                          // Delay closing to let onClick register
+                          setTimeout(() => {
+                            setActiveTimeField(null);
+                          }, 200);
+
+                          const val = e.target.value;
+                          const parts = val.split(':');
+                          if (parts.length === 2) {
+                            let hours = parts[0].padStart(2, '0');
+                            let minutes = parts[1].padEnd(2, '0').substring(0, 2);
+                            // Clamp values
+                            let hNum = parseInt(hours, 10);
+                            let mNum = parseInt(minutes, 10);
+                            if (isNaN(hNum) || hNum < 0 || hNum > 23) hours = '00';
+                            if (isNaN(mNum) || mNum < 0 || mNum > 59) minutes = '00';
+                            handleInputChange(`${item.label}_time`, `${hours}:${minutes}`);
+                          }
+                        }}
+                        className="border border-gray-300 rounded-md p-2 pl-10 text-base text-center w-full focus:outline-none focus:ring-2 focus:ring-teal-800"
+                        maxLength={5}
+                      />
+                      <Clock className="absolute left-3 w-5 h-5 text-gray-400 pointer-events-none" />
+                    </div>
+
+                    {activeTimeField === item.label && (
+                      <div 
+                        className="absolute left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-xl z-50 flex p-2 h-48 justify-around gap-2"
+                        onMouseDown={(e) => e.preventDefault()}
+                      >
+                        {/* Minutes Column */}
+                        <div className="flex-1 flex flex-col items-center">
+                          <span className="text-xs text-gray-500 font-bold mb-1">الدقيقة</span>
+                          <div className="w-full overflow-y-auto h-full flex flex-col gap-1 pr-1 border border-gray-100 rounded p-1" style={{ direction: 'ltr' }}>
+                            {Array.from({ length: 60 }).map((_, m) => {
+                              const mStr = String(m).padStart(2, '0');
+                              const currentVal = formData[`${item.label}_time`] || '';
+                              const selectedMin = currentVal.split(':')[1] || '';
+                              const isSelected = selectedMin === mStr;
+                              return (
+                                <button
+                                  key={m}
+                                  type="button"
+                                  onClick={() => {
+                                    const currentHour = currentVal.split(':')[0] || '12';
+                                    handleInputChange(`${item.label}_time`, `${currentHour}:${mStr}`);
+                                  }}
+                                  className={`py-1 text-xs rounded transition-colors ${
+                                    isSelected 
+                                      ? 'bg-teal-800 text-white font-bold' 
+                                      : 'text-gray-700 hover:bg-gray-100'
+                                  }`}
+                                >
+                                  {mStr}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Separator */}
+                        <div className="border-r border-gray-200 my-2"></div>
+
+                        {/* Hours Column */}
+                        <div className="flex-1 flex flex-col items-center">
+                          <span className="text-xs text-gray-500 font-bold mb-1">الساعة</span>
+                          <div className="w-full overflow-y-auto h-full flex flex-col gap-1 pr-1 border border-gray-100 rounded p-1" style={{ direction: 'ltr' }}>
+                            {Array.from({ length: 24 }).map((_, h) => {
+                              const hStr = String(h).padStart(2, '0');
+                              const currentVal = formData[`${item.label}_time`] || '';
+                              const selectedHour = currentVal.split(':')[0] || '';
+                              const isSelected = selectedHour === hStr;
+                              return (
+                                <button
+                                  key={h}
+                                  type="button"
+                                  onClick={() => {
+                                    const currentMin = currentVal.split(':')[1] || '00';
+                                    handleInputChange(`${item.label}_time`, `${hStr}:${currentMin}`);
+                                  }}
+                                  className={`py-1 text-xs rounded transition-colors ${
+                                    isSelected 
+                                      ? 'bg-teal-800 text-white font-bold' 
+                                      : 'text-gray-700 hover:bg-gray-100'
+                                  }`}
+                                >
+                                  {hStr}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 {(errors[`${item.label}_date`] || errors[`${item.label}_time`]) && (
                   <span className="text-red-600 text-sm text-right">

@@ -37,6 +37,28 @@ function toLocalYmd(d: Date | string | null | undefined): string | null {
   return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
 }
 
+function convert12hTo24h(timeStr: string | null | undefined): string {
+  if (!timeStr) return '';
+  const cleanStr = timeStr.trim().toUpperCase();
+  
+  // Detect PM if string contains 'PM' or 'م'
+  const isPm = cleanStr.includes('PM') || cleanStr.includes('م');
+  const isAm = cleanStr.includes('AM') || cleanStr.includes('ص');
+  
+  // Extract hours and minutes
+  const match = /(\d{1,2}):(\d{2})/.exec(cleanStr);
+  if (!match) return cleanStr;
+  
+  let hours = parseInt(match[1], 10);
+  const minutes = match[2];
+  
+  if (isPm && hours < 12) hours += 12;
+  if (isAm && hours === 12) hours = 0;
+  
+  return `${String(hours).padStart(2, '0')}:${minutes}`;
+}
+
+
 function isStoredContractDateAfterToday(d: Date | string | null | undefined): boolean {
   const ymd = toLocalYmd(d);
   if (!ymd) return false;
@@ -364,10 +386,10 @@ console.log(id)
           arrivalCity: order.arrivals[0]?.arrivalSaudiAirport || 'N/A',
           arrivalSaudiAirport: order.arrivals[0]?.arrivalSaudiAirport || 'N/A',
           departureDateTime: order.arrivals[0]?.deparatureCityCountryDate
-            ? `${(order.arrivals[0].deparatureCityCountryDate as Date).toISOString().split('T')[0]} ${order.arrivals[0].deparatureCityCountryTime || ''}`
+            ? `${(order.arrivals[0].deparatureCityCountryDate as Date).toISOString().split('T')[0]} ${convert12hTo24h(order.arrivals[0].deparatureCityCountryTime || '')}`.trim()
             : 'N/A',
           arrivalDateTime: order.arrivals[0]?.KingdomentryDate
-            ? `${(order.arrivals[0].KingdomentryDate as Date).toISOString().split('T')[0]} ${order.arrivals[0].KingdomentryTime || ''}`
+            ? `${(order.arrivals[0].KingdomentryDate as Date).toISOString().split('T')[0]} ${convert12hTo24h(order.arrivals[0].KingdomentryTime || '')}`.trim()
             : 'N/A',
         },
         receipt: {

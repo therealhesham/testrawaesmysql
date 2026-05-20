@@ -98,6 +98,165 @@ function omitTicketAutoFields(obj: Record<string, unknown>): Record<string, unkn
   return out;
 }
 
+const iataToCityAr: Record<string, string> = {
+  // Saudi Arabia
+  'RUH': 'الرياض',
+  'JED': 'جدة',
+  'MED': 'المدينة المنورة',
+  'DMM': 'الدمام',
+  'AHB': 'أبها',
+  'ELQ': 'القصيم',
+  'TUI': 'طريف',
+  'TAB': 'تبوك',
+  'HIL': 'حائل',
+  'GJI': 'جازان',
+  'HOF': 'الهفوف',
+  'EAM': 'نجران',
+  'YNB': 'ينبع',
+  'AQI': 'القيصومة',
+  'RAE': 'عرعر',
+  'AJF': 'الجوف',
+  'BHH': 'الباحة',
+  'ULH': 'العلا',
+  'SHW': 'شرورة',
+  'WAE': 'وادي الدواسر',
+  'DWD': 'الدوادمي',
+  'URY': 'القريات',
+  'EJH': 'الوجه',
+  'RAH': 'رفحاء',
+  'NUM': 'نيوم',
+
+  // Gulf Countries
+  'DOH': 'الدوحة',
+  'DXB': 'دبي',
+  'DWC': 'دبي',
+  'SHJ': 'الشارقة',
+  'AUH': 'أبوظبي',
+  'BAH': 'المنامة',
+  'KWI': 'الكويت',
+  'MCT': 'مسقط',
+  'SLL': 'صلالة',
+
+  // Arab & Levant
+  'CAI': 'القاهرة',
+  'HBE': 'الإسكندرية',
+  'ALY': 'الإسكندرية',
+  'LXR': 'الأقصر',
+  'HRG': 'الغردقة',
+  'SSH': 'شرم الشيخ',
+  'AMM': 'عمان',
+  'BEY': 'بيروت',
+  'DAM': 'دمشق',
+  'BGW': 'بغداد',
+  'KBL': 'كابول',
+  'SNA': 'صنعاء',
+  'ADE': 'عدن',
+  'KRT': 'الخرطوم',
+  'TUN': 'تونس',
+  'ALG': 'الجزائر',
+  'CMN': 'الدار البيضاء',
+  'RBA': 'الرباط',
+
+  // East Africa / Labor Countries
+  'ADD': 'أديس أبابا',
+  'NBO': 'نيروبي',
+  'MBA': 'مومباسا',
+  'DAR': 'دار السلام',
+  'EBB': 'كمبالا', // Entebbe/Kampala
+  'ASM': 'أسمرة',
+  'HGA': 'هرجيسا',
+  'MGQ': 'مقديشو',
+
+  // South / Southeast Asia / Labor Countries
+  'DAC': 'دكا',
+  'CGP': 'تشيتاجونج',
+  'MNL': 'مانيلا',
+  'CRK': 'كلارك',
+  'CEB': 'سيبو',
+  'CMB': 'كولومبو',
+  'CGK': 'جاكرتا',
+  'SUB': 'سورابايا',
+  'KUL': 'كوالالمبور',
+  'BKK': 'بانكوك',
+  'DMK': 'بانكوك',
+  'DEL': 'نيودلهي',
+  'BOM': 'مومباي',
+  'CCJ': 'كاليكوت',
+  'COK': 'كوتشي',
+  'MAA': 'تشيناي',
+  'HYD': 'حيدر أباد',
+  'BLR': 'بنغالور',
+  'TRV': 'تريفاندروم',
+  'ISB': 'إسلام آباد',
+  'LHE': 'لاهور',
+  'KHI': 'كراتشي',
+  'PEW': 'بيشاور',
+  'MUX': 'مولتان',
+  'KTM': 'كاتماندو',
+};
+
+function resolveIataCity(code: string | null | undefined): string {
+  if (!code) return '';
+  const clean = code.trim().toUpperCase();
+  
+  if (iataToCityAr[clean]) {
+    return iataToCityAr[clean];
+  }
+  
+  for (const [iata, cityAr] of Object.entries(iataToCityAr)) {
+    if (clean.includes(iata) || clean.includes(cityAr.toUpperCase())) {
+      return cityAr;
+    }
+  }
+
+  const engToArCities: Record<string, string> = {
+    'ADDIS ABABA': 'أديس أبابا',
+    'DOHA': 'الدوحة',
+    'RIYADH': 'الرياض',
+    'JEDDAH': 'جدة',
+    'MADINAH': 'المدينة المنورة',
+    'MEDINA': 'المدينة المنورة',
+    'DAMMAM': 'الدمام',
+    'CAIRO': 'القاهرة',
+    'DUBAI': 'دبي',
+    'MANILA': 'مانيلا',
+    'DHAKA': 'دكا',
+    'COLOMBO': 'كولومبو',
+    'JAKARTA': 'جاكرتا',
+    'NATIVE': 'الرياض',
+  };
+
+  for (const [eng, ar] of Object.entries(engToArCities)) {
+    if (clean.includes(eng)) {
+      return ar;
+    }
+  }
+
+  return code;
+}
+
+function convert12hTo24h(timeStr: string | null | undefined): string {
+  if (!timeStr) return '';
+  const cleanStr = timeStr.trim().toUpperCase();
+  
+  // Detect PM if string contains 'PM' or 'م'
+  const isPm = cleanStr.includes('PM') || cleanStr.includes('م');
+  const isAm = cleanStr.includes('AM') || cleanStr.includes('ص');
+  
+  // Extract hours and minutes
+  const match = /(\d{1,2}):(\d{2})/.exec(cleanStr);
+  if (!match) return cleanStr;
+  
+  let hours = parseInt(match[1], 10);
+  const minutes = match[2];
+  
+  if (isPm && hours < 12) hours += 12;
+  if (isAm && hours === 12) hours = 0;
+  
+  return `${String(hours).padStart(2, '0')}:${minutes}`;
+}
+
+
 type TicketExtractFormFields = {
   reference_id: string;
   airlines: string;
@@ -219,6 +378,8 @@ export default function TrackOrder() {
 
   // ملف التذكرة المؤقت في قسم الوجهات - يُرفع مع البيانات عند الضغط على حفظ
   const [destinationsPendingFile, setDestinationsPendingFile] = useState<File | null>(null);
+  const [destinationsExternalFormData, setDestinationsExternalFormData] = useState<Record<string, string> | undefined>(undefined);
+  const [extractedTicketDetails, setExtractedTicketDetails] = useState<any | null>(null);
 
   const [ticketExtractPromptOpen, setTicketExtractPromptOpen] = useState(false);
   const [ticketExtracting, setTicketExtracting] = useState(false);
@@ -890,6 +1051,31 @@ export default function TrackOrder() {
             dataToSend.ticketFile = filePath;
             setDestinationsPendingFile(null);
           }
+
+          // إذا تم استخراج بيانات التذكرة وبانتظار الحفظ، نقوم بحفظها الآن في جدول تفاصيل التذاكر
+          if (section === 'destinations' && extractedTicketDetails) {
+            const ticketFileUrl = dataToSend.ticketFile || orderData?.ticketUpload?.files || '';
+            const cleaned = omitTicketAutoFields(extractedTicketDetails);
+            const saveRes = await fetch(
+              `/api/track_order/${encodeURIComponent(String(id))}/tickets-details`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                  tickets_details: cleaned,
+                  ticketFile: ticketFileUrl,
+                }),
+              }
+            );
+            if (!saveRes.ok) {
+              console.error('Failed to log tickets-details database entry');
+            }
+            // Reset temporary parent states
+            setExtractedTicketDetails(null);
+            setDestinationsExternalFormData(undefined);
+          }
+
           const res = await fetch(`/api/track_order/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -953,99 +1139,34 @@ export default function TrackOrder() {
         throw new Error('استجابة غير صالحة: لا توجد tickets_details');
       }
 
-      const rawId = Array.isArray(id) ? id[0] : id;
-      if (rawId == null || String(rawId).trim() === '') {
-        throw new Error('معرف الطلب غير متوفر');
+      // Map details to the info card's external form data format
+      const externalData: Record<string, string> = {};
+      if (details.departure_airport) {
+        externalData['مدينة المغادرة'] = resolveIataCity(String(details.departure_airport));
+      }
+      if (details.arrival_airport) {
+        externalData['مدينة الوصول'] = resolveIataCity(String(details.arrival_airport));
+      }
+      if (details.departure_date) {
+        externalData['تاريخ ووقت المغادرة_date'] = String(details.departure_date);
+      }
+      if (details.departure_time) {
+        externalData['تاريخ ووقت المغادرة_time'] = convert12hTo24h(String(details.departure_time));
+      }
+      if (details.arrival_date) {
+        externalData['تاريخ ووقت الوصول_date'] = String(details.arrival_date);
+      }
+      if (details.arrival_time) {
+        externalData['تاريخ ووقت الوصول_time'] = convert12hTo24h(String(details.arrival_time));
       }
 
-      const presignedRes = await fetch(
-        `/api/upload-presigned-url/${encodeURIComponent(String(rawId))}`
-      );
-      if (!presignedRes.ok) {
-        throw new Error('فشل في الحصول على رابط رفع ملف التذكرة');
-      }
-      const { url: uploadUrl, filePath: uploadedTicketPath } = (await presignedRes.json()) as {
-        url: string;
-        filePath: string;
-      };
-      const uploadRes = await fetch(uploadUrl, {
-        method: 'PUT',
-        body: file,
-        headers: {
-          'Content-Type': file.type || 'application/pdf',
-          'x-amz-acl': 'public-read',
-        },
+      setDestinationsExternalFormData(externalData);
+      setExtractedTicketDetails(details);
+
+      setShowAlertModal({
+        isOpen: true,
+        message: 'تم استخراج بيانات التذكرة وتعبئتها في الحقول بنجاح. اضغط «حفظ» لحفظ البيانات.',
       });
-      if (!uploadRes.ok) {
-        throw new Error('فشل في رفع ملف التذكرة إلى التخزين');
-      }
-
-      const cleaned = omitTicketAutoFields(details);
-      const saveRes = await fetch(
-        `/api/track_order/${encodeURIComponent(String(rawId))}/tickets-details`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            tickets_details: cleaned,
-            ticketFile: uploadedTicketPath,
-          }),
-        }
-      );
-
-      const saveBody = (await saveRes.json().catch(() => ({}))) as {
-        tickets_details?: { id?: number };
-        error?: string;
-      };
-
-      let saveError: string | null = null;
-      let newRecordId: number | null = null;
-      if (!saveRes.ok) {
-        saveError =
-          typeof saveBody.error === 'string' ? saveBody.error : 'فشل حفظ بيانات التذكرة';
-      } else {
-        newRecordId =
-          typeof saveBody.tickets_details?.id === 'number' ? saveBody.tickets_details.id : null;
-        setDestinationsPendingFile(null);
-        const patchRes = await fetch(`/api/track_order/${encodeURIComponent(String(rawId))}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            section: 'destinations',
-            updatedData: { ticketFile: uploadedTicketPath },
-          }),
-        });
-        if (!patchRes.ok) {
-          try {
-            const errBody = (await patchRes.json()) as { error?: string };
-            saveError =
-              (typeof errBody.error === 'string' ? errBody.error : null) ||
-              'تم حفظ التذكرة لكن فشل تحديث ملف الطلب في الوجهات';
-          } catch {
-            saveError = 'تم حفظ التذكرة لكن فشل تحديث ملف الطلب في الوجهات';
-          }
-        }
-      }
-
-      setTicketExtractResultModal({
-        open: true,
-        recordId: newRecordId,
-        ticketFileUrl: uploadedTicketPath,
-        saveError,
-        form: recordToTicketForm(details),
-        savingEdit: false,
-      });
-      try {
-        const refreshRes = await fetch(`/api/track_order/${encodeURIComponent(String(rawId))}`);
-        if (refreshRes.ok) {
-          const fresh = await refreshRes.json();
-          setOrderData(fresh);
-        }
-      } catch {
-        /* ignore */
-      }
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'حدث خطأ أثناء استخراج بيانات التذكرة';
       setShowErrorModal({
@@ -2430,7 +2551,7 @@ export default function TrackOrder() {
                             const file = e.target.files?.[0];
                             if (file) {
                               setDestinationsPendingFile(file);
-                              setTicketExtractPromptOpen(true);
+                              void runTicketDataExtraction(file);
                               e.target.value = '';
                             }
                           }}
@@ -2459,6 +2580,12 @@ export default function TrackOrder() {
             bottomMessage={!canCompleteStep('destinations') ? (
               <span className="text-red-600 text-sm">يجب إكمال: {getPreviousIncompleteStep('destinations')}</span>
             ) : undefined}
+            externalFormData={destinationsExternalFormData}
+            onCancel={() => {
+              setDestinationsPendingFile(null);
+              setDestinationsExternalFormData(undefined);
+              setExtractedTicketDetails(null);
+            }}
             actions={[
               {
                 label: 'تراجع',

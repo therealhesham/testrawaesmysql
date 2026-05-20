@@ -539,6 +539,7 @@ export default function TrackTimeline() {
                           <span>{orderData.destinations?.departureDateTime || 'غير محدد'}</span>
                         </div>
                       ),
+                      rawValue: orderData.destinations?.departureDateTime || '',
                     },
                     {
                       label: 'تاريخ ووقت الوصول',
@@ -547,6 +548,7 @@ export default function TrackTimeline() {
                           <span>{orderData.destinations?.arrivalDateTime || 'غير محدد'}</span>
                         </div>
                       ),
+                      rawValue: orderData.destinations?.arrivalDateTime || '',
                     },
                     {
                       label: 'ملف التذكرة',
