@@ -24,7 +24,7 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
   Picture: '',
   FullPicture: '',
 });
-const [professions, setProfessions] = useState<Array<{ id: number; name: string }>>([]);
+const [professions, setProfessions] = useState<Array<{ id: number; name: string; gender?: string | null }>>([]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -78,6 +78,12 @@ const [professions, setProfessions] = useState<Array<{ id: number; name: string 
   const [modalMessage, setModalMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [nationalities, setNationalities] = useState<Array<{ id: number; Country: string }>>([]);
+
+  const isMale = React.useMemo(() => {
+    if (!formData.professionId) return false;
+    const selectedProf = professions.find(p => p.id === parseInt(formData.professionId));
+    return selectedProf?.gender === 'male';
+  }, [formData.professionId, professions]);
 
   const fileInputRefs = {
     Picture: useRef<HTMLInputElement>(null),
@@ -278,23 +284,27 @@ const handleHomemaidImageChange = async (
       { id: 'maritalStatus', label: 'الحالة الاجتماعية' },
       { id: 'age', label: 'العمر' },
       { id: 'passport', label: 'رقم جواز السفر' },
-
-      { id: 'weight', label: 'الوزن' },
-      { id: 'height', label: 'الطول' },
       { id: 'passportStart', label: 'بداية الجواز' },
       { id: 'passportEnd', label: 'نهاية الجواز' },
       { id: 'educationLevel', label: 'مستوى التعليم' },
       { id: 'officeName', label: 'اسم المكتب' },
       { id: 'salary', label: 'الراتب' },
-      { id: 'cookingLevel', label: 'الطبخ' },
-      { id: 'washingLevel', label: 'الغسيل' },
-      { id: 'ironingLevel', label: 'الكوي' },
-      { id: 'cleaningLevel', label: 'التنظيف' },
-      { id: 'sewingLevel', label: 'الخياطة' },
-      { id: 'childcareLevel', label: 'العناية بالأطفال' },
-      { id: 'elderlycareLevel', label: 'رعاية كبار السن' },
-      { id: 'BabySitterLevel', label: 'العناية بالرضع' },
     ];
+
+    if (!isMale) {
+      requiredFields.push(
+        { id: 'weight', label: 'الوزن' },
+        { id: 'height', label: 'الطول' },
+        { id: 'cookingLevel', label: 'الطبخ' },
+        { id: 'washingLevel', label: 'الغسيل' },
+        { id: 'ironingLevel', label: 'الكوي' },
+        { id: 'cleaningLevel', label: 'التنظيف' },
+        { id: 'sewingLevel', label: 'الخياطة' },
+        { id: 'childcareLevel', label: 'العناية بالأطفال' },
+        { id: 'elderlycareLevel', label: 'رعاية كبار السن' },
+        { id: 'BabySitterLevel', label: 'العناية بالرضع' }
+      );
+    }
 
     requiredFields.forEach((field) => {
       if (!formData[field.id]) {
@@ -893,13 +903,13 @@ const handleHomemaidImageChange = async (
                     </div>
 
                     <div className="flex flex-col">
-                      <label htmlFor="weight" className="text-gray-500 text-sm mb-1">الوزن (كجم) <span className="text-red-500">*</span></label>
+                      <label htmlFor="weight" className="text-gray-500 text-sm mb-1">الوزن (كجم) {!isMale && <span className="text-red-500">*</span>}</label>
                       <input type="number" id="weight" value={formData.weight} onChange={handleChange} placeholder="مثال: 60" className={`border ${errors.weight ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`} />
                       {errors.weight && <p className="text-red-500 text-xs mt-1">{errors.weight}</p>}
                     </div>
 
                     <div className="flex flex-col">
-                      <label htmlFor="height" className="text-gray-500 text-sm mb-1">الطول (سم) <span className="text-red-500">*</span></label>
+                      <label htmlFor="height" className="text-gray-500 text-sm mb-1">الطول (سم) {!isMale && <span className="text-red-500">*</span>}</label>
                       <input type="number" id="height" value={formData.height} onChange={handleChange} placeholder="مثال: 160" className={`border ${errors.height ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`} />
                       {errors.height && <p className="text-red-500 text-xs mt-1">{errors.height}</p>}
                     </div>
@@ -1062,14 +1072,14 @@ const handleHomemaidImageChange = async (
                   <legend className="text-2xl font-normal text-center text-black mb-6">المهارات</legend>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {[
-                      { id: 'cookingLevel', label: 'الطبخ', required: true },
-                      { id: 'washingLevel', label: 'الغسيل', required: true },
-                      { id: 'ironingLevel', label: 'الكوي', required: true },
-                      { id: 'cleaningLevel', label: 'التنظيف', required: true },
-                      { id: 'sewingLevel', label: 'الخياطة', required: true },
-                      { id: 'elderlycareLevel', label: 'رعاية كبار السن', required: true },
-                      { id: 'childcareLevel', label: 'العناية بالأطفال', required: true },
-                      { id: 'BabySitterLevel', label: 'العناية بالرضع', required: true },
+                      { id: 'cookingLevel', label: 'الطبخ', required: !isMale },
+                      { id: 'washingLevel', label: 'الغسيل', required: !isMale },
+                      { id: 'ironingLevel', label: 'الكوي', required: !isMale },
+                      { id: 'cleaningLevel', label: 'التنظيف', required: !isMale },
+                      { id: 'sewingLevel', label: 'الخياطة', required: !isMale },
+                      { id: 'elderlycareLevel', label: 'رعاية كبار السن', required: !isMale },
+                      { id: 'childcareLevel', label: 'العناية بالأطفال', required: !isMale },
+                      { id: 'BabySitterLevel', label: 'العناية بالرضع', required: !isMale },
                     ].map((skill) => (
                       <div className="flex flex-col" key={skill.id}>
                         <label htmlFor={skill.id} className="text-gray-500 text-sm mb-1">{skill.label} {skill.required && <span className="text-red-500">*</span>}</label>
