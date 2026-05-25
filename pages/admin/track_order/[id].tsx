@@ -346,7 +346,13 @@ export default function TrackOrder() {
   const [isDeliveryDetailsEditMode, setIsDeliveryDetailsEditMode] = useState(false);
 
   // --- Modal States ---
-  const [showConfirmModal, setShowConfirmModal] = useState({
+  const [showConfirmModal, setShowConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    onCancel?: () => void;
+  }>({
     isOpen: false,
     title: '',
     message: '',
@@ -845,7 +851,7 @@ export default function TrackOrder() {
 
 
 
-  const handleSaveEdits = async (section: string, updatedData: Record<string, string>) => {
+  const handleSaveEdits = (section: string, updatedData: Record<string, string>) => {
     // التحقق من رقم الهاتف في قسم معلومات العميل
     if (section === 'clientInfo' && updatedData['رقم الهاتف']) {
       const phone = updatedData['رقم الهاتف'].trim();
@@ -859,7 +865,7 @@ export default function TrackOrder() {
             title: 'خطأ في التحقق',
             message: 'رقم الهاتف يجب أن يحتوي على أرقام فقط',
           });
-          return;
+          return Promise.reject(new Error('validation error'));
         }
         
         // التحقق من أن الرقم يبدأ بـ 05
@@ -869,7 +875,7 @@ export default function TrackOrder() {
             title: 'خطأ في التحقق',
             message: 'رقم الهاتف يجب أن يبدأ بـ 05',
           });
-          return;
+          return Promise.reject(new Error('validation error'));
         }
         
         // التحقق من أن الرقم 9 أو 10 أرقام
@@ -879,7 +885,7 @@ export default function TrackOrder() {
             title: 'خطأ في التحقق',
             message: 'رقم الهاتف يجب أن يكون إجمالي الأرقام 10 أرقام',
           });
-          return;
+          return Promise.reject(new Error('validation error'));
         }
       }
     }
@@ -894,24 +900,25 @@ export default function TrackOrder() {
             title: 'خطأ في التحقق',
             message: 'هوية العميل يجب أن تحتوي على أرقام فقط',
           });
-          return;
+          return Promise.reject(new Error('validation error'));
         }
 
       const originalNationalId = orderData?.officeLinkInfo?.nationalId?.trim() || '';
       
       // التحقق فقط إذا كان الرقم غير فارغ وليس 'N/A' ومختلف عن القيمة الأصلية
       if (nationalId && nationalId !== 'N/A' && nationalId !== '' && nationalId !== originalNationalId) {
-        const exists = await checknationalid(nationalId);
-        if(exists){
-// alert('هوية العميل متسجلة مسبقا');
-          setShowErrorModal({
-            isOpen: true,
-            title: 'خطأ في التحقق',
-            message: 'هوية العميل متسجلة مسبقا',
-          });
-          await fetchOrderData();
-          return;
-        }
+        return checknationalid(nationalId).then((exists) => {
+          if (exists) {
+            setShowErrorModal({
+              isOpen: true,
+              title: 'خطأ في التحقق',
+              message: 'هوية العميل متسجلة مسبقا',
+            });
+            void fetchOrderData();
+            throw new Error('validation error');
+          }
+          return proceedWithSaving();
+        });
       }
     }
 
@@ -928,31 +935,8 @@ export default function TrackOrder() {
             title: 'خطأ في التحقق',
             message: 'رقم العقد يجب أن يحتوي على أرقام فقط',
           });
-          return;
+          return Promise.reject(new Error('validation error'));
         }
-        
-        // تم تعطيل التحقق من أن الرقم يبدأ بـ 20 وأن طوله 10 أرقام بناءً على طلب المستخدم
-        /*
-        // التحقق من أن الرقم يبدأ بـ 20
-        if (!contract.startsWith('20')) {
-          setShowErrorModal({
-            isOpen: true,
-            title: 'خطأ في التحقق',
-            message: 'رقم العقد يجب أن يبدأ بـ 20',
-          });
-          return;
-        }
-        
-        // التحقق من أن الرقم 10 أرقام
-        if (contract.length !== 10) {
-          setShowErrorModal({
-            isOpen: true,
-            title: 'خطأ في التحقق',
-            message: 'رقم العقد يجب أن يكون 10 أرقام',
-          });
-          return;
-        }
-        */
       }
     }
 
@@ -965,7 +949,7 @@ export default function TrackOrder() {
             title: 'خطأ في التحقق',
             message: 'تاريخ العقد يجب أن يكون اليوم أو تاريخاً سابقاً، ولا يُقبل تاريخ مستقبلي',
           });
-          return;
+          return Promise.reject(new Error('validation error'));
         }
       }
     }
@@ -981,7 +965,7 @@ export default function TrackOrder() {
             title: 'خطأ في التحقق',
             message: 'رقم عقد مساند التوثيق يجب أن يحتوي على أرقام فقط',
           });
-          return;
+          return Promise.reject(new Error('validation error'));
         }
         
         if (!contract.startsWith('20')) {
@@ -990,7 +974,7 @@ export default function TrackOrder() {
             title: 'خطأ في التحقق',
             message: 'رقم عقد مساند التوثيق يجب أن يبدأ بـ 20',
           });
-          return;
+          return Promise.reject(new Error('validation error'));
         }
         
         if (contract.length !== 10) {
@@ -999,7 +983,7 @@ export default function TrackOrder() {
             title: 'خطأ في التحقق',
             message: 'رقم عقد مساند التوثيق يجب أن يكون 10 أرقام',
           });
-          return;
+          return Promise.reject(new Error('validation error'));
         }
       }
     }
@@ -1022,90 +1006,105 @@ export default function TrackOrder() {
               title: 'خطأ في التحقق',
               message: 'تاريخ ووقت الوصول لا يمكن أن يسبق تاريخ ووقت المغادرة',
             });
-            return;
+            return Promise.reject(new Error('validation error'));
           }
         }
       }
     }
 
-    setShowConfirmModal({
-      isOpen: true,
-      title: 'حفظ التعديلات',
-      message: 'هل أنت متأكد من حفظ التعديلات؟',
-      onConfirm: async () => {
-        setUpdating(true);
-        try {
-          let dataToSend: Record<string, string | undefined> = { ...updatedData };
-          // في قسم الوجهات: رفع الملف المعلّق مع البيانات في طلب واحد
-          if (section === 'destinations' && destinationsPendingFile) {
-            const presignedRes = await fetch(`/api/upload-presigned-url/${id}`);
-            if (!presignedRes.ok) throw new Error('فشل في الحصول على رابط الرفع');
-            const { url, filePath } = await presignedRes.json();
-            const uploadRes = await fetch(url, {
-              method: 'PUT',
-              body: destinationsPendingFile,
-              headers: {
-                'Content-Type': 'application/pdf',
-                'x-amz-acl': 'public-read',
-              },
-            });
-            if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
-            dataToSend.ticketFile = filePath;
-            setDestinationsPendingFile(null);
-          }
+    return proceedWithSaving();
 
-          // إذا تم استخراج بيانات التذكرة وبانتظار الحفظ، نقوم بحفظها الآن في جدول تفاصيل التذاكر
-          if (section === 'destinations' && extractedTicketDetails) {
-            const ticketFileUrl = dataToSend.ticketFile || orderData?.ticketUpload?.files || '';
-            const cleaned = omitTicketAutoFields(extractedTicketDetails);
-            const saveRes = await fetch(
-              `/api/track_order/${encodeURIComponent(String(id))}/tickets-details`,
-              {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({
-                  tickets_details: cleaned,
-                  ticketFile: ticketFileUrl,
-                }),
+    function proceedWithSaving() {
+      return new Promise<void>((resolve, reject) => {
+        setShowConfirmModal({
+          isOpen: true,
+          title: 'حفظ التعديلات',
+          message: 'هل أنت متأكد من حفظ التعديلات؟',
+          onConfirm: async () => {
+            setUpdating(true);
+            try {
+              let dataToSend: Record<string, string | undefined> = { ...updatedData };
+              // في قسم الوجهات: رفع الملف المعلّق مع البيانات في طلب واحد
+              if (section === 'destinations' && destinationsPendingFile) {
+                const presignedRes = await fetch(`/api/upload-presigned-url/${id}`);
+                if (!presignedRes.ok) throw new Error('فشل في الحصول على رابط الرفع');
+                const { url, filePath } = await presignedRes.json();
+                const uploadRes = await fetch(url, {
+                  method: 'PUT',
+                  body: destinationsPendingFile,
+                  headers: {
+                    'Content-Type': 'application/pdf',
+                    'x-amz-acl': 'public-read',
+                  },
+                });
+                if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
+                dataToSend.ticketFile = filePath;
+                setDestinationsPendingFile(null);
               }
-            );
-            if (!saveRes.ok) {
-              console.error('Failed to log tickets-details database entry');
+
+              // إذا تم استخراج بيانات التذكرة وبانتظار الحفظ، نقوم بحفظها الآن في جدول تفاصيل التذاكر
+              if (section === 'destinations' && extractedTicketDetails) {
+                const ticketFileUrl = dataToSend.ticketFile || orderData?.ticketUpload?.files || '';
+                const cleaned = omitTicketAutoFields(extractedTicketDetails);
+                const saveRes = await fetch(
+                  `/api/track_order/${encodeURIComponent(String(id))}/tickets-details`,
+                  {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                      tickets_details: cleaned,
+                      ticketFile: ticketFileUrl,
+                    }),
+                  }
+                );
+                if (!saveRes.ok) {
+                  console.error('Failed to log tickets-details database entry');
+                }
+              }
+
+              const res = await fetch(`/api/track_order/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ section, updatedData: dataToSend }),
+              });
+
+              if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || 'فشل في حفظ التعديلات');
+              }
+
+              // Reset temporary parent states only after successful PATCH save
+              if (section === 'destinations' && extractedTicketDetails) {
+                setExtractedTicketDetails(null);
+                setDestinationsExternalFormData(undefined);
+              }
+
+              await fetchOrderData();
+              setShowAlertModal({
+                isOpen: true,
+                message: 'تم حفظ التعديلات بنجاح',
+              });
+              resolve();
+            } catch (error: any) {
+              console.error('Error saving edits:', error);
+              setShowErrorModal({
+                isOpen: true,
+                title: 'خطأ في حفظ التعديلات',
+                message: error.message || 'حدث خطأ أثناء حفظ التعديلات',
+              });
+              reject(error);
+            } finally {
+              await fetchOrderData();
+              setUpdating(false);
             }
-            // Reset temporary parent states
-            setExtractedTicketDetails(null);
-            setDestinationsExternalFormData(undefined);
+          },
+          onCancel: () => {
+            reject(new Error('canceled'));
           }
-
-          const res = await fetch(`/api/track_order/${id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ section, updatedData: dataToSend }),
-          });
-
-          if (!res.ok) {
-            const errorData = await res.json();
-            throw new Error(errorData.error || 'فشل في حفظ التعديلات');
-          }
-          await fetchOrderData();
-          setShowAlertModal({
-            isOpen: true,
-            message: 'تم حفظ التعديلات بنجاح',
-          });
-        } catch (error: any) {
-          console.error('Error saving edits:', error);
-          setShowErrorModal({
-            isOpen: true,
-            title: 'خطأ في حفظ التعديلات',
-            message: error.message || 'حدث خطأ أثناء حفظ التعديلات',
-          });
-        } finally {
-          await fetchOrderData();
-          setUpdating(false);
-        }
-      },
-    });
+        });
+      });
+    }
   };
 
   const runTicketDataExtraction = async (file: File) => {
@@ -1766,7 +1765,10 @@ export default function TrackOrder() {
             <button
               type="button"
               className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-              onClick={() => setShowConfirmModal({ ...showConfirmModal, isOpen: false })}
+              onClick={() => {
+                if (showConfirmModal.onCancel) showConfirmModal.onCancel();
+                setShowConfirmModal({ ...showConfirmModal, isOpen: false });
+              }}
             >
               إلغاء
             </button>

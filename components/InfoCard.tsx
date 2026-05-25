@@ -214,7 +214,7 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
   }
 
   // Check if the key is related to a date field
-  if (key.includes('تاريخ') && value) {
+  if (key.includes('تاريخ') && !key.endsWith('_time') && value) {
     if (key === 'تاريخ العقد' && value !== 'N/A') {
       const s = value.trim();
       const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
@@ -312,13 +312,17 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
       }
       try {
         await onSave(updatedData);
-      } catch (error) {
-        setErrors({ global: 'فشل في حفظ التعديلات. حاول مرة أخرى.' });
+        setEditMode(false);
+      } catch (error: any) {
+        if (error?.message !== 'canceled') {
+          setErrors({ global: 'فشل في حفظ التعديلات. حاول مرة أخرى.' });
+        }
       } finally {
         setIsSaving(false);
       }
+    } else {
+      setEditMode(false);
     }
-    setEditMode(false);
   };
 
   const handleCancel = () => {
