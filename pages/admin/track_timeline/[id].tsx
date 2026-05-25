@@ -122,7 +122,7 @@ export default function TrackTimeline() {
       // جلب custom timeline للدولة
       if (data.nationality) {
         try {
-          const timelineRes = await fetch(`/api/custom-timeline/by-country/${encodeURIComponent(data.nationality)}`);
+          const timelineRes = await fetch(`/api/custom-timeline/by-office/${encodeURIComponent(data.office || '')}`);
           if (timelineRes.ok) {
             const timelineData = await timelineRes.json();
             setCustomTimeline(timelineData);

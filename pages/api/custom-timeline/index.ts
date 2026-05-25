@@ -1,6 +1,8 @@
+import 'lib/loggers';
 import { NextApiRequest, NextApiResponse } from 'next';
 import prisma from 'lib/prisma';
 import { jwtDecode } from 'jwt-decode';
+import eventBus from 'lib/eventBus';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Authentication check
@@ -31,6 +33,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       const timelines = await prisma.customTimeline.findMany({
         orderBy: { createdAt: 'desc' },
+        include: { office: { select: { office: true, Country: true } } }
       });
       return res.status(200).json({ items: timelines });
     } catch (error) {
@@ -41,26 +44,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'POST') {
     try {
-      const { country, name, stages, isActive } = req.body;
+      const { officeId, name, stages, isActive } = req.body;
 
-      if (!country || !stages || !Array.isArray(stages)) {
-        return res.status(400).json({ error: 'Country and stages are required' });
+      if (!officeId || !stages || !Array.isArray(stages)) {
+        return res.status(400).json({ error: 'officeId and stages are required' });
       }
 
       const timeline = await prisma.customTimeline.create({
         data: {
-          country,
+          officeId: Number(officeId),
           name: name || null,
           stages: stages,
           isActive: isActive !== undefined ? isActive : true,
         },
+        include: { office: true }
+      });
+
+      eventBus.emit('ACTION', {
+        type: `إعداد خط زمني ومهل جديدة للمكتب: ${timeline.office?.office || 'غير محدد'}`,
+        actionType: 'create',
+        userId: Number(token.id),
+        pageRoute: 'system_settings',
       });
 
       return res.status(201).json(timeline);
     } catch (error: any) {
       console.error('Error creating custom timeline:', error);
       if (error.code === 'P2002') {
-        return res.status(400).json({ error: 'Timeline for this country already exists' });
+        return res.status(400).json({ error: 'Timeline for this office already exists' });
       }
       return res.status(500).json({ error: 'Internal server error' });
     }

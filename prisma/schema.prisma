@@ -285,6 +285,8 @@ HomeMaid  homemaid[]
   financialRecords foreignOfficeFinancial[]
   musanadFinancialRecords MusanadFinancialRecord[] // Added relation to financial records
 language        String? @default("eng")
+commission      Decimal? @default(0)
+customTimeline CustomTimeline?
 
 }
 // model Office {
@@ -837,9 +839,10 @@ model HousedWorkerNotes {
 id Int @id @default(autoincrement())
 housedWorkerId Int
 HousedWorker housedworker? @relation(fields: [housedWorkerId], references: [id],onDelete: Cascade)
-notes String? @db.VarChar(255)
+notes String? @db.Text
 employee String? @db.VarChar(100)
 createdAt DateTime? @default(now())
+
 updatedAt DateTime? @updatedAt
 
 
@@ -1329,18 +1332,18 @@ model AccountSystemLogs  {
   @@index([actionUserId])
 }
 
-// Custom Timeline for specific countries
+// Custom Timeline for specific offices
 model CustomTimeline {
   id                Int       @id @default(autoincrement())
-  country           String    @db.VarChar(255) // الدولة
+  officeId          Int       @unique
+  office            offices   @relation(fields: [officeId], references: [id], onDelete: Cascade)
   name              String?   @db.VarChar(255) // اسم الـ timeline (اختياري)
   stages            Json      // Array of stages — see lib/timelineStage.ts (visibleOnExternalOffice, EditableForOffices, interactionType, question fields, etc.)
   isActive          Boolean   @default(true)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  @@index([country])
-  @@unique([country])
+  @@index([officeId])
 }
 
 // Complaints Model

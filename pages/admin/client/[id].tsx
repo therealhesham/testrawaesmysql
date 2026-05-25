@@ -120,7 +120,7 @@ export default function ClientTimelineTest() {
       if (order.nationality) {
         try {
           const timelineRes = await fetch(
-            `/api/custom-timeline/by-country/${encodeURIComponent(order.nationality)}`
+            `/api/custom-timeline/by-office/${encodeURIComponent(order.office || '')}`
           );
           if (timelineRes.ok) {
             timeline = await timelineRes.json();

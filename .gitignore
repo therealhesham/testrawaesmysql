@@ -46,3 +46,8 @@ rawaes_taqased1.sql
 نموذج الاستقدام.pdf
 default.sql
 default (1) WITH DATA.sql
+add_commission_to_offices.sql
+patch_settings.ps1
+patch_settings.py
+patch.py
+دمج التعديلات تبع المراحل و المهل الزمنية

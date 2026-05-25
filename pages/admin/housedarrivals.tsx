@@ -2897,11 +2897,11 @@ const confirmDeleteNote = async () => {
                       <label htmlFor="notes" className="block text-md mb-2 text-textDark">
                         الملاحظة
                       </label>
-                      <input
-                        type="text"
+                      <textarea
                         id="notes"
                         placeholder="ادخل الملاحظة"
-                        className="w-full border border-border rounded-md bg-gray-50 text-right text-md text-textDark"
+                        rows={4}
+                        className="w-full border border-border rounded-md bg-gray-50 text-right text-md text-textDark p-2 resize-none"
                         value={notesForm.notes}
                         onChange={(e) => setNotesForm({ ...notesForm, notes: e.target.value })}
                       />

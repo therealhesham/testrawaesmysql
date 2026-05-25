@@ -1,3 +1,4 @@
+import 'lib/loggers';
 import { NextApiRequest, NextApiResponse } from 'next';
 import prisma from 'lib/prisma';
 import { jwtDecode } from 'jwt-decode';
@@ -32,10 +33,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'PUT') {
     try {
-      const { country, name, stages, isActive } = req.body;
+      const { officeId, name, stages, isActive } = req.body;
 
       const updateData: any = {};
-      if (country) updateData.country = country;
+      if (officeId) updateData.officeId = Number(officeId);
       if (name !== undefined) updateData.name = name;
       if (stages) updateData.stages = stages;
       if (isActive !== undefined) updateData.isActive = isActive;
@@ -43,6 +44,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const timeline = await prisma.customTimeline.update({
         where: { id: Number(id) },
         data: updateData,
+        include: { office: true }
+      });
+
+      eventBus.emit('ACTION', {
+        type: `تعديل الخط الزمني والمهل للمكتب: ${timeline.office?.office || 'غير محدد'}`,
+        actionType: 'update',
+        userId: Number(token.id),
+        pageRoute: 'system_settings',
       });
 
       return res.status(200).json(timeline);
@@ -71,6 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           type: `حذف الجدول الزمني #${id} - ${timeline.name || timeline.country || 'غير محدد'}`,
           actionType: 'delete',
           userId: Number(token.id),
+          pageRoute: 'system_settings',
         });
       }
 

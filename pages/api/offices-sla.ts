@@ -1,3 +1,4 @@
+import 'lib/loggers';
 import { NextApiRequest, NextApiResponse } from 'next';
 import prisma from './globalprisma';
 import eventBus from 'lib/eventBus';
@@ -18,12 +19,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({ success: true, items });
     }
 
+    // Get user info for logging for all methods
+    const cookieHeader = req.headers.cookie;
+    let userId: number | null = null;
+    if (cookieHeader) {
+      try {
+        const cookies: { [key: string]: string } = {};
+        cookieHeader.split(";").forEach((cookie) => {
+          const [key, value] = cookie.trim().split("=");
+          cookies[key] = decodeURIComponent(value);
+        });
+        if (cookies.authToken) {
+          const token = jwtDecode(cookies.authToken) as any;
+          userId = Number(token.id);
+        }
+      } catch (e) {
+        // Ignore token errors
+      }
+    }
+
     if (req.method === 'POST') {
       const { officeName, stage, days } = req.body || {};
       if (!officeName || !stage || typeof days !== 'number') {
         return res.status(400).json({ success: false, message: 'officeName, stage, days مطلوبة' });
       }
       const created = await (prisma as any).officeSlaRule.create({ data: { officeName, stage, days } });
+      
+      if (userId) {
+        eventBus.emit('ACTION', {
+          type: `إضافة مهلة جديدة للمكتب: ${officeName} - مرحلة: ${stage} (${days} يوم)`,
+          actionType: 'create',
+          userId: userId,
+          pageRoute: 'system_settings',
+        });
+      }
+      
       return res.status(201).json({ success: true, item: created });
     }
 
@@ -38,6 +68,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           days: typeof days === 'number' ? days : undefined,
         },
       });
+
+      if (userId) {
+        eventBus.emit('ACTION', {
+          type: `تعديل المهلة للمكتب: ${updated.officeName} - مرحلة: ${updated.stage} (${updated.days} يوم)`,
+          actionType: 'update',
+          userId: userId,
+          pageRoute: 'system_settings',
+        });
+      }
+
       return res.status(200).json({ success: true, item: updated });
     }
 
@@ -45,25 +85,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const { id } = (req.query || {}) as { id?: string };
       if (!id) return res.status(400).json({ success: false, message: 'id مطلوب' });
       
-      // Get user info for logging
-      const cookieHeader = req.headers.cookie;
-      let userId: number | null = null;
-      if (cookieHeader) {
-        try {
-          const cookies: { [key: string]: string } = {};
-          cookieHeader.split(";").forEach((cookie) => {
-            const [key, value] = cookie.trim().split("=");
-            cookies[key] = decodeURIComponent(value);
-          });
-          if (cookies.authToken) {
-            const token = jwtDecode(cookies.authToken) as any;
-            userId = Number(token.id);
-          }
-        } catch (e) {
-          // Ignore token errors
-        }
-      }
-
       const rule = await (prisma as any).officeSlaRule.findUnique({
         where: { id: Number(id) },
       });
@@ -73,9 +94,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // تسجيل الحدث
       if (rule && userId) {
         eventBus.emit('ACTION', {
-          type: `حذف قاعدة SLA #${id} - ${rule.officeName || 'غير محدد'}`,
+          type: `حذف قاعدة مهلة (SLA) #${id} للمكتب - ${rule.officeName || 'غير محدد'}`,
           actionType: 'delete',
           userId: userId,
+          pageRoute: 'system_settings',
         });
       }
 

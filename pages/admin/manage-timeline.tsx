@@ -1030,7 +1030,8 @@ export default function ManageTimeline() {
                           interactionType: e.target.value as StageFormState['interactionType'],
                         })
                       }
-                      className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      className="w-full border border-gray-300 rounded-md py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      style={{ backgroundPosition: 'left 0.75rem center', paddingLeft: '2.5rem', paddingRight: '0.75rem' }}
                     >
                       <option value="none">عادي (بدون رفع ملف أو سؤال)</option>
                       <option value="file">رفع ملف</option>
@@ -1062,7 +1063,8 @@ export default function ManageTimeline() {
                               answerType: e.target.value as StageFormState['answerType'],
                             })
                           }
-                          className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          className="w-full border border-gray-300 rounded-md py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          style={{ backgroundPosition: 'left 0.75rem center', paddingLeft: '2.5rem', paddingRight: '0.75rem' }}
                         >
                           <option value="radio">راديو — خيار واحد</option>
                           <option value="options">قائمة خيارات (سلكت)</option>

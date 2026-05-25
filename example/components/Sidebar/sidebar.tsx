@@ -160,6 +160,7 @@ const menuItems: MenuItem[] = [
       // { id: 92, label: " المحاسبين", link: "/admin/send_message_to_office" },
       { id: 93, label: "سجل العمليات", link: "/admin/systemlogs" },
       { id: 94, label: " المستخدمين", link: "/admin/authorizations" },
+      { id: 95, label: "إعدادات النظام", link: "/admin/system_settings" },
       { id: 98, label: "الملف الشخصي", link: "/admin/personal_page" },
       { id: 99, label: "وضع الاختبار", link: "#" },
     ],
@@ -333,9 +334,11 @@ const Sidebar = (props: any) => {
                 className="relative rounded-full w-20 h-20 object-cover ring-4 ring-teal-400/70 shadow-2xl shadow-teal-500/40 transition-all duration-300 hover:ring-teal-300/90 hover:shadow-teal-400/60 hover:scale-105"
               />
             </div>
-            <span className="text-base font-semibold text-teal-100">
-              {/* مرحباً {info} */}
-            </span>
+            <div className="flex flex-col items-center mt-2">
+              <span className={`text-xl font-bold text-white tracking-wider drop-shadow-sm ${Style["tajawal-bold"] || ''}`}>
+                وصل | WASL
+              </span>
+            </div>
           </div>
         ) : (
           <div className="relative">

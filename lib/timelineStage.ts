@@ -27,6 +27,21 @@ export interface TimelineStage {
   answerOptions?: string[];
 }
 
+export const DEFAULT_STAGES: TimelineStage[] = [
+  { label: 'الربط مع إدارة المكاتب', field: 'officeLinkInfo', order: 0, icon: 'Link' },
+  { label: 'المكتب الخارجي', field: 'externalOfficeInfo', order: 1, icon: 'Briefcase' },
+  { label: 'موافقة المكتب الخارجي', field: 'externalOfficeApproval', order: 2, icon: 'CheckCircle' },
+  { label: 'الفحص الطبي', field: 'medicalCheck', order: 3, icon: 'Stethoscope' },
+  { label: 'موافقة وزارة العمل الأجنبية', field: 'foreignLaborApproval', order: 4, icon: 'Flag' },
+  { label: 'دفع الوكالة', field: 'agencyPayment', order: 5, icon: 'DollarSign' },
+  { label: 'موافقة السفارة السعودية', field: 'saudiEmbassyApproval', order: 6, icon: 'Flag' },
+  { label: 'إصدار التأشيرة', field: 'visaIssuance', order: 7, icon: 'Plane' },
+  { label: 'تصريح السفر', field: 'travelPermit', order: 8, icon: 'Plane' },
+  { label: 'الوجهات', field: 'destinations', order: 9, icon: 'MapPin' },
+  { label: 'الاستلام', field: 'receipt', order: 10, icon: 'Package' },
+  { label: 'رفع المستندات', field: 'documentUpload', order: 11, icon: 'FileText' },
+];
+
 export function parseAnswerOptionsText(text: string): string[] {
   return text
     .split(/\r?\n/)
