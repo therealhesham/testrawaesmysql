@@ -75,6 +75,8 @@ interface OrderData {
     cost?: string | number;
   };
   accountingStatementId?: number | null;
+  totalAmount?: number | null;
+  paidAmount?: number | null;
   ticketsDetails?: OrderTicketDetail[];
 }
 
@@ -629,7 +631,7 @@ export default function TrackOrder() {
       const forceDefault = router.asPath.includes('forceDefault=true');
       if (data.nationality && !forceDefault) {
         try {
-          const timelineRes = await fetch(`/api/custom-timeline/by-country/${encodeURIComponent(data.nationality)}`);
+          const timelineRes = await fetch(`/api/custom-timeline/by-office/${encodeURIComponent(data.office || '')}`);
           if (timelineRes.ok) {
             // يوجد custom timeline، إعادة التوجيه
             setTimeout(() => {
@@ -1147,14 +1149,35 @@ export default function TrackOrder() {
       if (details.arrival_airport) {
         externalData['مدينة الوصول'] = resolveIataCity(String(details.arrival_airport));
       }
+      const formatDateToYMD = (val: unknown): string => {
+        if (!val) return '';
+        const s = String(val).trim();
+        if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+        const dmY = /^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/.exec(s);
+        if (dmY) {
+          const d = dmY[1].padStart(2, '0');
+          const m = dmY[2].padStart(2, '0');
+          const y = dmY[3];
+          return `${y}-${m}-${d}`;
+        }
+        const d = new Date(s);
+        if (!Number.isNaN(d.getTime())) {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${y}-${m}-${day}`;
+        }
+        return s;
+      };
+
       if (details.departure_date) {
-        externalData['تاريخ ووقت المغادرة_date'] = String(details.departure_date);
+        externalData['تاريخ ووقت المغادرة_date'] = formatDateToYMD(details.departure_date);
       }
       if (details.departure_time) {
         externalData['تاريخ ووقت المغادرة_time'] = convert12hTo24h(String(details.departure_time));
       }
       if (details.arrival_date) {
-        externalData['تاريخ ووقت الوصول_date'] = String(details.arrival_date);
+        externalData['تاريخ ووقت الوصول_date'] = formatDateToYMD(details.arrival_date);
       }
       if (details.arrival_time) {
         externalData['تاريخ ووقت الوصول_time'] = convert12hTo24h(String(details.arrival_time));
