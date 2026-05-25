@@ -41,15 +41,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               EmbassySealing: true,
               visaNumber: true,
               DeliveryDate: true,
-              DeparatureFromSaudiCity: true,
+              deparatureCityCountry: true,
               ticketFile: true,
-              ArrivalOutSaudiCity: true,
+              arrivalSaudiAirport: true,
               foreignLaborApproval: true,
               foreignLaborApprovalDate: true,
-              DeparatureFromSaudiDate: true,
-              DeparatureFromSaudiTime: true,
-              finalDestinationDate: true,
-              finalDestinationTime: true,
+              deparatureCityCountryDate: true,
+              deparatureCityCountryTime: true,
+              KingdomentryDate: true,
+              KingdomentryTime: true,
               additionalfiles: true,
               InternalmusanedContract: true,
               externalmusanedContract: true,
@@ -254,23 +254,30 @@ HomemaidId: updatedData['id'] ? Number(updatedData['id']) : order.HomemaidId,
               arrivalUpdate.ticketFile = updatedData['ticketFile'];
             }
             if (updatedData['مدينة المغادرة']) {
-              arrivalUpdate.DeparatureFromSaudiCity = updatedData['مدينة المغادرة'];
+              arrivalUpdate.deparatureCityCountry = updatedData['مدينة المغادرة'];
             }
             if (updatedData['مدينة الوصول']) {
-              arrivalUpdate.ArrivalOutSaudiCity = updatedData['مدينة الوصول'];
+              arrivalUpdate.arrivalSaudiAirport = updatedData['مدينة الوصول'];
             }
-            if (updatedData['تاريخ ووقت المغادرة_date'] || updatedData['تاريخ ووقت المغادرة_time']) {
-              console.log('Departure Date:', updatedData['تاريخ ووقت المغادرة_date']);
-              arrivalUpdate.DeparatureFromSaudiDate = updatedData['تاريخ ووقت المغادرة_date']
-                ? new Date(updatedData['تاريخ ووقت المغادرة_date'])
-                : null;
-              arrivalUpdate.DeparatureFromSaudiTime = updatedData['تاريخ ووقت المغادرة_time'] || null;
+            if (updatedData['تاريخ ووقت المغادرة_date'] !== undefined || updatedData['تاريخ ووقت المغادرة_time'] !== undefined) {
+              if (updatedData['تاريخ ووقت المغادرة_date']) {
+                arrivalUpdate.deparatureCityCountryDate = new Date(updatedData['تاريخ ووقت المغادرة_date']);
+              } else if (updatedData['تاريخ ووقت المغادرة_date'] === '') {
+                arrivalUpdate.deparatureCityCountryDate = null;
+              }
+              if (updatedData['تاريخ ووقت المغادرة_time'] !== undefined) {
+                arrivalUpdate.deparatureCityCountryTime = updatedData['تاريخ ووقت المغادرة_time'] || null;
+              }
             }
-            if (updatedData['تاريخ ووقت الوصول_date'] || updatedData['تاريخ ووقت الوصول_time']) {
-              arrivalUpdate.finalDestinationDate = updatedData['تاريخ ووقت الوصول_date']
-                ? new Date(updatedData['تاريخ ووقت الوصول_date'])
-                : null;
-              arrivalUpdate.finalDestinationTime = updatedData['تاريخ ووقت الوصول_time'] || null;
+            if (updatedData['تاريخ ووقت الوصول_date'] !== undefined || updatedData['تاريخ ووقت الوصول_time'] !== undefined) {
+              if (updatedData['تاريخ ووقت الوصول_date']) {
+                arrivalUpdate.KingdomentryDate = new Date(updatedData['تاريخ ووقت الوصول_date']);
+              } else if (updatedData['تاريخ ووقت الوصول_date'] === '') {
+                arrivalUpdate.KingdomentryDate = null;
+              }
+              if (updatedData['تاريخ ووقت الوصول_time'] !== undefined) {
+                arrivalUpdate.KingdomentryTime = updatedData['تاريخ ووقت الوصول_time'] || null;
+              }
             }
             break;
           default:
@@ -296,7 +303,7 @@ HomemaidId: updatedData['id'] ? Number(updatedData['id']) : order.HomemaidId,
       });
     }
     console.log(cookies.authToken)
-    const token = jwtDecode(cookies.authToken);
+    const token = jwtDecode<{ id: number | string }>(cookies.authToken);
 
     eventBus.emit('ACTION', {
         type: 'تعديل طلب ' + updatedOrder.id,

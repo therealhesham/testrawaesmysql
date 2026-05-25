@@ -1095,18 +1095,26 @@ const cookieHeader = req.headers.cookie;
               arrivalUpdate.arrivalSaudiAirport = updatedData['مطار الوصول السعودي'];
               changes.push(`مطار الوصول السعودي: من "${oldAirport || 'فارغ'}" إلى "${updatedData['مطار الوصول السعودي']}"`);
             }
-            if (updatedData['تاريخ ووقت المغادرة_date'] || updatedData['تاريخ ووقت المغادرة_time']) {
-              arrivalUpdate.deparatureCityCountryDate = updatedData['تاريخ ووقت المغادرة_date']
-                ? new Date(updatedData['تاريخ ووقت المغادرة_date'])
-                : null;
-              arrivalUpdate.deparatureCityCountryTime = updatedData['تاريخ ووقت المغادرة_time'] || null;
+            if (updatedData['تاريخ ووقت المغادرة_date'] !== undefined || updatedData['تاريخ ووقت المغادرة_time'] !== undefined) {
+              if (updatedData['تاريخ ووقت المغادرة_date']) {
+                arrivalUpdate.deparatureCityCountryDate = new Date(updatedData['تاريخ ووقت المغادرة_date']);
+              } else if (updatedData['تاريخ ووقت المغادرة_date'] === '') {
+                arrivalUpdate.deparatureCityCountryDate = null;
+              }
+              if (updatedData['تاريخ ووقت المغادرة_time'] !== undefined) {
+                arrivalUpdate.deparatureCityCountryTime = updatedData['تاريخ ووقت المغادرة_time'] || null;
+              }
               changes.push('تاريخ ووقت المغادرة: تم التحديث');
             }
-            if (updatedData['تاريخ ووقت الوصول_date'] || updatedData['تاريخ ووقت الوصول_time']) {
-              arrivalUpdate.KingdomentryDate = updatedData['تاريخ ووقت الوصول_date']
-                ? new Date(updatedData['تاريخ ووقت الوصول_date'])
-                : null;
-              arrivalUpdate.KingdomentryTime = updatedData['تاريخ ووقت الوصول_time'] || null;
+            if (updatedData['تاريخ ووقت الوصول_date'] !== undefined || updatedData['تاريخ ووقت الوصول_time'] !== undefined) {
+              if (updatedData['تاريخ ووقت الوصول_date']) {
+                arrivalUpdate.KingdomentryDate = new Date(updatedData['تاريخ ووقت الوصول_date']);
+              } else if (updatedData['تاريخ ووقت الوصول_date'] === '') {
+                arrivalUpdate.KingdomentryDate = null;
+              }
+              if (updatedData['تاريخ ووقت الوصول_time'] !== undefined) {
+                arrivalUpdate.KingdomentryTime = updatedData['تاريخ ووقت الوصول_time'] || null;
+              }
               changes.push('تاريخ ووقت الوصول: تم التحديث');
             }
             break;

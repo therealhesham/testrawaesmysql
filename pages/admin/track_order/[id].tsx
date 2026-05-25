@@ -1150,7 +1150,7 @@ export default function TrackOrder() {
         externalData['مدينة الوصول'] = resolveIataCity(String(details.arrival_airport));
       }
       const formatDateToYMD = (val: unknown): string => {
-        if (!val) return '';
+        if (!val || String(val).trim() === '' || String(val).toLowerCase() === 'null' || String(val).toLowerCase() === 'n/a') return '';
         const s = String(val).trim();
         if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
         const dmY = /^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/.exec(s);
