@@ -100,6 +100,27 @@ function omitTicketAutoFields(obj: Record<string, unknown>): Record<string, unkn
   return out;
 }
 
+const formatDateToYMD = (val: unknown): string => {
+  if (!val || String(val).trim() === '' || String(val).toLowerCase() === 'null' || String(val).toLowerCase() === 'n/a') return '';
+  const s = String(val).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+  const dmY = /^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/.exec(s);
+  if (dmY) {
+    const d = dmY[1].padStart(2, '0');
+    const m = dmY[2].padStart(2, '0');
+    const y = dmY[3];
+    return `${y}-${m}-${d}`;
+  }
+  const d = new Date(s);
+  if (!Number.isNaN(d.getTime())) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  return s;
+};
+
 const iataToCityAr: Record<string, string> = {
   // Saudi Arabia
   'RUH': 'الرياض',
@@ -989,18 +1010,30 @@ export default function TrackOrder() {
     }
     // التحقق من تاريخ ووقت الوصول والمغادرة في قسم الوجهات
     if (section === 'destinations') {
+      const departureDate = updatedData['تاريخ ووقت المغادرة_date'];
+      const arrivalDate = updatedData['تاريخ ووقت الوصول_date'];
+
+      if (!departureDate || departureDate.trim() === '' || !arrivalDate || arrivalDate.trim() === '') {
+        setShowErrorModal({
+          isOpen: true,
+          title: 'حقل مطلوب',
+          message: 'يجب تحديد تاريخ المغادرة وتاريخ الوصول لحفظ التذكرة وجعلها تظهر في قائمة الوصول.',
+        });
+        return Promise.reject(new Error('validation error'));
+      }
+
       const departureDateTime = updatedData['تاريخ ووقت المغادرة'];
       const arrivalDateTime = updatedData['تاريخ ووقت الوصول'];
       
       // التحقق من أن كلا التاريخين موجودان
       if (departureDateTime && arrivalDateTime) {
-        const departureDate = new Date(departureDateTime);
-        const arrivalDate = new Date(arrivalDateTime);
+        const departureDateObj = new Date(departureDateTime);
+        const arrivalDateObj = new Date(arrivalDateTime);
         
         // التحقق من أن التواريخ صحيحة
-        if (!isNaN(departureDate.getTime()) && !isNaN(arrivalDate.getTime())) {
+        if (!isNaN(departureDateObj.getTime()) && !isNaN(arrivalDateObj.getTime())) {
           // التحقق من أن تاريخ الوصول لا يسبق تاريخ المغادرة
-          if (arrivalDate < departureDate) {
+          if (arrivalDateObj < departureDateObj) {
             setShowErrorModal({
               isOpen: true,
               title: 'خطأ في التحقق',
@@ -1042,10 +1075,25 @@ export default function TrackOrder() {
                 setDestinationsPendingFile(null);
               }
 
+              // توحيد صيغة التاريخ من جهة العميل إلى YYYY-MM-DD
+              if (section === 'destinations') {
+                if (dataToSend['تاريخ ووقت المغادرة_date']) {
+                  dataToSend['تاريخ ووقت المغادرة_date'] = formatDateToYMD(dataToSend['تاريخ ووقت المغادرة_date']);
+                }
+                if (dataToSend['تاريخ ووقت الوصول_date']) {
+                  dataToSend['تاريخ ووقت الوصول_date'] = formatDateToYMD(dataToSend['تاريخ ووقت الوصول_date']);
+                }
+              }
+
               // إذا تم استخراج بيانات التذكرة وبانتظار الحفظ، نقوم بحفظها الآن في جدول تفاصيل التذاكر
               if (section === 'destinations' && extractedTicketDetails) {
                 const ticketFileUrl = dataToSend.ticketFile || orderData?.ticketUpload?.files || '';
                 const cleaned = omitTicketAutoFields(extractedTicketDetails);
+
+                // توحيد صيغة تواريخ تفاصيل التذكرة إلى YYYY-MM-DD لتوافق شروط السيرفر
+                if (cleaned.departure_date) cleaned.departure_date = formatDateToYMD(cleaned.departure_date);
+                if (cleaned.arrival_date) cleaned.arrival_date = formatDateToYMD(cleaned.arrival_date);
+
                 const saveRes = await fetch(
                   `/api/track_order/${encodeURIComponent(String(id))}/tickets-details`,
                   {
@@ -1148,26 +1196,7 @@ export default function TrackOrder() {
       if (details.arrival_airport) {
         externalData['مدينة الوصول'] = resolveIataCity(String(details.arrival_airport));
       }
-      const formatDateToYMD = (val: unknown): string => {
-        if (!val || String(val).trim() === '' || String(val).toLowerCase() === 'null' || String(val).toLowerCase() === 'n/a') return '';
-        const s = String(val).trim();
-        if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
-        const dmY = /^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/.exec(s);
-        if (dmY) {
-          const d = dmY[1].padStart(2, '0');
-          const m = dmY[2].padStart(2, '0');
-          const y = dmY[3];
-          return `${y}-${m}-${d}`;
-        }
-        const d = new Date(s);
-        if (!Number.isNaN(d.getTime())) {
-          const y = d.getFullYear();
-          const m = String(d.getMonth() + 1).padStart(2, '0');
-          const day = String(d.getDate()).padStart(2, '0');
-          return `${y}-${m}-${day}`;
-        }
-        return s;
-      };
+
 
       if (details.departure_date) {
         externalData['تاريخ ووقت المغادرة_date'] = formatDateToYMD(details.departure_date);

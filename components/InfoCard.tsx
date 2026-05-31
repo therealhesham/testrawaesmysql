@@ -91,8 +91,9 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
   }, [externalFormData]);
 
   const validateInput = (key: string, value: string): string | null => {
-  // Check if "تاريخ العقد" is required
-  // if (key === 'تاريخ العقد' && value == 'N/A') {
+  if ((key === 'تاريخ ووقت الوصول_date' || key === 'تاريخ ووقت المغادرة_date') && (!value || value.trim() === '')) {
+    return 'هذا الحقل مطلوب لإتمام الحفظ وظهور الرحلة في قائمة الوصول';
+  }
   //   return 'تاريخ العقد مطلوب';
   // }
 
