@@ -1104,7 +1104,13 @@ const cookieHeader = req.headers.cookie;
               if (updatedData['تاريخ ووقت المغادرة_time'] !== undefined) {
                 arrivalUpdate.deparatureCityCountryTime = updatedData['تاريخ ووقت المغادرة_time'] || null;
               }
-              changes.push('تاريخ ووقت المغادرة: تم التحديث');
+              const oldDepDate = order.arrivals[0]?.deparatureCityCountryDate 
+                ? (order.arrivals[0].deparatureCityCountryDate as Date).toISOString().split('T')[0] 
+                : 'فارغ';
+              const oldDepTime = order.arrivals[0]?.deparatureCityCountryTime || 'فارغ';
+              const newDepDate = updatedData['تاريخ ووقت المغادرة_date'] !== undefined ? (updatedData['تاريخ ووقت المغادرة_date'] || 'فارغ') : oldDepDate;
+              const newDepTime = updatedData['تاريخ ووقت المغادرة_time'] !== undefined ? (updatedData['تاريخ ووقت المغادرة_time'] || 'فارغ') : oldDepTime;
+              changes.push(`تاريخ ووقت المغادرة: من "${oldDepDate} ${oldDepTime}" إلى "${newDepDate} ${newDepTime}"`);
             }
             if (updatedData['تاريخ ووقت الوصول_date'] !== undefined || updatedData['تاريخ ووقت الوصول_time'] !== undefined) {
               if (updatedData['تاريخ ووقت الوصول_date']) {
@@ -1115,7 +1121,37 @@ const cookieHeader = req.headers.cookie;
               if (updatedData['تاريخ ووقت الوصول_time'] !== undefined) {
                 arrivalUpdate.KingdomentryTime = updatedData['تاريخ ووقت الوصول_time'] || null;
               }
-              changes.push('تاريخ ووقت الوصول: تم التحديث');
+              const oldArrDate = order.arrivals[0]?.KingdomentryDate 
+                ? (order.arrivals[0].KingdomentryDate as Date).toISOString().split('T')[0] 
+                : 'فارغ';
+              const oldArrTime = order.arrivals[0]?.KingdomentryTime || 'فارغ';
+              const newArrDate = updatedData['تاريخ ووقت الوصول_date'] !== undefined ? (updatedData['تاريخ ووقت الوصول_date'] || 'فارغ') : oldArrDate;
+              const newArrTime = updatedData['تاريخ ووقت الوصول_time'] !== undefined ? (updatedData['تاريخ ووقت الوصول_time'] || 'فارغ') : oldArrTime;
+              changes.push(`تاريخ ووقت الوصول: من "${oldArrDate} ${oldArrTime}" إلى "${newArrDate} ${newArrTime}"`);
+            }
+
+            // المنع التام أن يكون تاريخ ووقت الوصول قبل تاريخ ووقت المغادرة
+            const finalDepDate = arrivalUpdate.deparatureCityCountryDate !== undefined ? arrivalUpdate.deparatureCityCountryDate : order.arrivals[0]?.deparatureCityCountryDate;
+            const finalDepTime = arrivalUpdate.deparatureCityCountryTime !== undefined ? arrivalUpdate.deparatureCityCountryTime : order.arrivals[0]?.deparatureCityCountryTime;
+            const finalArrDate = arrivalUpdate.KingdomentryDate !== undefined ? arrivalUpdate.KingdomentryDate : order.arrivals[0]?.KingdomentryDate;
+            const finalArrTime = arrivalUpdate.KingdomentryTime !== undefined ? arrivalUpdate.KingdomentryTime : order.arrivals[0]?.KingdomentryTime;
+
+            if (finalDepDate && finalArrDate) {
+              const depDateStr = finalDepDate instanceof Date ? finalDepDate.toISOString().split('T')[0] : new Date(finalDepDate).toISOString().split('T')[0];
+              const arrDateStr = finalArrDate instanceof Date ? finalArrDate.toISOString().split('T')[0] : new Date(finalArrDate).toISOString().split('T')[0];
+              const depDateTime = new Date(`${depDateStr}T${convert12hTo24h(finalDepTime || '00:00')}`);
+              const arrDateTime = new Date(`${arrDateStr}T${convert12hTo24h(finalArrTime || '00:00')}`);
+              
+              if (!isNaN(depDateTime.getTime()) && !isNaN(arrDateTime.getTime())) {
+                if (arrDateTime < depDateTime) {
+                  return res.status(400).json({ error: 'تاريخ ووقت الوصول لا يمكن أن يسبق تاريخ ووقت المغادرة' });
+                }
+              }
+            }
+
+            // تحديث حالة الحجز للمسار الزمني
+            if (finalDepDate && finalArrDate) {
+              updateData.bookingstatus = 'destinations_set';
             }
             break;
           case 'documentUpload':
@@ -1232,11 +1268,12 @@ const cookieHeader = req.headers.cookie;
 
         // حفظ في systemUserLogs
         if (changes.length > 0) {
+          const sectionDisplayName = section === 'destinations' ? 'الوجهات' : section;
           const changesSummary = changes.join(' | ');
           await logToSystemLogs(
             userId,
             'update',
-            `تعديل قسم "${section}" في الطلب ${id}: ${changesSummary}`,
+            `تعديل قسم "${sectionDisplayName}" في الطلب ${id}: ${changesSummary}`,
             'order',
             Number(id),
             pageRoute
@@ -1248,8 +1285,8 @@ const cookieHeader = req.headers.cookie;
             await logToHomemaidLogs(
               username,
               order.HomemaidId,
-              `تعديل قسم ${section}`,
-              `تم تعديل قسم "${section}" في الطلب ${id}: ${changesSummary}`,
+              `تعديل قسم ${sectionDisplayName}`,
+              `تم تعديل قسم "${sectionDisplayName}" في الطلب ${id}: ${changesSummary}`,
               `تعديل في صفحة تتبع الطلب`
             );
           }

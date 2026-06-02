@@ -6,11 +6,74 @@ import { jwtDecode } from "jwt-decode";
 // import '../../lib/loggers';
 const prisma = new PrismaClient();
 
+function convert12hTo24h(timeStr: string | null | undefined): string {
+  if (!timeStr) return '';
+  const cleanStr = timeStr.trim().toUpperCase();
+  
+  // Detect PM if string contains 'PM' or 'م'
+  const isPm = cleanStr.includes('PM') || cleanStr.includes('م');
+  const isAm = cleanStr.includes('AM') || cleanStr.includes('ص');
+  
+  // Extract hours and minutes
+  const match = /(\d{1,2}):(\d{2})/.exec(cleanStr);
+  if (!match) return cleanStr;
+  
+  let hours = parseInt(match[1], 10);
+  const minutes = match[2];
+  
+  if (isPm && hours < 12) hours += 12;
+  if (isAm && hours === 12) hours = 0;
+  
+  return `${String(hours).padStart(2, '0')}:${minutes}`;
+}
+
+const getArrivalTimestamp = (dateVal: any, timeStr: string | null | undefined): number => {
+  if (!dateVal) return 0;
+  let dateString = "";
+  if (typeof dateVal === 'string') {
+    dateString = dateVal.split('T')[0];
+  } else if (dateVal instanceof Date) {
+    const y = dateVal.getFullYear();
+    const m = String(dateVal.getMonth() + 1).padStart(2, '0');
+    const day = String(dateVal.getDate()).padStart(2, '0');
+    dateString = `${y}-${m}-${day}`;
+  } else {
+    const parsed = new Date(dateVal);
+    if (!isNaN(parsed.getTime())) {
+      const y = parsed.getFullYear();
+      const m = String(parsed.getMonth() + 1).padStart(2, '0');
+      const day = String(parsed.getDate()).padStart(2, '0');
+      dateString = `${y}-${m}-${day}`;
+    }
+  }
+  if (!dateString) return 0;
+  let hour = 0;
+  let minute = 0;
+  if (timeStr) {
+    const cleanTime = convert12hTo24h(timeStr);
+    const match = /(\d{1,2}):(\d{2})/.exec(cleanTime);
+    if (match) {
+      hour = parseInt(match[1], 10);
+      minute = parseInt(match[2], 10);
+    }
+  }
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day, hour, minute, 0, 0).getTime();
+};
+
+const isArrived = (dateVal: any, timeStr: string | null | undefined): boolean => {
+  if (!dateVal) return false;
+  const ts = getArrivalTimestamp(dateVal, timeStr);
+  if (ts === 0) return false;
+  return ts <= Date.now();
+};
+
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { search, age, ArrivalCity, KingdomentryDate, page } = req.query;
+  const { search, age, ArrivalCity, KingdomentryDate, page, startDate, endDate } = req.query;
  const cookieHeader = req.headers.cookie;
     let cookies: { [key: string]: string } = {};
     if (cookieHeader) {
@@ -41,25 +104,41 @@ export default async function handler(
   if (ArrivalCity)
     filters.arrivalSaudiAirport = { contains: (ArrivalCity as string).toLowerCase() };
 
-   if (KingdomentryDate) {
-  const parsed = new Date(KingdomentryDate as string);
-  if (!isNaN(parsed.getTime())) {
-    const startOfDay = new Date(parsed);
-    startOfDay.setHours(0, 0, 0, 0);
+  if (startDate || endDate) {
+    filters.KingdomentryDate = {};
+    if (startDate) {
+      const parsedStart = new Date(startDate as string);
+      if (!isNaN(parsedStart.getTime())) {
+        filters.KingdomentryDate.gte = parsedStart;
+      }
+    }
+    if (endDate) {
+      const parsedEnd = new Date(endDate as string);
+      if (!isNaN(parsedEnd.getTime())) {
+        parsedEnd.setHours(23, 59, 59, 999);
+        filters.KingdomentryDate.lte = parsedEnd;
+      }
+    }
+    filters.KingdomentryDate.not = null;
+  } else if (KingdomentryDate) {
+    const parsed = new Date(KingdomentryDate as string);
+    if (!isNaN(parsed.getTime())) {
+      const startOfDay = new Date(parsed);
+      startOfDay.setHours(0, 0, 0, 0);
 
-    const endOfDay = new Date(parsed);
-    endOfDay.setHours(23, 59, 59, 999);
+      const endOfDay = new Date(parsed);
+      endOfDay.setHours(23, 59, 59, 999);
 
-    filters. KingdomentryDate = {
-      gte: startOfDay,
-      lte: endOfDay,
-      not: null,
-    };
+      filters.KingdomentryDate = {
+        gte: startOfDay,
+        lte: endOfDay,
+        not: null,
+      };
+    }
+  } else {
+    // لو مفيش فلترة على التاريخ، نحط بس not null عشان البيانات تكون منطقية
+    filters.KingdomentryDate = { not: null };
   }
-} else {
-  // لو مفيش فلترة على التاريخ، نحط بس not null عشان البيانات تكون منطقية
-  filters.KingdomentryDate = { not: null };
-}
 //  if (KingdomentryDate && KingdomentryDate !== '') {
 //   const inputDate = new Date(KingdomentryDate as string);
 //   if (!isNaN(inputDate.getTime())) {
@@ -75,29 +154,16 @@ export default async function handler(
 // }
 
   try {
-    // Get total count of records matching the filters
-    const totalRecords = await prisma.arrivallist.count({
-      where: {
-        ...filters,
-        // KingdomentryDate: { not: null },
-        Order: { isNot: null }, // تأكد من وجود Order مرتبط
-      },
-    });
-
-    // Calculate total pages
-    const totalPages = Math.ceil(totalRecords / pageSize);
-
-    // Fetch data with the filters and pagination
+    // Fetch ALL data with the filters for in-memory sorting
     const homemaids = await prisma.arrivallist.findMany({
       where: {
         ...filters,
-        // KingdomentryDate: { not: null },
         Order: { isNot: null }, // تأكد من وجود Order مرتبط
       },
       select: {
         Order: {
           select: {
-            client:{select:{fullname:true}},
+            client:{select:{fullname:true, id:true}},
             Name: true,
             ClientName: true,
             HomeMaid: {
@@ -129,28 +195,53 @@ export default async function handler(
         Notes: true,
         id: true,
       },
-      skip: (pageNumber - 1) * pageSize,
-      take: pageSize,
-      orderBy: { id: "desc" },
     });
 
+    const now = new Date();
+    
+    // تصنيف الرحلات إلى: لم تصل (في المستقبل) و وصلت (في الماضي أو الحاضر)
+    const notArrived = homemaids.filter(item => !isArrived(item.KingdomentryDate, item.KingdomentryTime));
+    const arrived = homemaids.filter(item => isArrived(item.KingdomentryDate, item.KingdomentryTime));
 
-const referer = req.headers.referer || '/admin/arrivals';
-console.log(referer)
+    // ترتيب التي لم تصل: من الأقرب تاريخاً إلى الأبعد (تصاعدي)
+    notArrived.sort((a, b) => {
+      const dateA = getArrivalTimestamp(a.KingdomentryDate, a.KingdomentryTime);
+      const dateB = getArrivalTimestamp(b.KingdomentryDate, b.KingdomentryTime);
+      return dateA - dateB;
+    });
+
+    // ترتيب التي وصلت: من الأحدث وصولاً إلى الأقدم (تنازلي)
+    arrived.sort((a, b) => {
+      const dateA = getArrivalTimestamp(a.KingdomentryDate, a.KingdomentryTime);
+      const dateB = getArrivalTimestamp(b.KingdomentryDate, b.KingdomentryTime);
+      return dateB - dateA;
+    });
+
+    const sortedAll = [...notArrived, ...arrived];
+    const totalCount = sortedAll.length;
+    const arrivedCount = arrived.length;
+    const pendingCount = notArrived.length;
+    const totalPages = Math.ceil(totalCount / pageSize);
+    const paginatedData = sortedAll.slice((pageNumber - 1) * pageSize, pageNumber * pageSize);
+
+    const referer = req.headers.referer || '/admin/arrivals';
+    console.log(referer);
       
     res.status(200).json({
-
-      data: homemaids,
+      data: paginatedData,
       totalPages,
+      totalCount,
+      arrivedCount,
+      pendingCount,
     });
-     eventBus.emit('ACTION', {
-           type: "عرض قائمة الوصول " ,
-           actionType: "view",
-           beneficiary: "homemaid",
-           pageRoute: referer,
-          //  BeneficiaryId: homemaids.id,
-           userId: Number((token as any).id),
-         });  
+
+    eventBus.emit('ACTION', {
+      type: "عرض قائمة الوصول ",
+      actionType: "view",
+      beneficiary: "homemaid",
+      pageRoute: referer,
+      userId: Number((token as any).id),
+    });  
    
   } catch (error) {
     console.error("Error fetching data:", error);
