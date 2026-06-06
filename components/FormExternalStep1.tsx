@@ -14,10 +14,9 @@ export default function FormStepExternal1({ onNext, id, setId, data, getData }: 
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [errorModal, setErrorModal] = useState({ isOpen: false, message: '' });
-  
   const warrantyInfo = useMemo(() => {
     if (!data?.KingdomentryDate) {
-      return { status: 'لم يدخل المملكة', date: '' };
+      return { entryDate: 'لم يدخل المملكة', endDate: '-', statusText: 'غير معروف', statusType: 'unknown' };
     }
 
     const entryDate = new Date(data?.KingdomentryDate);
@@ -26,33 +25,45 @@ export default function FormStepExternal1({ onNext, id, setId, data, getData }: 
     // إزالة الوقت من التواريخ للمقارنة الصحيحة
     entryDate.setHours(0, 0, 0, 0);
     currentDate.setHours(0, 0, 0, 0);
+
+    // تاريخ انتهاء الضمان هو تاريخ الدخول + 90 يوم
+    const endDate = new Date(entryDate);
+    endDate.setDate(entryDate.getDate() + 90);
     
     // حساب الفرق بالأيام (بدون Math.abs لنعرف إذا كان في الماضي أو المستقبل)
     const diffTime = currentDate.getTime() - entryDate.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    let status: string;
-    let remainingDays: number;
+    let statusText: string;
+    let statusType: 'active' | 'expired' | 'unknown' = 'unknown';
     
     // إذا كان تاريخ الدخول في المستقبل
     if (diffDays < 0) {
-      status = 'لم يبدأ بعد';
-      remainingDays = Math.abs(diffDays);
+      statusText = `يبدأ الضمان بعد ${Math.abs(diffDays)} يوم`;
+      statusType = 'unknown';
     } 
-    // إذا كان تاريخ الدخول في الماضي
+    // إذا كان الضمان منتهي (مضى عليه أكثر من 90 يوم)
     else if (diffDays > 90) {
-      status = 'منتهي';
-      remainingDays = diffDays;
+      const daysPast = diffDays - 90;
+      statusText = `انتهى الضمان منذ ${daysPast} يوم`;
+      statusType = 'expired';
     } 
     // إذا كان الضمان ساري (أقل من أو يساوي 90 يوم)
     else {
-      status = 'ساري';
-      remainingDays = 90 - diffDays; // الأيام المتبقية من الضمان
+      const daysLeft = 90 - diffDays;
+      statusText = `متبقي على انتهاء الضمان ${daysLeft} يوم`;
+      statusType = 'active';
     }
     
-    const formattedDate = entryDate.toLocaleDateString('ar-SA');
+    const formattedEntryDate = entryDate.toLocaleDateString('ar-SA');
+    const formattedEndDate = endDate.toLocaleDateString('ar-SA');
 
-    return { status, date: formattedDate, remainingDays };
+    return { 
+      entryDate: formattedEntryDate, 
+      endDate: formattedEndDate, 
+      statusText,
+      statusType
+    };
   }, [data?.KingdomentryDate]);
 
   const arabicRegionMap: { [key: string]: string } = {
@@ -279,15 +290,15 @@ export default function FormStepExternal1({ onNext, id, setId, data, getData }: 
         <div className="flex flex-col gap-2 w-full">
           <label htmlFor="order-number" className="text-xs text-gray-500 text-right font-inter">البحث عن الطلب</label>
           <div className="relative search-container">
-            <input 
-              type="text" 
-              id="order-number" 
-              className="w-full p-3 border border-gray-300 rounded-md bg-gray-50" 
+            <input
+              type="text"
+              id="search"
+              className="w-full bg-white border border-blue-500 rounded p-3 text-gray-800 text-md pl-10 pr-4 outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="ابحث برقم الطلب أو اسم العاملة أو اسم العميل"
+              value={id}
               onChange={handleIdChange}
               onBlur={handleInputBlur}
               onFocus={() => id.length >= 1 && setShowSuggestions(true)}
-              value={id}
-              placeholder="ابحث برقم الطلب أو اسم العاملة"
               autoComplete="off"
             />
             {isSearching && (
@@ -303,6 +314,7 @@ export default function FormStepExternal1({ onNext, id, setId, data, getData }: 
                   const parts = suggestion.split(' - ');
                   const orderId = parts[0];
                   const workerName = parts[1] || '';
+                  const clientName = parts[2] || '';
                   return (
                     <div
                       key={index}
@@ -314,6 +326,9 @@ export default function FormStepExternal1({ onNext, id, setId, data, getData }: 
                         {workerName && (
                           <span className="text-gray-700 text-sm mt-1">اسم العاملة: {workerName}</span>
                         )}
+                        {clientName && (
+                          <span className="text-gray-700 text-sm mt-1">اسم العميل: {clientName}</span>
+                        )}
                       </div>
                     </div>
                   );
@@ -323,119 +338,130 @@ export default function FormStepExternal1({ onNext, id, setId, data, getData }: 
           </div>
         </div>
 
-        {/* Customer Info */}
-        <div className="flex flex-col md:flex-row gap-8">
-          <div className="flex-1 flex flex-col gap-2">
-            <label htmlFor="customer-name" className="text-xs text-gray-500 text-right font-inter">
-              اسم العميل
-            </label>
-            <input
-              type="text"
-              id="customer-name"
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md"
-              placeholder="اسم العميل"
-              value={data?.Order?.client?.fullname || ''}
-              readOnly
+
+
+
+
+        {/* بيانات العميل - 3 حقول بنسب مرنة */}
+        <div className="flex flex-col md:flex-row gap-6">
+          <div className="flex-[1.5] flex flex-col gap-2">
+            <label htmlFor="customer-name" className="text-xs text-gray-500 text-right font-inter">اسم العميل</label>
+            <input 
+              type="text" 
+              id="customer-name" 
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md" 
+              placeholder="اسم العميل" 
+              value={data?.Order?.client?.fullname || ""} 
+              readOnly 
             />
           </div>
           <div className="flex-1 flex flex-col gap-2">
-            <label htmlFor="customer-id" className="text-xs text-gray-500 text-right font-inter">
-              هوية العميل
-            </label>
-            <input
-              type="text"
-              id="customer-id"
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md"
-              placeholder="هوية العميل"
-              value={data?.Order?.client?.nationalId || ''}
-              readOnly
+            <label htmlFor="customer-id" className="text-xs text-gray-500 text-right font-inter">هوية العميل</label>
+            <input 
+              type="text" 
+              id="customer-id" 
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md" 
+              placeholder="هوية العميل" 
+              value={data?.Order?.client?.nationalId || ""} 
+              readOnly 
+            />
+          </div>
+          <div className="flex-1 flex flex-col gap-2">
+            <label htmlFor="customer-city" className="text-xs text-gray-500 text-right font-inter">مدينة العميل</label>
+            <input 
+              type="text" 
+              id="customer-city" 
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md" 
+              placeholder="مدينة العميل" 
+              value={arabicRegionMap[data?.Order?.client?.city] || data?.Order?.client?.city || ""} 
+              readOnly 
             />
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-8">
-          <div className="flex-1 flex flex-col gap-2">
-            <label htmlFor="customer-city" className="text-xs text-gray-500 text-right font-inter">
-              مدينة العميل
-            </label>
-            <input
-              type="text"
-              id="customer-city"
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md"
-              placeholder="مدينة العميل"
-              value={arabicRegionMap[data?.Order?.client?.city] as string || ''}
-              readOnly
+        {/* بيانات العاملة - 3 حقول بنسب مرنة */}
+        <div className="flex flex-col md:flex-row gap-6">
+          <div className="flex-[1.5] flex flex-col gap-2">
+            <label htmlFor="worker-name" className="text-xs text-gray-500 text-right font-inter">اسم العاملة</label>
+            <input 
+              type="text" 
+              id="worker-name" 
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md" 
+              placeholder="اسم العاملة" 
+              value={data?.Order?.HomeMaid?.Name || ""} 
+              readOnly 
             />
           </div>
           <div className="flex-1 flex flex-col gap-2">
-            <label htmlFor="worker-name" className="text-xs text-gray-500 text-right font-inter">
-              اسم العاملة
-            </label>
-            <input
-              type="text"
-              id="worker-name"
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md"
-              placeholder="اسم العاملة"
-              value={data?.Order?.HomeMaid?.Name || ''}
-              readOnly
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-col md:flex-row gap-8">
-          <div className="flex-1 flex flex-col gap-2">
-            <label htmlFor="passport-number" className="text-xs text-gray-500 text-right font-inter">
-              رقم الجواز
-            </label>
-            <input
-              type="text"
-              id="passport-number"
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md"
-              placeholder="رقم الجواز"
-              value={data?.Order?.HomeMaid?.Passportnumber || ''}
-              readOnly
+            <label htmlFor="passport-number" className="text-xs text-gray-500 text-right font-inter">رقم الجواز</label>
+            <input 
+              type="text" 
+              id="passport-number" 
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md" 
+              placeholder="رقم الجواز"  
+              value={data?.Order?.HomeMaid?.Passportnumber || ""} 
+              readOnly 
             />
           </div>
           <div className="flex-1 flex flex-col gap-2">
-            <label htmlFor="nationality" className="text-xs text-gray-500 text-right font-inter">
-              الجنسية
-            </label>
-            <input
-              type="text"
-              id="nationality"
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md"
-              placeholder="جنسية العاملة"
-              value={data?.Order?.HomeMaid?.office?.Country || ''}
-              readOnly
+            <label htmlFor="nationality" className="text-xs text-gray-500 text-right font-inter">الجنسية</label>
+            <input 
+              type="text" 
+              id="nationality" 
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md" 
+              placeholder="جنسية العاملة" 
+              value={data?.Order?.HomeMaid?.office?.Country || data?.Order?.HomeMaid?.Nationalitycopy || ""} 
+              readOnly 
             />
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-8">
+        {/* بيانات الضمان - 3 حقول بنسب مرنة متطابقة مع الأسطر السابقة */}
+        <div className="flex flex-col md:flex-row gap-6">
+          <div className="flex-[1.5] flex flex-col gap-2">
+            <label htmlFor="warranty-status-text" className="text-xs text-gray-500 text-right font-inter">حالة الضمان</label>
+            <div className="relative flex items-center">
+              <input 
+                type="text" 
+                id="warranty-status-text" 
+                className="w-full bg-gray-50 border border-gray-300 rounded p-3 pr-10 text-gray-800 text-md text-right font-medium" 
+                placeholder="حالة الضمان" 
+                value={warrantyInfo.statusText || ""} 
+                readOnly 
+              />
+              {warrantyInfo.statusType === 'expired' && (
+                <span className="absolute right-3.5 flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                </span>
+              )}
+              {warrantyInfo.statusType === 'active' && (
+                <span className="absolute right-3.5 flex h-3 w-3">
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                </span>
+              )}
+            </div>
+          </div>
           <div className="flex-1 flex flex-col gap-2">
-            <label htmlFor="warranty-status" className="text-xs text-gray-500 text-right font-inter">
-              حالة الضمان
-            </label>
-            <input
-              type="text"
-              id="warranty-status"
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md"
-              placeholder="حالة الضمان"
-              value={`${warrantyInfo.status}${warrantyInfo.date ? ` - ${warrantyInfo.date}` : ''}`}
-              readOnly
+            <label htmlFor="warranty-end-date" className="text-xs text-gray-500 text-right font-inter">تاريخ انتهاء الضمان</label>
+            <input 
+              type="text" 
+              id="warranty-end-date" 
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md text-right" 
+              placeholder="تاريخ انتهاء الضمان" 
+              value={warrantyInfo.endDate || ""} 
+              readOnly 
             />
           </div>
           <div className="flex-1 flex flex-col gap-2">
-            <label htmlFor="remaining-period" className="text-xs text-gray-500 text-right font-inter">
-              المدة المتبقية
-            </label>
-            <input
-              type="text"
-              id="remaining-period"
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md"
-              placeholder="المدة المتبقية"
-              value={warrantyInfo.remainingDays || ''}
-              readOnly
+            <label htmlFor="entry-date" className="text-xs text-gray-500 text-right font-inter">تاريخ دخول المملكة</label>
+            <input 
+              type="text" 
+              id="entry-date" 
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md text-right" 
+              placeholder="تاريخ دخول المملكة" 
+              value={warrantyInfo.entryDate || ""} 
+              readOnly 
             />
           </div>
         </div>

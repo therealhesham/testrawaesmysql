@@ -34,6 +34,13 @@ export default async function handler(
                 },
               },
             },
+            {
+              client: {
+                fullname: {
+                  contains: query,
+                },
+              },
+            },
           ],
         },
         select: {
@@ -41,6 +48,11 @@ export default async function handler(
           HomeMaid: {
             select: {
               Name: true,
+            },
+          },
+          client: {
+            select: {
+              fullname: true,
             },
           },
         },
@@ -60,6 +72,11 @@ include:{
       Name:true,
     },
   },
+  client: {
+    select: {
+      fullname: true,
+    },
+  },
 },
         take: 10,
       });
@@ -69,14 +86,17 @@ include:{
 // console.log(suggestions);
       orderIds.forEach(item => {
         if (item.id) {
-          suggestions.add(`${item.id.toString()} - ${item.HomeMaid?.Name}`);
+          const workerName = item.HomeMaid?.Name || 'غير محدد';
+          const clientName = item.client?.fullname || 'غير محدد';
+          suggestions.add(`${item.id.toString()} - ${workerName} - ${clientName}`);
         }
       });
 
       orderIdsContaining.forEach(item => {
         if (item.id && item.id.toString().includes(query)) {
-          suggestions.add(`${item.id.toString()} - ${item.HomeMaid?.Name}`);
-          // suggestions.add(item.id.toString());
+          const workerName = item.HomeMaid?.Name || 'غير محدد';
+          const clientName = item.client?.fullname || 'غير محدد';
+          suggestions.add(`${item.id.toString()} - ${workerName} - ${clientName}`);
         }
       });
 

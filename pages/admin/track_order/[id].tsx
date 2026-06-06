@@ -59,7 +59,7 @@ interface OrderData {
   saudiEmbassyApproval: { approved: boolean };
   visaIssuance: { issued: boolean; visaFile?: string | null };
   travelPermit: { issued: boolean };
-  destinations: { departureCity: string; arrivalCity: string; departureDateTime: string; arrivalDateTime: string };
+  destinations: { departureCity: string; arrivalCity: string; departureDateTime: string; arrivalDateTime: string; deliveryOfficer?: string | null };
   ticketUpload: { files: string };
   receipt: { received: boolean; method?: string };
   documentUpload: { files: string | string[] | null };
@@ -408,7 +408,8 @@ export default function TrackOrder() {
   // ملف التذكرة المؤقت في قسم الوجهات - يُرفع مع البيانات عند الضغط على حفظ
   const [destinationsPendingFile, setDestinationsPendingFile] = useState<File | null>(null);
   const [destinationsExternalFormData, setDestinationsExternalFormData] = useState<Record<string, string> | undefined>(undefined);
-  const [extractedTicketDetails, setExtractedTicketDetails] = useState<any | null>(null);
+  const [extractedTicketDetails, setExtractedTicketDetails] = useState<any>(null);
+  const [users, setUsers] = useState<{ id: number; name: string }[]>([]);
 
   const [ticketExtractPromptOpen, setTicketExtractPromptOpen] = useState(false);
   const [ticketExtracting, setTicketExtracting] = useState(false);
@@ -590,7 +591,18 @@ export default function TrackOrder() {
       fetchOrderData();
     }
     fetchHomemaids(); // Fetch homemaids for autocomplete
+    fetchUsers(); // Fetch users for delivery officer
   }, [id]);
+
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch('/api/usersfortask');
+      const data = await res.json();
+      if (Array.isArray(data)) setUsers(data.map((u: any) => ({ id: u.id, name: u.username })));
+    } catch (err) {
+      console.error('Error fetching users:', err);
+    }
+  };
 
   const fetchNationalities = async () => {
     try {
@@ -2568,6 +2580,35 @@ export default function TrackOrder() {
                   </div>
                 ),
                 rawValue: valOrEmpty(orderData.destinations.arrivalDateTime),
+              },
+              {
+                label: 'مسؤول التوصيل',
+                fieldType: 'file',
+                value: (editMode: boolean) => (
+                  <div className={editMode ? "" : "text-right text-gray-700 border border-gray-300 rounded-md px-3 py-2 bg-gray-50 min-h-[42px]"}>
+                    {editMode ? (
+                      <Select
+                        options={users.map((u) => ({ value: u.name, label: u.name }))}
+                        value={
+                          users.map((u) => ({ value: u.name, label: u.name })).find((opt) => opt.value === orderData.destinations?.deliveryOfficer) || null
+                        }
+                        onChange={(opt) => {
+                          handleSaveEdits('destinations', { ...orderData.destinations, deliveryOfficer: opt?.value || '' });
+                        }}
+                        placeholder="اختر مسؤول التوصيل"
+                        isClearable
+                        menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                        styles={{ 
+                          menuPortal: base => ({ ...base, zIndex: 9999 }),
+                          control: base => ({ ...base, textAlign: 'right', minHeight: '42px', borderColor: '#d1d5db' })
+                        }}
+                        noOptionsMessage={() => "لا يوجد خيارات"}
+                      />
+                    ) : (
+                      orderData.destinations?.deliveryOfficer || 'غير محدد'
+                    )}
+                  </div>
+                ),
               },
               {
                 label: 'ملف التذكرة',

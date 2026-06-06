@@ -12,10 +12,13 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import Style from 'styles/Home.module.css';
+import Select from 'react-select';
 import { useRouter } from 'next/router';
 import { jwtDecode } from 'jwt-decode';
 import prisma from 'pages/api/globalprisma';
 import { X, Search, FileText, Check, AlertCircle, Calendar, Clock, RefreshCw } from 'lucide-react';
+import { saudiCities } from 'components/SaudiCityAutocomplete';
+import { worldCities } from 'components/CityAutocomplete';
 interface TableRow {
   workerId: string;
   orderId: string;
@@ -361,6 +364,9 @@ const fetchData = async (
       endDate: filters.endDate,
       page: String(page),
       perPage: '10',
+      ...(filters.fromCity && { fromCity: filters.fromCity }),
+      ...(filters.toCity && { toCity: filters.toCity }),
+      ...(filters.nationality && { nationality: filters.nationality }),
     });
 
     const response = await fetch(`/api/arrivals?${queryParams}`, {
@@ -609,6 +615,9 @@ const Controls = ({
               ArrivalCity: '',
               startDate: '',
               endDate: '',
+              fromCity: '',
+              toCity: '',
+              nationality: '',
             });
             setSelectedCity('كل المدن');
             setStartDate('');
@@ -642,8 +651,155 @@ const Controls = ({
   );
 };
 
-const Table = ({ data, visibleColumns }: { data: TableRow[]; visibleColumns: string[] }) => {
+const Table = ({ 
+  data, 
+  visibleColumns,
+  filters,
+  setFilters,
+  setPage
+}: { 
+  data: TableRow[]; 
+  visibleColumns: string[];
+  filters: any;
+  setFilters: React.Dispatch<React.SetStateAction<any>>;
+  setPage: (page: number) => void;
+}) => {
   const router = useRouter();
+  const [isMounted, setIsMounted] = useState(false);
+  const [isNatDropdownOpen, setIsNatDropdownOpen] = useState(false);
+  const [isFromDropdownOpen, setIsFromDropdownOpen] = useState(false);
+  const [isToDropdownOpen, setIsToDropdownOpen] = useState(false);
+  const [dropdownCoords, setDropdownCoords] = useState<{ top: number; left: number } | null>(null);
+  const [fromCoords, setFromCoords] = useState<{ top: number; left: number } | null>(null);
+  const [toCoords, setToCoords] = useState<{ top: number; left: number } | null>(null);
+  const [fromSearch, setFromSearch] = useState('');
+  const [toSearch, setToSearch] = useState('');
+  const [nationalities, setNationalities] = useState<any[]>([]);
+
+  const natDropdownRef = useRef<HTMLTableHeaderCellElement>(null);
+  const fromDropdownRef = useRef<HTMLTableHeaderCellElement>(null);
+  const toDropdownRef = useRef<HTMLTableHeaderCellElement>(null);
+
+  useEffect(() => {
+    setIsMounted(true);
+    const fetchNationalities = async () => {
+      try {
+        const response = await fetch('/api/nationalities');
+        const resData = await response.json();
+        setNationalities(resData.nationalities || []);
+      } catch (error) {
+        console.error('Error fetching nationalities:', error);
+      }
+    };
+    fetchNationalities();
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (
+        natDropdownRef.current && 
+        !natDropdownRef.current.contains(event.target as Node) &&
+        !target.closest("#nationality-filter-dropdown")
+      ) {
+        setIsNatDropdownOpen(false);
+      }
+      if (
+        fromDropdownRef.current &&
+        !fromDropdownRef.current.contains(event.target as Node) &&
+        !target.closest("#from-filter-dropdown")
+      ) {
+        setIsFromDropdownOpen(false);
+        setFromSearch("");
+      }
+      if (
+        toDropdownRef.current &&
+        !toDropdownRef.current.contains(event.target as Node) &&
+        !target.closest("#to-filter-dropdown")
+      ) {
+        setIsToDropdownOpen(false);
+        setToSearch("");
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const handleDropdownToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    if (isNatDropdownOpen) {
+      setIsNatDropdownOpen(false);
+    } else {
+      const trigger = e.currentTarget;
+      const container = document.getElementById("arrival-table-container");
+      if (container) {
+        let el: HTMLElement | null = trigger;
+        let left = 0;
+        let top = 0;
+        while (el && el !== container) {
+          left += el.offsetLeft;
+          top += el.offsetTop;
+          el = el.offsetParent as HTMLElement | null;
+        }
+        left = left + trigger.offsetWidth - 208;
+        top = top + trigger.offsetHeight + 8;
+        setDropdownCoords({ top, left });
+      }
+      setIsNatDropdownOpen(true);
+    }
+  };
+
+  const handleFromDropdownToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    if (isFromDropdownOpen) {
+      setIsFromDropdownOpen(false);
+      setFromSearch("");
+    } else {
+      const trigger = e.currentTarget;
+      const container = document.getElementById("arrival-table-container");
+      if (container) {
+        let el: HTMLElement | null = trigger;
+        let left = 0;
+        let top = 0;
+        while (el && el !== container) {
+          left += el.offsetLeft;
+          top += el.offsetTop;
+          el = el.offsetParent as HTMLElement | null;
+        }
+        left = left + trigger.offsetWidth - 208;
+        top = top + trigger.offsetHeight + 8;
+        setFromCoords({ top, left });
+      }
+      setIsFromDropdownOpen(true);
+    }
+  };
+
+  const handleToDropdownToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    if (isToDropdownOpen) {
+      setIsToDropdownOpen(false);
+      setToSearch("");
+    } else {
+      const trigger = e.currentTarget;
+      const container = document.getElementById("arrival-table-container");
+      if (container) {
+        let el: HTMLElement | null = trigger;
+        let left = 0;
+        let top = 0;
+        while (el && el !== container) {
+          left += el.offsetLeft;
+          top += el.offsetTop;
+          el = el.offsetParent as HTMLElement | null;
+        }
+        left = left + trigger.offsetWidth - 208;
+        top = top + trigger.offsetHeight + 8;
+        setToCoords({ top, left });
+      }
+      setIsToDropdownOpen(true);
+    }
+  };
+
   const columns = [
     { key: 'orderId', label: 'رقم الطلب' },
     { key: 'workerName', label: 'اسم العاملة' },
@@ -657,22 +813,78 @@ const Table = ({ data, visibleColumns }: { data: TableRow[]; visibleColumns: str
 
   return (
     <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden mb-6">
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto relative min-h-[450px]" id="arrival-table-container">
         <table className="w-full border-collapse min-w-[1000px] text-right">
           <thead>
             <tr className="bg-teal-900 text-white text-sm font-medium">
               {columns
                 .filter((col) => visibleColumns.includes(col.key))
-                .map((col) => (
-                  <th
-                    key={col.key}
-                    className={`py-4 px-5 text-right font-medium tracking-wide ${
-                      col.key === 'from' || col.key === 'to' ? 'min-w-[150px]' : ''
-                    }`}
-                  >
-                    {col.label}
-                  </th>
-                ))}
+                .map((col) => {
+                  if (col.key === 'nationality') {
+                    return (
+                      <th key={col.key} className="py-4 px-5 text-right font-medium tracking-wide relative" ref={natDropdownRef}>
+                        <div className="flex items-center gap-1.5 justify-start">
+                          <span>الجنسية</span>
+                          <button
+                            onClick={handleDropdownToggle}
+                            className={`p-1 rounded hover:bg-teal-800 transition-colors flex items-center justify-center ${filters.nationality ? 'text-amber-400 font-bold' : 'text-teal-200 hover:text-white'}`}
+                            title="تصفية حسب الجنسية"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="w-4 h-4">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h18m-2 0v2.286a2 2 0 0 1-.586 1.414l-5.828 5.828a2 2 0 0 0-.586 1.414v4.556a1 1 0 0 1-1.447.894l-2-1a1 1 0 0 1-.553-.894v-3.556a2 2 0 0 0-.586-1.414L3.586 8.2a2 2 0 0 1-.586-1.414V4.5z" />
+                            </svg>
+                          </button>
+                        </div>
+                      </th>
+                    );
+                  }
+                  if (col.key === 'from') {
+                    return (
+                      <th key={col.key} className="py-4 px-5 text-right font-medium tracking-wide relative" ref={fromDropdownRef}>
+                        <div className="flex items-center gap-1.5 justify-start">
+                          <span>من</span>
+                          <button
+                            onClick={handleFromDropdownToggle}
+                            className={`p-1 rounded hover:bg-teal-800 transition-colors flex items-center justify-center ${filters.fromCity ? 'text-amber-400 font-bold' : 'text-teal-200 hover:text-white'}`}
+                            title="تصفية حسب مدينة المغادرة"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="w-4 h-4">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h18m-2 0v2.286a2 2 0 0 1-.586 1.414l-5.828 5.828a2 2 0 0 0-.586 1.414v4.556a1 1 0 0 1-1.447.894l-2-1a1 1 0 0 1-.553-.894v-3.556a2 2 0 0 0-.586-1.414L3.586 8.2a2 2 0 0 1-.586-1.414V4.5z" />
+                            </svg>
+                          </button>
+                        </div>
+                      </th>
+                    );
+                  }
+                  if (col.key === 'to') {
+                    return (
+                      <th key={col.key} className="py-4 px-5 text-right font-medium tracking-wide relative" ref={toDropdownRef}>
+                        <div className="flex items-center gap-1.5 justify-start">
+                          <span>إلى</span>
+                          <button
+                            onClick={handleToDropdownToggle}
+                            className={`p-1 rounded hover:bg-teal-800 transition-colors flex items-center justify-center ${filters.toCity ? 'text-amber-400 font-bold' : 'text-teal-200 hover:text-white'}`}
+                            title="تصفية حسب وجهة الوصول"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="w-4 h-4">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h18m-2 0v2.286a2 2 0 0 1-.586 1.414l-5.828 5.828a2 2 0 0 0-.586 1.414v4.556a1 1 0 0 1-1.447.894l-2-1a1 1 0 0 1-.553-.894v-3.556a2 2 0 0 0-.586-1.414L3.586 8.2a2 2 0 0 1-.586-1.414V4.5z" />
+                            </svg>
+                          </button>
+                        </div>
+                      </th>
+                    );
+                  }
+                  return (
+                    <th
+                      key={col.key}
+                      className={`py-4 px-5 text-right font-medium tracking-wide ${
+                        col.key === 'from' || col.key === 'to' ? 'min-w-[150px]' : ''
+                      }`}
+                    >
+                      {col.label}
+                    </th>
+                  );
+                })}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-150">
@@ -807,6 +1019,137 @@ const Table = ({ data, visibleColumns }: { data: TableRow[]; visibleColumns: str
             ))}
           </tbody>
         </table>
+
+        {isMounted && isNatDropdownOpen && dropdownCoords && (
+          <div 
+            id="nationality-filter-dropdown"
+            dir="rtl"
+            style={{ 
+              position: 'absolute', 
+              top: `${dropdownCoords.top}px`, 
+              left: `${dropdownCoords.left}px`,
+              width: '208px',
+              zIndex: 9999
+            }}
+            className="bg-white border border-gray-150 rounded-2xl shadow-xl py-2.5 text-right animate-in fade-in slide-in-from-top-2 duration-200 text-gray-700 font-medium tracking-normal"
+          >
+            <div className="px-4 py-2 text-xs font-semibold text-teal-800 bg-teal-50/30 border-b border-gray-100 mb-1.5 flex justify-between items-center">
+              <span>تصفية حسب الجنسية</span>
+              <span className="text-[10px] text-gray-400 font-normal">اختر دولة</span>
+            </div>
+            <div className="max-h-60 overflow-y-auto">
+              <button
+                onClick={() => { setFilters(prev => ({ ...prev, nationality: "" })); setIsNatDropdownOpen(false); setPage(1); }}
+                className={`w-full text-right px-4 py-2 hover:bg-teal-50/50 text-sm font-medium transition-colors duration-150 flex items-center justify-between ${!filters.nationality ? 'text-teal-900 font-bold bg-teal-50/30' : 'text-gray-600'}`}
+              >
+                <span>كل الجنسيات</span>
+                {!filters.nationality && <span className="w-1.5 h-1.5 rounded-full bg-teal-700"></span>}
+              </button>
+              {nationalities?.map((nat) => (
+                <button
+                  key={nat.id}
+                  onClick={() => { setFilters(prev => ({ ...prev, nationality: nat.Country })); setIsNatDropdownOpen(false); setPage(1); }}
+                  className={`w-full text-right px-4 py-2 hover:bg-teal-50/50 text-sm font-medium transition-colors duration-150 flex items-center justify-between ${filters.nationality === nat.Country ? 'text-teal-900 font-bold bg-teal-50/30' : 'text-gray-600'}`}
+                >
+                  <span>{nat.Country}</span>
+                  {filters.nationality === nat.Country && <span className="w-1.5 h-1.5 rounded-full bg-teal-700"></span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {isMounted && isFromDropdownOpen && fromCoords && (
+          <div 
+            id="from-filter-dropdown"
+            dir="rtl"
+            style={{ 
+              position: 'absolute', 
+              top: `${fromCoords.top}px`, 
+              left: `${fromCoords.left}px`,
+              width: '208px',
+              zIndex: 9999
+            }}
+            className="bg-white border border-gray-150 rounded-2xl shadow-xl py-2 text-right animate-in fade-in slide-in-from-top-2 duration-200 text-gray-700 font-medium tracking-normal"
+          >
+            <div className="px-3 py-1.5 border-b border-gray-100 mb-1">
+              <input
+                type="text"
+                placeholder="بحث عن مدينة..."
+                value={fromSearch}
+                onChange={(e) => setFromSearch(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-800 placeholder-gray-400 outline-none focus:border-teal-700 focus:ring-1 focus:ring-teal-700/10 font-medium"
+              />
+            </div>
+            <div className="max-h-60 overflow-y-auto">
+              <button
+                onClick={() => { setFilters(prev => ({ ...prev, fromCity: "" })); setFromSearch(""); setIsFromDropdownOpen(false); setPage(1); }}
+                className={`w-full text-right px-4 py-2 hover:bg-teal-50/50 text-sm font-medium transition-colors duration-150 flex items-center justify-between ${!filters.fromCity ? 'text-teal-900 font-bold bg-teal-50/30' : 'text-gray-600'}`}
+              >
+                <span>كل المدن</span>
+                {!filters.fromCity && <span className="w-1.5 h-1.5 rounded-full bg-teal-700"></span>}
+              </button>
+              {worldCities
+                ?.filter(city => city.value.includes(fromSearch) || city.label.toLowerCase().includes(fromSearch.toLowerCase()))
+                ?.map((city, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => { setFilters(prev => ({ ...prev, fromCity: city.value })); setFromSearch(""); setIsFromDropdownOpen(false); setPage(1); }}
+                    className={`w-full text-right px-4 py-2 hover:bg-teal-50/50 text-sm font-medium transition-colors duration-150 flex items-center justify-between ${filters.fromCity === city.value ? 'text-teal-900 font-bold bg-teal-50/30' : 'text-gray-600'}`}
+                  >
+                    <span>{city.value}</span>
+                    {filters.fromCity === city.value && <span className="w-1.5 h-1.5 rounded-full bg-teal-700"></span>}
+                  </button>
+                ))}
+            </div>
+          </div>
+        )}
+
+        {isMounted && isToDropdownOpen && toCoords && (
+          <div 
+            id="to-filter-dropdown"
+            dir="rtl"
+            style={{ 
+              position: 'absolute', 
+              top: `${toCoords.top}px`, 
+              left: `${toCoords.left}px`,
+              width: '208px',
+              zIndex: 9999
+            }}
+            className="bg-white border border-gray-150 rounded-2xl shadow-xl py-2 text-right animate-in fade-in slide-in-from-top-2 duration-200 text-gray-700 font-medium tracking-normal"
+          >
+            <div className="px-3 py-1.5 border-b border-gray-100 mb-1">
+              <input
+                type="text"
+                placeholder="بحث عن مدينة..."
+                value={toSearch}
+                onChange={(e) => setToSearch(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-800 placeholder-gray-400 outline-none focus:border-teal-700 focus:ring-1 focus:ring-teal-700/10 font-medium"
+              />
+            </div>
+            <div className="max-h-60 overflow-y-auto">
+              <button
+                onClick={() => { setFilters(prev => ({ ...prev, toCity: "" })); setToSearch(""); setIsToDropdownOpen(false); setPage(1); }}
+                className={`w-full text-right px-4 py-2 hover:bg-teal-50/50 text-sm font-medium transition-colors duration-150 flex items-center justify-between ${!filters.toCity ? 'text-teal-900 font-bold bg-teal-50/30' : 'text-gray-600'}`}
+              >
+                <span>كل المدن</span>
+                {!filters.toCity && <span className="w-1.5 h-1.5 rounded-full bg-teal-700"></span>}
+              </button>
+              {saudiCities
+                ?.filter(city => city.value.includes(toSearch) || city.label.toLowerCase().includes(toSearch.toLowerCase()))
+                ?.map((city, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => { setFilters(prev => ({ ...prev, toCity: city.value })); setToSearch(""); setIsToDropdownOpen(false); setPage(1); }}
+                    className={`w-full text-right px-4 py-2 hover:bg-teal-50/50 text-sm font-medium transition-colors duration-150 flex items-center justify-between ${filters.toCity === city.value ? 'text-teal-900 font-bold bg-teal-50/30' : 'text-gray-600'}`}
+                  >
+                    <span>{city.value}</span>
+                    {filters.toCity === city.value && <span className="w-1.5 h-1.5 rounded-full bg-teal-700"></span>}
+                  </button>
+                ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -940,7 +1283,36 @@ const BulkArrivalModal = ({ isOpen, onClose, onRefresh }: { isOpen: boolean; onC
     departureTime: '',
     arrivalDate: '',
     arrivalTime: '',
+    deliveryOfficer: '',
   });
+
+  const [users, setUsers] = useState<Array<{id: number, username: string}>>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setLoadingUsers(true);
+      try {
+        const response = await fetch('/api/usersfortask');
+        if (response.ok) {
+          const userData = await response.json();
+          setUsers(userData);
+        }
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      } finally {
+        setLoadingUsers(false);
+      }
+    };
+    if (isOpen) {
+      fetchUsers();
+    }
+  }, [isOpen]);
+
+  const userOptions = users.map(user => ({
+    value: user.id.toString(),
+    label: user.username
+  }));
 
   const [ticketFile, setTicketFile] = useState<File | null>(null);
   const [progressMsg, setProgressMsg] = useState('');
@@ -973,6 +1345,7 @@ const BulkArrivalModal = ({ isOpen, onClose, onRefresh }: { isOpen: boolean; onC
         departureTime: '',
         arrivalDate: '',
         arrivalTime: '',
+        deliveryOfficer: '',
       });
       setTicketFile(null);
     }
@@ -1187,6 +1560,7 @@ const BulkArrivalModal = ({ isOpen, onClose, onRefresh }: { isOpen: boolean; onC
           'تاريخ ووقت الوصول_time': formData.arrivalTime,
           'تاريخ ووقت المغادرة': `${formData.departureDate} ${formData.departureTime || '00:00'}`.trim(),
           'تاريخ ووقت الوصول': `${formData.arrivalDate} ${formData.arrivalTime || '00:00'}`.trim(),
+          'deliveryOfficer': formData.deliveryOfficer,
         };
 
         if (uploadedFilePath) {
@@ -1659,6 +2033,56 @@ const BulkArrivalModal = ({ isOpen, onClose, onRefresh }: { isOpen: boolean; onC
                 </div>
               </div>
 
+              {/* Delivery Officer */}
+              <div className="space-y-1.5 text-right">
+                <label className="block text-sm font-extrabold text-gray-500">مسؤول التوصيل</label>
+                <Select
+                  classNamePrefix="rs"
+                  inputId="delivery-officer"
+                  isRtl={true}
+                  value={userOptions.find((opt) => opt.value === formData.deliveryOfficer) || null}
+                  onChange={(selected: any) => {
+                    setFormData({ ...formData, deliveryOfficer: selected ? selected.value : '' });
+                  }}
+                  options={userOptions}
+                  placeholder="اختر مسؤول التوصيل..."
+                  isClearable
+                  isSearchable={true}
+                  menuPortalTarget={typeof window !== 'undefined' ? document.body : undefined}
+                  noOptionsMessage={() => 'لا توجد نتائج'}
+                  loadingMessage={() => 'جاري البحث...'}
+                  isLoading={loadingUsers}
+                  styles={{
+                    control: (base, state) => ({
+                      ...base,
+                      borderRadius: '0.75rem',
+                      borderColor: state.isFocused ? '#0f766e' : '#e5e7eb',
+                      backgroundColor: '#fff',
+                      padding: '2px',
+                      boxShadow: 'none',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      color: '#1f2937',
+                      minHeight: '44px',
+                      '&:hover': {
+                        borderColor: '#0f766e',
+                      }
+                    }),
+                    menu: (base) => ({
+                      ...base,
+                      borderRadius: '0.75rem',
+                      overflow: 'hidden',
+                      zIndex: 9999,
+                    }),
+                    menuPortal: (base) => ({
+                      ...base,
+                      zIndex: 9999,
+                    })
+                  }}
+                  menuShouldScrollIntoView={false}
+                />
+              </div>
+
               <div className="pt-2">
                 <button
                   onClick={handleSubmit}
@@ -1731,7 +2155,7 @@ const StatsOverview = ({ stats }: { stats: { total: number; arrived: number; pen
   );
 };
 
-export default function Home({ hasPermission }) {
+export default function Home({ hasPermission, canAdd, canEdit }: any) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isBulkArrivalModalOpen, setIsBulkArrivalModalOpen] = useState(false);
   const [showPermissionModal, setShowPermissionModal] = useState(!hasPermission);
@@ -1746,6 +2170,9 @@ export default function Home({ hasPermission }) {
     ArrivalCity: '',
     startDate: '',
     endDate: '',
+    fromCity: '',
+    toCity: '',
+    nationality: '',
   });
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
     'orderId',
@@ -1835,6 +2262,9 @@ const fetchFilteredDataExporting = async () => {
     ...(filters.ArrivalCity && { ArrivalCity: filters.ArrivalCity }),
     ...(filters.startDate && { startDate: filters.startDate }),
     ...(filters.endDate && { endDate: filters.endDate }),
+    ...(filters.fromCity && { fromCity: filters.fromCity }),
+    ...(filters.toCity && { toCity: filters.toCity }),
+    ...(filters.nationality && { nationality: filters.nationality }),
   }).toString();
 
   const res = await fetch(`/api/arrivals?${query}`);
@@ -2030,12 +2460,14 @@ const exportToExcel = async () => {
               <>
                 <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
                   <h1 className="text-3xl font-bold text-gray-900 text-right">قائمة الوصول</h1>
-                  <button
-                    onClick={() => setIsBulkArrivalModalOpen(true)}
-                    className="flex items-center gap-1.5 bg-teal-900 text-white px-4 py-2.5 rounded-xl hover:bg-teal-950 transition-colors duration-200 text-sm font-semibold shadow-sm"
-                  >
-                    <span>+ إضافة وصول جماعي</span>
-                  </button>
+                  {canAdd && (
+                    <button
+                      onClick={() => setIsBulkArrivalModalOpen(true)}
+                      className="flex items-center gap-1.5 bg-teal-900 text-white px-4 py-2.5 rounded-xl hover:bg-teal-950 transition-colors duration-200 text-sm font-semibold shadow-sm"
+                    >
+                      <span>+ إضافة وصول جماعي</span>
+                    </button>
+                  )}
                 </div>
                 <StatsOverview stats={stats} />
                 <Controls
@@ -2053,7 +2485,13 @@ const exportToExcel = async () => {
                   <div className="text-center">لا توجد بيانات متاحة</div>
                 ) : (
                   <>
-                    <Table data={data} visibleColumns={visibleColumns} />
+                    <Table 
+                      data={data} 
+                      visibleColumns={visibleColumns} 
+                      filters={filters} 
+                      setFilters={setFilters} 
+                      setPage={setCurrentPage} 
+                    />
                     <Pagination currentPage={currentPage} totalPages={totalPages} setPage={setCurrentPage} />
                   </>
                 )}
@@ -2077,6 +2515,7 @@ const exportToExcel = async () => {
     </Layout>
   );
 }
+
 
 export async function getServerSideProps({ req }) {
   try {
@@ -2103,9 +2542,15 @@ export async function getServerSideProps({ req }) {
 
     const hasPermission = findUser && findUser.role?.permissions?.["إدارة الوصول و المغادرة"]?.["عرض"];
 
+    const permissions = findUser?.role?.permissions as Record<string, any> || {};
+    const canAdd = permissions["إدارة الوصول و المغادرة"]?.["إضافة"] === true;
+    const canEdit = permissions["إدارة الوصول و المغادرة"]?.["تعديل"] === true;
+
     return {
       props: {
         hasPermission: !!hasPermission,
+        canAdd,
+        canEdit,
       },
     };
   } catch (err) {

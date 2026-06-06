@@ -26,7 +26,10 @@ import {
 } from "react-icons/fa";
 import { useState, useRef } from "react";
 import { useRouter } from "next/router";
-import { ArrowLeftOutlined, FieldTimeOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined, CopyOutlined, DeleteOutlined, EllipsisOutlined, FieldTimeOutlined, FormOutlined, LeftOutlined, UserAddOutlined, AppstoreAddOutlined, UnorderedListOutlined } from "@ant-design/icons";
+import { formatDistanceToNow } from 'date-fns';
+import { ar } from 'date-fns/locale';
+import { saudiCities } from '../../components/SaudiCityAutocomplete';
 import { PlusIcon, ArrowLeftIcon } from "@heroicons/react/solid";
 import Style from "/styles/Home.module.css";
 import AlertModal from "../../components/AlertModal";
@@ -241,7 +244,7 @@ const InternalDeparturesTab = ({ departures, count, onItemClick }) => (
 const ExternalDeparturesTab = ({ departures, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
     {departures.slice(0, 3).map((departure) => (
-      <div key={departure.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/deparaturesfromsaudi')}>
+      <div key={departure.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/deparatures?tab=external')}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">مغادرة خارجية #{departure.id}</p>
           <p className="item-subtitle text-xs text-gray-600">إلى: {departure.externalArrivalCity ?? "غير محدد"}</p>
@@ -1003,6 +1006,16 @@ export default function Home({
     return html.replace(/<[^>]*>/g, '').trim();
   };
 
+  const getArabicCityName = (cityValue) => {
+    if (!cityValue) return 'غير محدد';
+    if (saudiCities.some((city) => city.value === cityValue)) return cityValue;
+    const matched = saudiCities.find((city) =>
+      city.label.toLowerCase().includes(cityValue.toLowerCase())
+    );
+    if (matched) return matched.value;
+    return cityValue;
+  };
+
   const getNextMonth = () => {
     let month = monthIndex;
     let currentYear = year;
@@ -1123,8 +1136,8 @@ export default function Home({
   // Get departures for a specific day
   const getDeparturesForDay = (day) => {
     return internalDeparatures.filter((departure) => {
-      // Use internaldeparatureDate for departure date if available, otherwise fall back to createdAt
-      const dateToUse = departure.internaldeparatureDate || departure.createdAt;
+      // Use internaldeparatureDate or externaldeparatureDate for departure date
+      const dateToUse = departure.internaldeparatureDate || departure.externaldeparatureDate;
       if (!dateToUse) return false;
       
       try {
@@ -1422,7 +1435,7 @@ export default function Home({
                 {departuresForDay.map((departure, index) => (
                   <li 
                     key={index} 
-                    className="text-sm bg-orange-50 p-2 rounded-md hover:bg-orange-200 transition-colors cursor-pointer"
+                    className="text-sm bg-orange-50 p-3 rounded-md hover:bg-orange-200 transition-colors cursor-pointer border border-orange-100 flex justify-between items-center"
                     onClick={(e) => {
                       e.stopPropagation();
                       setAlertModal({ ...alertModal, isOpen: false });
@@ -1430,8 +1443,22 @@ export default function Home({
                     }}
                     title="اضغط للذهاب إلى صفحة المغادرات"
                   >
-                    <span className="font-semibold text-orange-900">مغادرة #{departure.id}</span>
-                    <span className="text-orange-700 mr-2">إلى {departure.internalArrivalCity || departure.externalArrivalCity || 'غير محدد'}</span>
+                    <div>
+                      <div className="font-semibold text-orange-900 mb-1">مغادرة #{departure.OrderId || departure.id}</div>
+                      <div className="text-orange-800 text-xs flex flex-col gap-1 pr-2">
+                        <span>👤 العميل: {departure.Order?.client?.fullname || departure.SponsorName || 'غير محدد'}</span>
+                        <span>👩 العاملة: {departure.Order?.HomeMaid?.Name || departure.HomemaidName || departure.Order?.Name || 'غير محدد'}</span>
+                        <span>📍 إلى: {getArabicCityName(departure.internalArrivalCity || departure.externalArrivalCity)}</span>
+                      </div>
+                    </div>
+                    <div className="text-left flex flex-col gap-1 text-xs text-orange-600 font-medium pl-2">
+                      <span className="flex items-center gap-1 justify-end" dir="ltr">
+                        {getDate(departure.internaldeparatureDate || departure.externaldeparatureDate)} 📅
+                      </span>
+                      <span className="flex items-center gap-1 justify-end" dir="ltr">
+                        {departure.internaldeparatureTime || departure.externaldeparatureTime || 'غير محدد'} ⏰
+                      </span>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -2622,7 +2649,7 @@ export default function Home({
                   className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${arrivalsSectionState === "externalDeparatures" ? "text-teal-700 bg-teal-50" : ""}`}
                 >
                   مغادرة خارجية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{externaldeparaturesLength}</span>
-                  <ArrowLeftOutlined className="text-xs cursor-pointer" onClick={() => router.push("/admin/deparaturesfromsaudi")} />
+                  <ArrowLeftOutlined className="text-xs cursor-pointer" onClick={() => router.push("/admin/deparatures?tab=external")} />
                 </a>
               </nav>
             </div>
@@ -2633,7 +2660,7 @@ export default function Home({
                   : arrivalsSectionState === "internalDeparatures"
                   ? router.push("/admin/deparatures")
                   : arrivalsSectionState === "externalDeparatures"
-                  ? router.push("/admin/deparaturesfromsaudi")
+                  ? router.push("/admin/deparatures?tab=external")
                   : null;
               }}
               className="view-all-btn cursor-pointer bg-teal-800 text-white text-sm font-medium px-5 py-2 rounded-lg shadow-sm hover:shadow-md hover:from-teal-700 hover:to-teal-900 transition-all duration-300"
@@ -3128,8 +3155,9 @@ export async function getStaticProps(context) {
       cancelledorders: 0,
       offices: 0,
     };
+    const baseUrl = process.env.URL || 'https://wasl.rawaes.com';
     try {
-      const countsResponse = await fetchDataFromApi(`https://wasl.rawaes.com/api/datalength`);
+      const countsResponse = await fetchDataFromApi(`${baseUrl}/api/datalength`);
       if (countsResponse) {
         counts = countsResponse;
       }
@@ -3161,22 +3189,22 @@ export async function getStaticProps(context) {
       foreignOfficesRes,
       rejectedOrdersRes,
     ] = await Promise.all([
-      fetchDataFromApi(`https://wasl.rawaes.com/api/neworderlistprisma/1`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/currentordersprisma`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/endedorders/`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/cancelledorders`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/arrivals`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/deparatures`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/deparaturefromsaudi`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/housed`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/sessions`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/clients`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/transfersponsorships`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/homemaidprisma?page=1`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/bookedlist?page=1`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/availablelist?page=1`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/externaloffices`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/rejectedorderslist?searchTerm=&age=&Country=&page=1`),
+      fetchDataFromApi(`${baseUrl}/api/neworderlistprisma/1`),
+      fetchDataFromApi(`${baseUrl}/api/homeinitialdata/currentordersprisma`),
+      fetchDataFromApi(`${baseUrl}/api/endedorders/`),
+      fetchDataFromApi(`${baseUrl}/api/homeinitialdata/cancelledorders`),
+      fetchDataFromApi(`${baseUrl}/api/homeinitialdata/arrivals`),
+      fetchDataFromApi(`${baseUrl}/api/deparatures`),
+      fetchDataFromApi(`${baseUrl}/api/homeinitialdata/deparaturefromsaudi`),
+      fetchDataFromApi(`${baseUrl}/api/homeinitialdata/housed`),
+      fetchDataFromApi(`${baseUrl}/api/sessions`),
+      fetchDataFromApi(`${baseUrl}/api/homeinitialdata/clients`),
+      fetchDataFromApi(`${baseUrl}/api/transfersponsorships`),
+      fetchDataFromApi(`${baseUrl}/api/homemaidprisma?page=1`),
+      fetchDataFromApi(`${baseUrl}/api/bookedlist?page=1`),
+      fetchDataFromApi(`${baseUrl}/api/availablelist?page=1`),
+      fetchDataFromApi(`${baseUrl}/api/homeinitialdata/externaloffices`),
+      fetchDataFromApi(`${baseUrl}/api/rejectedorderslist?searchTerm=&age=&Country=&page=1`),
       // Tasks are now fetched client-side for user-specific data
     ]);
 

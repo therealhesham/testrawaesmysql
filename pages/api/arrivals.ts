@@ -73,7 +73,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { search, age, ArrivalCity, KingdomentryDate, page, startDate, endDate } = req.query;
+  const { search, age, ArrivalCity, KingdomentryDate, page, startDate, endDate, fromCity, toCity, nationality } = req.query;
  const cookieHeader = req.headers.cookie;
     let cookies: { [key: string]: string } = {};
     if (cookieHeader) {
@@ -99,10 +99,29 @@ export default async function handler(
       { OrderId: { equals: parseInt(searchTerm, 10) || undefined } },
     ];
   }
-  if (age)
-    filters.Order = { HomeMaid: { age: { equals: parseInt(age as string, 10) } } };
-  if (ArrivalCity)
-    filters.arrivalSaudiAirport = { contains: (ArrivalCity as string).toLowerCase() };
+  
+  const orderFilter: any = {};
+  if (age) {
+    orderFilter.HomeMaid = { ...orderFilter.HomeMaid, age: { equals: parseInt(age as string, 10) } };
+  }
+  if (nationality) {
+    orderFilter.HomeMaid = {
+      ...orderFilter.HomeMaid,
+      office: { Country: { equals: nationality as string } }
+    };
+  }
+  if (Object.keys(orderFilter).length > 0) {
+    filters.Order = orderFilter;
+  }
+
+  if (fromCity) {
+    filters.deparatureCityCountry = { contains: fromCity as string };
+  }
+
+  const targetToCity = toCity || ArrivalCity;
+  if (targetToCity) {
+    filters.arrivalSaudiAirport = { contains: targetToCity as string };
+  }
 
   if (startDate || endDate) {
     filters.KingdomentryDate = {};

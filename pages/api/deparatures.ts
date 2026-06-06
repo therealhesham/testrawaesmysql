@@ -13,7 +13,7 @@ export default async function handler(
   res: NextApiResponse
 ) {
   if (req.method === "GET") {
-    const { SponsorName, age, PassportNumber, page, OrderId,search, perPage, nationality, deparatureDate } =
+    const { SponsorName, age, PassportNumber, page, OrderId, search, perPage, nationality, deparatureDate, startDate, endDate, fromCity, toCity } =
       req.query;
 const tryParseDate = (input: string): Date | null => {
   const formats = ["yyyy-MM-dd", "dd-MM-yyyy", "dd MMM yyyy"];
@@ -31,6 +31,8 @@ const tryParseDate = (input: string): Date | null => {
     const pageNumber = parseInt(page as string, 10) || 1;
 
     const filters: any = {};
+    if (fromCity) filters.internaldeparatureCity = { equals: fromCity };
+    if (toCity) filters.internalArrivalCity = { equals: toCity };
     if (OrderId) filters.OrderId = { equals: Number(OrderId) };
     if (SponsorName)
       filters.SponsorName = {
@@ -75,26 +77,41 @@ const tryParseDate = (input: string): Date | null => {
         },
       };
       try{
-//  const parsedDate = tryParseDate(deparatureDate as string);
-if (deparatureDate) {
-  const parsed = new Date(deparatureDate as string);
-  if (!isNaN(parsed.getTime())) {
-    const startOfDay = new Date(parsed);
-    startOfDay.setHours(0, 0, 0, 0);
+    if (startDate || endDate) {
+      filters.internaldeparatureDate = {};
+      if (startDate) {
+        const parsedStart = new Date(startDate as string);
+        if (!isNaN(parsedStart.getTime())) {
+          filters.internaldeparatureDate.gte = parsedStart;
+        }
+      }
+      if (endDate) {
+        const parsedEnd = new Date(endDate as string);
+        if (!isNaN(parsedEnd.getTime())) {
+          parsedEnd.setHours(23, 59, 59, 999);
+          filters.internaldeparatureDate.lte = parsedEnd;
+        }
+      }
+      filters.internaldeparatureDate.not = null;
+    } else if (deparatureDate) {
+      const parsed = new Date(deparatureDate as string);
+      if (!isNaN(parsed.getTime())) {
+        const startOfDay = new Date(parsed);
+        startOfDay.setHours(0, 0, 0, 0);
 
-    const endOfDay = new Date(parsed);
-    endOfDay.setHours(23, 59, 59, 999);
+        const endOfDay = new Date(parsed);
+        endOfDay.setHours(23, 59, 59, 999);
 
-    filters.internaldeparatureDate = {
-      gte: startOfDay,
-      lte: endOfDay,
-      not: null,
-    };
-  }
-} else {
-  // لو مفيش فلترة على التاريخ، نحط بس not null عشان البيانات تكون منطقية
-  filters.internaldeparatureDate = { not: null };
-}
+        filters.internaldeparatureDate = {
+          gte: startOfDay,
+          lte: endOfDay,
+          not: null,
+        };
+      }
+    } else {
+      // لو مفيش فلترة على التاريخ، نحط بس not null عشان البيانات تكون منطقية
+      filters.internaldeparatureDate = { not: null };
+    }
 
 } catch (error) {
   console.error("Error parsing date:", error);
@@ -138,6 +155,7 @@ if (deparatureDate) {
           internalArrivalCity: true,
           internalArrivalCityDate: true,
           internalArrivalCityTime: true,
+          KingdomentryDate: true,
         },
         skip: (pageNumber - 1) * pageSize,
         take: pageSize,

@@ -571,7 +571,8 @@ KingdomentryDate          DateTime?
       internalArrivalCity String?
 internalArrivalCityDate          DateTime?
  internalArrivalCityTime           String?  @db.VarChar(30)
- internalTicketFile              String?   @db.VarChar(255)
+  internalTicketFile              String?   @db.VarChar(255)
+  deliveryOfficer                 String?   @db.VarChar(191)
 
 //صفحة المغادرة الخارجية
 externaldeparatureCity  String? @db.VarChar(191) 

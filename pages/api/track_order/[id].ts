@@ -186,6 +186,7 @@ console.log(id)
               receiptMethod: true,
               customTimelineStages: true,
               ExternalDateLinking: true,
+              deliveryOfficer: true,
             } as any,
           },
           DeliveryDetails: {
@@ -391,6 +392,7 @@ console.log(id)
           arrivalDateTime: order.arrivals[0]?.KingdomentryDate
             ? `${(order.arrivals[0].KingdomentryDate as Date).toISOString().split('T')[0]} ${convert12hTo24h(order.arrivals[0].KingdomentryTime || '')}`.trim()
             : 'N/A',
+          deliveryOfficer: order.arrivals[0]?.deliveryOfficer || null,
         },
         receipt: {
           received: !!order.arrivals[0]?.DeliveryDate, // Fixed condition
@@ -1079,6 +1081,10 @@ const cookieHeader = req.headers.cookie;
             if (updatedData['ticketFile']) {
               arrivalUpdate.ticketFile = updatedData['ticketFile'];
               changes.push('ملف التذكرة: تم التحديث');
+            }
+            if (updatedData['deliveryOfficer'] !== undefined) {
+              arrivalUpdate.deliveryOfficer = updatedData['deliveryOfficer'];
+              changes.push('مسؤول التوصيل: تم التحديث');
             }
             if (updatedData['مدينة المغادرة']) {
               const oldDep = order.arrivals[0]?.deparatureCityCountry;

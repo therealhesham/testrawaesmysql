@@ -339,7 +339,6 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
       margin: 0,
       padding: 0,
       textAlign: 'right' as const,
-      direction: 'rtl' as const,
     }),
     placeholder: (provided: any) => ({
       ...provided,
@@ -702,6 +701,7 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
                 <div className="relative">
                   <Select
                     inputId="city"
+                    isRtl={true}
                     value={selectedCityOption}
                     onChange={(selected: any) =>
                       handleInputChange({

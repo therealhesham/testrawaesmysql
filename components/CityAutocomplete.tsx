@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import Select from 'react-select';
 
 // قائمة بمدن العالم الرئيسية
-const worldCities = [
+export const worldCities = [
 
   
   // الإمارات
@@ -824,6 +824,7 @@ const CityAutocomplete: React.FC<CityAutocompleteProps> = ({
         isClearable
         isSearchable
         className={className}
+        classNamePrefix="rs"
         styles={customStyles}
         dir="rtl"
         noOptionsMessage={() => 'لا توجد نتائج'}

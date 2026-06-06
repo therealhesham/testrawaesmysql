@@ -76,7 +76,7 @@ const menuItems: MenuItem[] = [
     subItems: [
       { id: 512, label: "الوصول", link: "/admin/arrival-list" },
       { id: 522, label: "المغادرة الداخلية", link: "/admin/deparatures" },
-      { id: 523, label: "المغادرة الخارجية", link: "/admin/deparaturesfromsaudi" },
+      { id: 523, label: "المغادرة الخارجية", link: "/admin/deparatures?tab=external" },
     ],
   },
   {

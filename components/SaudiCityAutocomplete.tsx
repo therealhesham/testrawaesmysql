@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import Select from 'react-select';
 
 // قائمة بمدن السعودية
-const saudiCities = [
+export const saudiCities = [
   { value: 'الرياض', label: 'الرياض (Riyadh)' },
   { value: 'جدة', label: 'جدة (Jeddah)' },
   { value: 'مكة المكرمة', label: 'مكة المكرمة (Makkah)' },
@@ -179,6 +179,7 @@ const SaudiCityAutocomplete: React.FC<SaudiCityAutocompleteProps> = ({
         isClearable
         isSearchable
         className={className}
+        classNamePrefix="rs"
         styles={customStyles}
         dir="rtl"
         noOptionsMessage={() => 'لا توجد نتائج'}

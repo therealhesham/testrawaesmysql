@@ -648,3 +648,21 @@ a {
   margin-left: 0.25rem;
 }
 
+/* Fix: react-select dual-caret / ghost lines bug in RTL.
+   - Wrapper div: hide its caret + remove borders
+   - Actual input: SHOW one caret + remove borders */
+.rs__input-container,
+div[class*="-Input"] {
+  caret-color: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.rs__input-container input,
+div[class*="-Input"] input {
+  caret-color: #115e59 !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}

@@ -27,7 +27,7 @@ export function getPageTitleArabic(pageRoute: string | undefined): string {
     '/admin/housing_departed_transfer_sponsorship': 'مغادرات السكن (سبب المغادرة: نقل كفالة)',
     '/admin/checkedtable': 'الاعاشات',
     '/admin/arrival-list': 'الوصول',
-    '/admin/deparatures': 'المغادرة الداخلية',
+    '/admin/deparatures': 'المغادرات',
     '/admin/deparaturesfromsaudi': 'المغادرة الخارجية',
     '/admin/notifications': 'الاشعارات',
     '/admin/reportsconverted': 'التقارير',

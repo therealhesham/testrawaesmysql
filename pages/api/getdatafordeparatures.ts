@@ -115,11 +115,24 @@ export default async function handler(
               id: true,
               bookingstatus: true,
               HomeMaid: {
-                include: {
-                  office: true
+                select: {
+                  Name: true,
+                  Passportnumber: true,
+                  Nationalitycopy: true,
+                  office: {
+                    select: {
+                      Country: true
+                    }
+                  }
                 }
               },
-              client: true
+              client: {
+                select: {
+                  fullname: true,
+                  nationalId: true,
+                  city: true
+                }
+              }
             }
           }
         }

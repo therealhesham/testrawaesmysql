@@ -78,6 +78,7 @@ externalTicketFile,
       DeliveryDate,
       externalmusanedContract,
       GuaranteeDurationEnd,
+      deliveryOfficer,
     } = req.body;
 
     console.log(req.body); // Log the request body for debugging
@@ -152,6 +153,7 @@ externalTicketFile,
       AgencyDate: validAgencyDate,
       EmbassySealing: validEmbassySealing,
       GuaranteeDurationEnd: validGuaranteeDurationEnd,
+      deliveryOfficer,
     };
 
     // Apply `excludeEmptyFields` to filter out empty fields from the object
@@ -219,7 +221,7 @@ try {
   const referer = req.headers.referer || '/admin/arrivals'
   const token = jwtDecode(cookies.authToken);
   eventBus.emit('ACTION', {
-    type: "تحديث بيانات المغادرة الخارجية للطلب رقم " + createarrivallist.Order?.id,
+    type: `تعديل بيانات المغادرة الخارجية للعاملة ${createarrivallist.Order?.HomeMaid?.Name || ''} - طلب رقم ${createarrivallist.OrderId}`,
     beneficiary: "homemaid",
     pageRoute: referer,
     actionType: "update",
@@ -251,7 +253,7 @@ try {
 
       await prisma.logs.create({
         data: {
-          Status: `   تم تحديث بيانات الوصول  للطلب رقم ${createarrivallist.Order?.HomeMaid?.Name}  الى  ${createarrivallist.Order?.bookingstatus}  `,
+          Status: `تم تعديل بيانات المغادرة الخارجية للعاملة ${createarrivallist.Order?.HomeMaid?.Name || ''} بنجاح`,
           homemaidId: createarrivallist.Order?.HomemaidId,
           userId: userId,
         },

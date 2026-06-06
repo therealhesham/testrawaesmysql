@@ -99,9 +99,7 @@ const menuItems: MenuItem[] = [
     icon: FaBuilding,
     subItems: [
       { id: 512, label: "الوصول", link: "/admin/arrival-list" },
-      { id: 522, label: "المغادرة الداخلية", link: "/admin/deparatures" },
-      { id: 522, label: "المغادرة الخارجية", link: "/admin/deparaturesfromsaudi" },
-
+      { id: 522, label: "المغادرة", link: "/admin/deparatures" },
     ],
   },
   {

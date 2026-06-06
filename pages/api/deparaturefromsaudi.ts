@@ -10,13 +10,15 @@ export default async function handler(
   res: NextApiResponse
 ) {
   if (req.method === "GET") {
-    const { SponsorName, age, PassportNumber, page, OrderId,search, perPage, nationality, deparatureDate } =
+    const { SponsorName, age, PassportNumber, page, OrderId, search, perPage, nationality, deparatureDate, startDate, endDate, fromCity, toCity } =
       req.query;
 console.log(req.query);
     const pageSize = parseInt(perPage as string, 10) || 10;
     const pageNumber = parseInt(page as string, 10) || 1;
 
     const filters: any = {};
+    if (fromCity) filters.externaldeparatureCity = { equals: fromCity };
+    if (toCity) filters.externalArrivalCity = { equals: toCity };
     if (OrderId) filters.OrderId = { equals: Number(OrderId) };
     if (SponsorName)
       filters.SponsorName = {
@@ -60,25 +62,42 @@ console.log(req.query);
           },
         },
       };
- if (deparatureDate) {
-  const parsed = new Date(deparatureDate as string);
-  if (!isNaN(parsed.getTime())) {
-    const startOfDay = new Date(parsed);
-    startOfDay.setHours(0, 0, 0, 0);
 
-    const endOfDay = new Date(parsed);
-    endOfDay.setHours(23, 59, 59, 999);
+    if (startDate || endDate) {
+      filters.externaldeparatureDate = {};
+      if (startDate) {
+        const parsedStart = new Date(startDate as string);
+        if (!isNaN(parsedStart.getTime())) {
+          filters.externaldeparatureDate.gte = parsedStart;
+        }
+      }
+      if (endDate) {
+        const parsedEnd = new Date(endDate as string);
+        if (!isNaN(parsedEnd.getTime())) {
+          parsedEnd.setHours(23, 59, 59, 999);
+          filters.externaldeparatureDate.lte = parsedEnd;
+        }
+      }
+      filters.externaldeparatureDate.not = null;
+    } else if (deparatureDate) {
+      const parsed = new Date(deparatureDate as string);
+      if (!isNaN(parsed.getTime())) {
+        const startOfDay = new Date(parsed);
+        startOfDay.setHours(0, 0, 0, 0);
 
-    filters.externaldeparatureDate = {
-      gte: startOfDay,
-      lte: endOfDay,
-      not: null,
-    };
-  }
-} else {
-  // لو مفيش فلترة على التاريخ، نحط بس not null عشان البيانات تكون منطقية
-  filters.externaldeparatureDate = { not: null };
-}
+        const endOfDay = new Date(parsed);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        filters.externaldeparatureDate = {
+          gte: startOfDay,
+          lte: endOfDay,
+          not: null,
+        };
+      }
+    } else {
+      // لو مفيش فلترة على التاريخ، نحط بس not null عشان البيانات تكون منطقية
+      filters.externaldeparatureDate = { not: null };
+    }
 
     try {
       const totalRecords = await prisma.arrivallist.count({
@@ -102,16 +121,16 @@ console.log(req.query);
           OrderId: true,
           SponsorName: true,
           PassportNumber: true,
+          SponsorPhoneNumber: true,
           externaldeparatureDate: true,
           externaldeparatureTime: true,
-          // SponsorPhoneNumber: true,
-          // HomemaidName: true,
           id: true,
-        externaldeparatureCity: true,
-        externalArrivalCity: true,
-        externalReason:true,
-        externalArrivalCityDate: true,
-        externalArrivalCityTime: true,
+          externaldeparatureCity: true,
+          externalArrivalCity: true,
+          externalReason:true,
+          externalArrivalCityDate: true,
+          externalArrivalCityTime: true,
+          KingdomentryDate: true,
 
 
         

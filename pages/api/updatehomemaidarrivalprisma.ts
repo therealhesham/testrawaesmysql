@@ -77,6 +77,7 @@ export default async function handler(
       internalArrivalCityDate,
       internalArrivalCityTime,
       internalTicketFile,
+      deliveryOfficer,
     } = req.body;
 
     console.log(req.body); // Log the request body for debugging
@@ -153,6 +154,7 @@ console.log(internalReason)
       internalArrivalCityDate:validInternalArrivalCityDate,
       internalArrivalCity,
       internalTicketFile,
+      deliveryOfficer,
     };
 
     // Apply `excludeEmptyFields` to filter out empty fields from the object
@@ -174,15 +176,35 @@ console.log("dataToUpdate",req.body.internalTicketFile)
     try {
       const token = req.cookies?.authToken;
       let userId: string | null = null;
+      let decodedToken: any = null;
 
       if (token) {
-        const decoded: any = jwt.verify(token, "rawaesecret");
-        userId = decoded?.username;
+        decodedToken = jwt.verify(token, "rawaesecret");
+        userId = decodedToken?.username;
+      }
+      
+      const referer = req.headers.referer || '/admin/deparatures'
+      
+      if (decodedToken) {
+        try {
+          // Import eventBus dynamically or use it if already imported
+          const eventBus = require('lib/eventBus').default;
+          eventBus.emit('ACTION', {
+            type: `تعديل بيانات المغادرة الداخلية للعاملة ${createarrivallist.Order?.HomeMaid?.Name || ''} - طلب رقم ${createarrivallist.OrderId}`,
+            beneficiary: "homemaid",
+            pageRoute: referer,
+            actionType: "create",
+            BeneficiaryId: createarrivallist.id || null,
+            userId: Number(decodedToken.id),
+          });
+        } catch(e) {
+          console.error("Error emitting internal departure event:", e);
+        }
       }
 
       await prisma.logs.create({
         data: {
-          Status: `   تم تحديث بيانات الوصول  للطلب رقم ${createarrivallist.Order?.HomeMaid?.Name}  الى  ${createarrivallist.Order?.bookingstatus}  `,
+          Status: `تم تعديل بيانات المغادرة الداخلية للعاملة ${createarrivallist.Order?.HomeMaid?.Name || ''} بنجاح`,
           homemaidId: createarrivallist.Order?.HomemaidId,
           userId: userId,
         },
