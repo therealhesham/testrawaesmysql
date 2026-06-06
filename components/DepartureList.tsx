@@ -873,24 +873,34 @@ const router = useRouter();
           </div>
 
           {/* اختيار التاريخ من */}
-          <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-2.5 w-full md:w-36 focus-within:border-teal-700 focus-within:ring-2 focus-within:ring-teal-700/10 transition-all shadow-sm">
+          <div className="flex items-center gap-0.5 bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-2.5 w-full md:w-36 focus-within:border-teal-700 focus-within:ring-2 focus-within:ring-teal-700/10 transition-all shadow-sm">
             <span className="text-xs text-gray-400 font-bold whitespace-nowrap">من:</span>
             <input
-              type="date"
+              type={startDate ? "date" : "text"}
+              placeholder="سنة / شهر / يوم"
+              onFocus={(e) => (e.target.type = 'date')}
+              onBlur={(e) => {
+                if (!e.target.value) e.target.type = 'text';
+              }}
               value={startDate}
               onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
-              className="bg-transparent border-none outline-none text-xs text-gray-700 w-full cursor-pointer font-medium"
+              className="bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-xs text-gray-700 w-full cursor-pointer font-medium p-0"
             />
           </div>
 
           {/* اختيار التاريخ إلى */}
-          <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-2.5 w-full md:w-36 focus-within:border-teal-700 focus-within:ring-2 focus-within:ring-teal-700/10 transition-all shadow-sm">
+          <div className="flex items-center gap-0.5 bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-2.5 w-full md:w-36 focus-within:border-teal-700 focus-within:ring-2 focus-within:ring-teal-700/10 transition-all shadow-sm">
             <span className="text-xs text-gray-400 font-bold whitespace-nowrap">إلى:</span>
             <input
-              type="date"
+              type={endDate ? "date" : "text"}
+              placeholder="سنة / شهر / يوم"
+              onFocus={(e) => (e.target.type = 'date')}
+              onBlur={(e) => {
+                if (!e.target.value) e.target.type = 'text';
+              }}
               value={endDate}
               onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
-              className="bg-transparent border-none outline-none text-xs text-gray-700 w-full cursor-pointer font-medium"
+              className="bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-xs text-gray-700 w-full cursor-pointer font-medium p-0"
             />
           </div>
 

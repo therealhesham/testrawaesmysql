@@ -666,3 +666,11 @@ div[class*="-Input"] input {
   outline: none !important;
   box-shadow: none !important;
 }
+
+/* Fix Chrome date input placeholder reversed text bug in RTL */
+input[type="date"]::-webkit-datetime-edit-text,
+input[type="date"]::-webkit-datetime-edit-month-field,
+input[type="date"]::-webkit-datetime-edit-day-field,
+input[type="date"]::-webkit-datetime-edit-year-field {
+  direction: ltr;
+}
