@@ -127,6 +127,10 @@ const [isUploading, setIsUploading] = useState<Record<string, boolean>>({
   const [isLoadingVisas, setIsLoadingVisas] = useState(false);
   const [selectedVisa, setSelectedVisa] = useState<Visa | null>(null);
 
+  // Unfit Homemaid Modal state
+  const [showUnfitModal, setShowUnfitModal] = useState(false);
+  const [unfitHomemaid, setUnfitHomemaid] = useState<any>(null);
+
   const fileInputRefs = {
     orderDocument: useRef<HTMLInputElement>(null),
     contract: useRef<HTMLInputElement>(null),
@@ -385,8 +389,8 @@ const handleHomemaidSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     }
   };
 
-  // Handle homemaid suggestion click
-  const handleHomemaidSuggestionClick = (homemaid: any) => {
+  // Confirm homemaid selection logic
+  const confirmHomemaidSelection = (homemaid: any) => {
     const nationality = homemaid.office?.Country || homemaid.Country || '';
     setFormData((prev) => ({
       ...prev,
@@ -412,6 +416,19 @@ const handleHomemaidSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       delete newErrors.Religion;
       return newErrors;
     });
+
+    setShowUnfitModal(false);
+    setUnfitHomemaid(null);
+  };
+
+  // Handle homemaid suggestion click
+  const handleHomemaidSuggestionClick = (homemaid: any) => {
+    if (homemaid.bookingstatus === 'غير لائقة طبيا' || homemaid.bookingstatus === 'غير لائقة طبياً') {
+      setUnfitHomemaid(homemaid);
+      setShowUnfitModal(true);
+      return;
+    }
+    confirmHomemaidSelection(homemaid);
   };
 
   // Handle input blur for suggestions
@@ -1386,6 +1403,42 @@ const arabicRegionMap: { [key: string]: string } = {
         onConfirm={handleGenderQuotaConfirm}
         onCancel={closeGenderQuotaModal}
       />
+
+      {/* Unfit Homemaid Confirmation Modal */}
+      {showUnfitModal && unfitHomemaid && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex items-center justify-center p-4">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md text-center relative" style={{ direction: 'rtl' }}>
+            <button
+              className="absolute top-3 left-3 text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100 transition-colors"
+              onClick={() => { setShowUnfitModal(false); setUnfitHomemaid(null); }}
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="flex flex-col items-center gap-4 mb-6">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: '#FEF3C7' }}>
+                <svg className="w-10 h-10" style={{ color: '#F59E0B' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <p className="text-gray-800 text-lg font-semibold">هذه العاملة فشلت في الفحص الطبي. هل تود المتابعة واختيارها؟</p>
+            </div>
+            <div className="flex gap-3 justify-center">
+              <button
+                className="flex-1 bg-teal-600 text-white px-4 py-2.5 rounded-lg font-medium hover:bg-teal-700 transition-colors"
+                onClick={() => confirmHomemaidSelection(unfitHomemaid)}
+              >
+                حسناً
+              </button>
+              <button
+                className="flex-1 border-2 border-gray-300 text-gray-700 px-4 py-2.5 rounded-lg font-medium hover:bg-gray-100 transition-colors"
+                onClick={() => { setShowUnfitModal(false); setUnfitHomemaid(null); }}
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

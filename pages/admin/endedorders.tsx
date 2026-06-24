@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { DocumentDownloadIcon, TableIcon } from '@heroicons/react/outline';
-import { Search, ChevronDown } from 'lucide-react';
+import { Search, ChevronDown, Phone, CreditCard, Book, Hash, Star, RefreshCw } from 'lucide-react';
 import Layout from 'example/containers/Layout';
 import Style from "styles/Home.module.css";
 import jsPDF from 'jspdf';
@@ -18,6 +18,7 @@ interface OrderRating {
   idOrder: number | null;
   isRated: boolean;
   reason: string | null;
+  stars?: number | null;
 }
 
 interface OrderData {
@@ -110,11 +111,92 @@ export default function Dashboard() {
   const [rentalCount, setRentalCount] = useState(0);
   const [nationality, setNationality] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [ratingStatus, setRatingStatus] = useState('all');
+  const [starsCount, setStarsCount] = useState('all');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [warrantyStatus, setWarrantyStatus] = useState('all');
   const [nationalities, setNationalities] = useState<{ id: number; Country: string }[]>([]);
   const [userName, setUserName] = useState('');
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
-  const [selectedOrderRating, setSelectedOrderRating] = useState<{ isRated: boolean; reason: string } | null>(null);
+  const [selectedOrderRating, setSelectedOrderRating] = useState<{ isRated: boolean; reason: string; stars?: number | null } | null>(null);
+  
+  const [isWarrantyDropdownOpen, setIsWarrantyDropdownOpen] = useState(false);
+  const [warrantyCoords, setWarrantyCoords] = useState<{ top: number; left: number } | null>(null);
+  
+  const [isRatingDropdownOpen, setIsRatingDropdownOpen] = useState(false);
+  const [ratingCoords, setRatingCoords] = useState<{ top: number; left: number } | null>(null);
+  
+  const [isMounted, setIsMounted] = useState(false);
+  
+  useEffect(() => setIsMounted(true), []);
+  
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('#warranty-filter-dropdown') && !target.closest('button[title="تصفية حسب الضمان"]')) {
+        setIsWarrantyDropdownOpen(false);
+      }
+      if (!target.closest('#rating-filter-dropdown') && !target.closest('button[title="تصفية حسب التقييم"]')) {
+        setIsRatingDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const handleWarrantyDropdownToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    if (isWarrantyDropdownOpen) {
+      setIsWarrantyDropdownOpen(false);
+    } else {
+      setIsRatingDropdownOpen(false);
+      const trigger = e.currentTarget;
+      const container = document.getElementById("table-container");
+      if (container) {
+        let el: HTMLElement | null = trigger;
+        let left = 0;
+        let top = 0;
+        while (el && el !== container) {
+          left += el.offsetLeft;
+          top += el.offsetTop;
+          el = el.offsetParent as HTMLElement | null;
+        }
+        left = Math.max(8, left + trigger.offsetWidth - 144);
+        top = top + trigger.offsetHeight + 8;
+        setWarrantyCoords({ top, left });
+      }
+      setIsWarrantyDropdownOpen(true);
+    }
+  };
+
+  const handleRatingDropdownToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    if (isRatingDropdownOpen) {
+      setIsRatingDropdownOpen(false);
+    } else {
+      setIsWarrantyDropdownOpen(false);
+      const trigger = e.currentTarget;
+      const container = document.getElementById("table-container");
+      if (container) {
+        let el: HTMLElement | null = trigger;
+        let left = 0;
+        let top = 0;
+        while (el && el !== container) {
+          left += el.offsetLeft;
+          top += el.offsetTop;
+          el = el.offsetParent as HTMLElement | null;
+        }
+        left = Math.max(8, left + trigger.offsetWidth - 144);
+        top = top + trigger.offsetHeight + 8;
+        setRatingCoords({ top, left });
+      }
+      setIsRatingDropdownOpen(true);
+    }
+  };
   const [alertModal, setAlertModal] = useState<{
     isOpen: boolean;
     type: 'success' | 'error' | 'warning' | 'info';
@@ -148,6 +230,11 @@ export default function Dashboard() {
       if (searchTerm) {
         url.searchParams.set('searchTerm', searchTerm);
       }
+      if (ratingStatus !== 'all') url.searchParams.set('ratingStatus', ratingStatus);
+      if (starsCount !== 'all') url.searchParams.set('starsCount', starsCount);
+      if (fromDate) url.searchParams.set('fromDate', fromDate);
+      if (toDate) url.searchParams.set('toDate', toDate);
+      if (warrantyStatus !== 'all') url.searchParams.set('warrantyStatus', warrantyStatus);
       const res = await fetch(url.toString(), { signal });
       if (signal?.aborted) return;
       const { homemaids, totalCount, totalPages } = await res.json();
@@ -169,9 +256,23 @@ export default function Dashboard() {
 
   async function fetchCounts(signal?: AbortSignal) {
     try {
+      const buildUrl = (type: string) => {
+        const url = new URL(`/api/endedorders`, window.location.origin);
+        url.searchParams.set('page', '1');
+        url.searchParams.set('typeOfContract', type);
+        if (nationality) url.searchParams.set('Nationality', nationality);
+        if (searchTerm) url.searchParams.set('searchTerm', searchTerm);
+        if (ratingStatus !== 'all') url.searchParams.set('ratingStatus', ratingStatus);
+        if (starsCount !== 'all') url.searchParams.set('starsCount', starsCount);
+        if (fromDate) url.searchParams.set('fromDate', fromDate);
+        if (toDate) url.searchParams.set('toDate', toDate);
+        if (warrantyStatus !== 'all') url.searchParams.set('warrantyStatus', warrantyStatus);
+        return url.toString();
+      };
+
       const [recruitmentRes, rentalRes] = await Promise.all([
-        fetch(`/api/endedorders?page=1&typeOfContract=recruitment`, { signal }),
-        fetch(`/api/endedorders?page=1&typeOfContract=rental`, { signal })
+        fetch(buildUrl('recruitment'), { signal }),
+        fetch(buildUrl('rental'), { signal })
       ]);
       
       if (signal?.aborted) return;
@@ -199,7 +300,7 @@ export default function Dashboard() {
     return () => {
       abortController.abort();
     };
-  }, [contractType, nationality, searchTerm]);
+  }, [contractType, nationality, searchTerm, ratingStatus, starsCount, fromDate, toDate, warrantyStatus]);
 
   useEffect(() => {
     const authToken = localStorage.getItem('token');
@@ -238,7 +339,7 @@ export default function Dashboard() {
     }
   };
 
-  const handleRatingClick = (orderId: number, existingRating?: { isRated: boolean; reason: string }) => {
+  const handleRatingClick = (orderId: number, existingRating?: { isRated: boolean; reason: string; stars?: number | null }) => {
     setSelectedOrderId(orderId);
     if (existingRating) {
       setSelectedOrderRating(existingRating);
@@ -313,6 +414,11 @@ export default function Dashboard() {
       ...(nationality && { Nationality: nationality }),
       ...(searchTerm && { searchTerm }),
       ...(contractType && { typeOfContract: contractType }),
+      ...(ratingStatus !== 'all' && { ratingStatus }),
+      ...(starsCount !== 'all' && { starsCount }),
+      ...(fromDate && { fromDate }),
+      ...(toDate && { toDate }),
+      ...(warrantyStatus !== 'all' && { warrantyStatus }),
     }).toString();
     const res = await fetch(`/api/endedorders?${query}`);
     if (!res.ok) throw new Error("Failed to fetch data");
@@ -472,7 +578,7 @@ export default function Dashboard() {
       { header: 'اسم العاملة', key: 'maidName', width: 20 },
       { header: 'الجنسية', key: 'nationality', width: 15 },
       { header: 'رقم جواز السفر', key: 'passport', width: 15 },
-      { header: 'المتبقي من الضمان', key: 'warranty', width: 20 },
+      { header: 'حالة الضمان', key: 'warranty', width: 20 },
       { header: 'مدة المعاملة', key: 'duration', width: 15 },
       { header: 'التقييم', key: 'rating', width: 15 },
     ];
@@ -488,7 +594,7 @@ export default function Dashboard() {
       { header: 'اسم العاملة', key: 'maidName', width: 20 },
       { header: 'الجنسية', key: 'nationality', width: 15 },
       { header: 'رقم جواز السفر', key: 'passport', width: 15 },
-      { header: 'المتبقي من الضمان', key: 'warranty', width: 20 },
+      { header: 'حالة الضمان', key: 'warranty', width: 20 },
       { header: 'مدة المعاملة', key: 'duration', width: 15 },
       { header: 'التقييم', key: 'rating', width: 10 }
     ];
@@ -611,22 +717,28 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="flex justify-between items-center mb-6 flex-col sm:flex-row gap-4">
-                <div className="flex gap-4">
-                  <div className="flex items-center bg-gray-50 border border-gray-300 rounded px-2.5 py-2 gap-4">
+                <div className="flex flex-wrap items-center gap-2.5 justify-start flex-grow">
+                  
+                  {/* Search */}
+                  <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 flex-grow min-w-[200px] max-w-[300px] focus-within:border-teal-700 focus-within:ring-2 focus-within:ring-teal-700/10 transition-all shadow-sm">
+                    <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
                     <input
                       type="text"
                       placeholder="بحث"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="border-none bg-transparent outline-none text-right font-tajawal text-sm text-gray-500"
+                      className="bg-transparent border-none outline-none text-xs text-gray-800 placeholder-gray-400 w-full font-medium"
                     />
-                    <Search className="w-4 h-4 text-gray-500" />
                   </div>
-                  <div className="relative flex items-center bg-gray-50 border border-gray-300 rounded px-2.5 py-2 gap-10 text-sm text-gray-500 cursor-pointer min-w-[150px]">
+
+                  {/* Nationality */}
+                  <div className="relative flex items-center bg-gray-50 border border-gray-200 rounded-xl w-full md:w-36 focus-within:border-teal-700 focus-within:ring-2 focus-within:ring-teal-700/10 transition-all shadow-sm">
                     <select
                       value={nationality}
                       onChange={(e) => setNationality(e.target.value)}
-                      className="bg-transparent border-none outline-none w-full text-right appearance-none cursor-pointer"
+                      className="bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-xs text-gray-700 w-full cursor-pointer font-medium py-2.5 pr-3 pl-8 text-right"
+                      style={{ appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundImage: 'none' }}
+                      dir="rtl"
                     >
                       <option value="">كل الجنسيات</option>
                       {nationalities.map((nat) => (
@@ -635,29 +747,107 @@ export default function Dashboard() {
                         </option>
                       ))}
                     </select>
-                    <ChevronDown className="w-4 h-4 text-gray-500 pointer-events-none flex-shrink-0" />
+                    <div className="absolute left-3 pointer-events-none text-gray-400">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3.5 h-3.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                      </svg>
+                    </div>
                   </div>
+
+                  {/* Date From */}
+                  <div className="flex items-center gap-0.5 bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-2.5 w-full md:w-36 focus-within:border-teal-700 focus-within:ring-2 focus-within:ring-teal-700/10 transition-all shadow-sm">
+                    <span className="text-xs text-gray-400 font-bold whitespace-nowrap">من:</span>
+                    <input
+                      type={fromDate ? "date" : "text"}
+                      placeholder="سنة / شهر / يوم"
+                      onFocus={(e) => (e.target.type = 'date')}
+                      onBlur={(e) => {
+                        if (!e.target.value) e.target.type = 'text';
+                      }}
+                      value={fromDate}
+                      onChange={(e) => setFromDate(e.target.value)}
+                      className="bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-xs text-gray-700 w-full cursor-pointer font-medium p-0"
+                    />
+                  </div>
+
+                  {/* Date To */}
+                  <div className="flex items-center gap-0.5 bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-2.5 w-full md:w-36 focus-within:border-teal-700 focus-within:ring-2 focus-within:ring-teal-700/10 transition-all shadow-sm">
+                    <span className="text-xs text-gray-400 font-bold whitespace-nowrap">إلى:</span>
+                    <input
+                      type={toDate ? "date" : "text"}
+                      placeholder="سنة / شهر / يوم"
+                      onFocus={(e) => (e.target.type = 'date')}
+                      onBlur={(e) => {
+                        if (!e.target.value) e.target.type = 'text';
+                      }}
+                      value={toDate}
+                      onChange={(e) => setToDate(e.target.value)}
+                      className="bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-xs text-gray-700 w-full cursor-pointer font-medium p-0"
+                    />
+                  </div>
+
                 </div>
                 <button 
                   onClick={() => {
                     setNationality('');
                     setSearchTerm('');
+                    setRatingStatus('all');
+                    setStarsCount('all');
+                    setFromDate('');
+                    setToDate('');
+                    setWarrantyStatus('all');
                     setCurrentPage(1);
                   }}
-                  className="bg-teal-900 text-white border-none rounded px-4 py-2 text-sm font-tajawal cursor-pointer"
+                  title="إلغاء الفلتر"
+                  className="flex items-center justify-center bg-gray-50 border border-gray-200 rounded-xl w-[42px] h-[42px] flex-shrink-0 hover:bg-gray-100 transition-colors shadow-sm cursor-pointer"
                 >
-                  اعادة ضبط
+                  <RefreshCw className="w-5 h-5 text-gray-500" />
                 </button>
               </div>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto relative min-h-[450px]" id="table-container">
                 <table className="w-full border-collapse min-w-[1000px]">
                   <thead>
                     <tr className="bg-teal-900">
-                      {['#', 'اسم العميل', 'جوال العميل', 'هوية العميل', 'رقم العاملة', 'اسم العاملة', 'الجنسية', 'رقم جواز السفر', 'المتبقي من الضمان', 'مدة المعاملة', 'التقييم'].map((header) => (
-                        <th key={header} className="text-white text-sm font-normal p-4 text-right whitespace-nowrap">
-                          {header}
-                        </th>
-                      ))}
+                      <th className="text-white text-sm font-medium p-4 whitespace-nowrap text-right">
+                        رقم الطلب
+                      </th>
+                      <th className="text-white text-sm font-medium p-4 whitespace-nowrap text-right">
+                        بيانات العميل
+                      </th>
+                      <th className="text-white text-sm font-medium p-4 whitespace-nowrap text-right">
+                        بيانات العاملة
+                      </th>
+                      <th className="text-white text-sm font-medium p-4 whitespace-nowrap text-right relative">
+                        <div className="flex items-center gap-1.5 justify-start">
+                          <span>حالة الضمان</span>
+                          <button
+                            onClick={handleWarrantyDropdownToggle}
+                            className={`p-1 rounded hover:bg-teal-800 transition-colors flex items-center justify-center ${warrantyStatus !== 'all' ? 'text-amber-400 font-bold' : 'text-teal-200 hover:text-white'}`}
+                            title="تصفية حسب الضمان"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="w-4 h-4">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h18m-2 0v2.286a2 2 0 0 1-.586 1.414l-5.828 5.828a2 2 0 0 0-.586 1.414v4.556a1 1 0 0 1-1.447.894l-2-1a1 1 0 0 1-.553-.894v-3.556a2 2 0 0 0-.586-1.414L3.586 8.2a2 2 0 0 1-.586-1.414V4.5z" />
+                            </svg>
+                          </button>
+                        </div>
+                      </th>
+                      <th className="text-white text-sm font-medium p-4 whitespace-nowrap text-right">
+                        مدة المعاملة
+                      </th>
+                      <th className="text-white text-sm font-medium p-4 whitespace-nowrap text-center relative">
+                        <div className="flex items-center gap-1.5 justify-center">
+                          <span>التقييم</span>
+                          <button
+                            onClick={handleRatingDropdownToggle}
+                            className={`p-1 rounded hover:bg-teal-800 transition-colors flex items-center justify-center ${ratingStatus !== 'all' || starsCount !== 'all' ? 'text-amber-400 font-bold' : 'text-teal-200 hover:text-white'}`}
+                            title="تصفية حسب التقييم"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="w-4 h-4">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h18m-2 0v2.286a2 2 0 0 1-.586 1.414l-5.828 5.828a2 2 0 0 0-.586 1.414v4.556a1 1 0 0 1-1.447.894l-2-1a1 1 0 0 1-.553-.894v-3.556a2 2 0 0 0-.586-1.414L3.586 8.2a2 2 0 0 1-.586-1.414V4.5z" />
+                            </svg>
+                          </button>
+                        </div>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -665,41 +855,171 @@ export default function Dashboard() {
                       const warrantyText = getWarrantyDisplayText(booking);
                       return (
                       <tr key={booking.id} className="bg-gray-50 border-b border-gray-300 last:border-b-0">
-                        <td className="p-4 text-sm text-gray-800 text-right cursor-pointer" onClick={() => router.push(`/admin/track_order/${booking.id}`)}>#{booking.id}</td>
-                        <td className="p-4 text-sm text-gray-800 text-right whitespace-nowrap">{booking.client?.fullname || 'غير متوفر'}</td>
-                        <td className="p-4 text-sm text-gray-800 text-right">{booking.client?.phonenumber || 'غير متوفر'}</td>
-                        <td className="p-4 text-sm text-gray-800 text-right">{booking.client?.id || 'غير متوفر'}</td>
-                        <td className="p-4 text-sm text-gray-800 text-right">{booking.HomeMaid?.id || 'غير متوفر'}</td>
-                        <td className="p-4 text-sm text-gray-800 text-right whitespace-nowrap">{booking.HomeMaid?.Name || 'غير متوفر'}</td>
-                        <td className="p-4 text-sm text-gray-800 text-right">{booking.HomeMaid?.Nationality || 'غير متوفر'}</td>
-                        <td className="p-4 text-sm text-gray-800 text-right">{booking.HomeMaid?.Passportnumber || 'غير متوفر'}</td>
+                        <td className="p-4 text-md text-gray-800 text-right">
+                          <span className="font-medium text-gray-600 hover:text-teal-700 cursor-pointer" onClick={() => router.push(`/admin/track_order/${booking.id}`)}>
+                            #{booking.id}
+                          </span>
+                        </td>
+                        <td className="p-4 text-md text-gray-800 text-right">
+                          <div className="font-medium whitespace-nowrap">
+                            <span className="cursor-pointer hover:text-teal-700 transition-colors hover:underline" onClick={() => booking.client?.id && router.push(`/admin/clientdetails?id=${booking.client.id}`)}>
+                              {booking.client?.fullname || 'غير متوفر'}
+                            </span>
+                          </div>
+                          <div className="text-sm text-gray-500 mt-1 flex flex-nowrap gap-2 items-center whitespace-nowrap">
+                            <span className="flex items-center gap-1" title="رقم الجوال"><Phone className="w-3.5 h-3.5 text-gray-400" />{booking.client?.phonenumber || 'غير متوفر'}</span>
+                            <span className="text-gray-300">|</span>
+                            <span className="flex items-center gap-1" title="الهوية الوطنية"><CreditCard className="w-3.5 h-3.5 text-gray-400" />{booking.client?.nationalId || booking.client?.id || 'غير متوفر'}</span>
+                          </div>
+                        </td>
+                        <td className="p-4 text-md text-gray-800 text-right">
+                          <div className="font-medium whitespace-nowrap flex items-center gap-2">
+                            <span className="cursor-pointer hover:text-teal-700 transition-colors hover:underline" onClick={() => booking.HomeMaid?.id && router.push(`/admin/homemaidinfo?id=${booking.HomeMaid.id}`)}>
+                              {booking.HomeMaid?.Name || 'غير متوفر'}
+                            </span>
+                            <span className="text-gray-400 font-normal text-sm flex items-center gap-0.5" title="رقم العاملة">
+                              <Hash className="w-3 h-3" />{booking.HomeMaid?.id || 'غير متوفر'}
+                            </span>
+                          </div>
+                          <div className="text-sm text-gray-500 mt-1 flex flex-nowrap gap-2 items-center whitespace-nowrap">
+                            <span>{booking.HomeMaid?.office?.Country || booking.HomeMaid?.Nationality || 'غير متوفر'}</span>
+                            <span className="text-gray-300">|</span>
+                            <span className="flex items-center gap-1" title="رقم جواز السفر"><Book className="w-3.5 h-3.5 text-gray-400" />{booking.HomeMaid?.Passportnumber || 'غير متوفر'}</span>
+                          </div>
+                        </td>
                         <td className={`p-4 text-sm text-right whitespace-nowrap font-medium ${getWarrantyColorClass(warrantyText)}`}>{warrantyText}</td>
                         <td className="p-4 text-sm text-gray-800 text-right">{getTransactionDuration(booking)}</td>
-                        <td className="p-4 text-sm text-right">
-                          <button
+                        <td className="p-4 text-sm text-center">
+                          <div 
+                            className="flex cursor-pointer gap-1 justify-center"
                             onClick={() => {
                               const existingRating = booking.ratings?.[0];
                               handleRatingClick(booking.id, existingRating ? {
                                 isRated: existingRating.isRated,
-                                reason: existingRating.reason || ''
+                                reason: existingRating.reason || '',
+                                stars: existingRating.stars
                               } : undefined);
                             }}
-                            className={`inline-block px-3 py-1 rounded-lg cursor-pointer transition-colors ${
-                              booking.ratings?.[0]?.isRated 
-                                ? 'bg-teal-900 text-white hover:bg-teal-800' 
-                                : booking.isContractEnded 
-                                  ? 'text-red-600 hover:bg-red-50' 
-                                  : 'text-teal-900 hover:bg-teal-50'
-                            }`}
+                            title="عرض تفاصيل التقييم"
                           >
-                            {booking.ratings?.[0]?.isRated ? 'تم التقييم' : booking.isContractEnded ? 'لا' : 'تقييم'}
-                          </button>
+                            {[1, 2, 3, 4, 5].map((starIndex) => {
+                              const ratingStars = booking.ratings?.[0]?.stars || 0;
+                              const isFilled = starIndex <= ratingStars;
+                              return (
+                                <Star
+                                  key={starIndex}
+                                  className={`w-5 h-5 transition-colors ${isFilled ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`}
+                                />
+                              );
+                            })}
+                          </div>
                         </td>
                       </tr>
                     );
                     })}
                   </tbody>
                 </table>
+                
+                {/* Popovers for Filters */}
+                {isMounted && isWarrantyDropdownOpen && warrantyCoords && (
+                  <div 
+                    id="warranty-filter-dropdown"
+                    dir="rtl"
+                    style={{ 
+                      position: 'absolute', 
+                      top: `${warrantyCoords.top}px`, 
+                      left: `${warrantyCoords.left}px`,
+                      width: '144px',
+                      zIndex: 9999
+                    }}
+                    className="bg-white border border-gray-150 rounded-2xl shadow-xl py-2 text-right animate-in fade-in slide-in-from-top-2 duration-200 text-gray-700 font-medium tracking-normal"
+                  >
+                    <div className="max-h-60 overflow-y-auto">
+                      <div className="px-5 py-2 text-xs font-bold text-gray-400 border-b border-gray-50 mb-1">حالة الضمان</div>
+                      <button
+                        onClick={() => { setWarrantyStatus('all'); setIsWarrantyDropdownOpen(false); setCurrentPage(1); }}
+                        className={`w-full text-right px-5 py-2.5 hover:bg-gray-50 text-sm font-medium transition-colors duration-150 ${warrantyStatus === 'all' ? 'text-teal-700 bg-gray-50/50' : 'text-gray-600'}`}
+                      >
+                        الكل
+                      </button>
+                      <button
+                        onClick={() => { setWarrantyStatus('valid'); setIsWarrantyDropdownOpen(false); setCurrentPage(1); }}
+                        className={`w-full text-right px-5 py-2.5 hover:bg-gray-50 text-sm font-medium transition-colors duration-150 ${warrantyStatus === 'valid' ? 'text-teal-700 bg-gray-50/50' : 'text-gray-600'}`}
+                      >
+                        ساري
+                      </button>
+                      <button
+                        onClick={() => { setWarrantyStatus('expired'); setIsWarrantyDropdownOpen(false); setCurrentPage(1); }}
+                        className={`w-full text-right px-5 py-2.5 hover:bg-gray-50 text-sm font-medium transition-colors duration-150 ${warrantyStatus === 'expired' ? 'text-teal-700 bg-gray-50/50' : 'text-gray-600'}`}
+                      >
+                        منتهي
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {isMounted && isRatingDropdownOpen && ratingCoords && (
+                  <div 
+                    id="rating-filter-dropdown"
+                    dir="rtl"
+                    style={{ 
+                      position: 'absolute', 
+                      top: `${ratingCoords.top}px`, 
+                      left: `${ratingCoords.left}px`,
+                      width: '144px',
+                      zIndex: 9999
+                    }}
+                    className="bg-white border border-gray-150 rounded-2xl shadow-xl py-2 text-right animate-in fade-in slide-in-from-top-2 duration-200 text-gray-700 font-medium tracking-normal"
+                  >
+                    <div className="max-h-60 overflow-y-auto">
+                      <div className="px-5 py-2 text-xs font-bold text-gray-400 border-b border-gray-50 mb-1">حالة التقييم</div>
+                      <button
+                        onClick={() => { setRatingStatus('all'); setStarsCount('all'); setIsRatingDropdownOpen(false); setCurrentPage(1); }}
+                        className={`w-full text-right px-5 py-2.5 hover:bg-gray-50 text-sm font-medium transition-colors duration-150 ${ratingStatus === 'all' ? 'text-teal-700 bg-gray-50/50' : 'text-gray-600'}`}
+                      >
+                        الكل
+                      </button>
+                      <button
+                        onClick={() => { setRatingStatus('rated'); }}
+                        className={`w-full text-right px-5 py-2.5 hover:bg-gray-50 text-sm font-medium transition-colors duration-150 flex items-center justify-between ${ratingStatus === 'rated' ? 'text-teal-700 bg-gray-50/50' : 'text-gray-600'}`}
+                      >
+                        <span>مقيّم</span>
+                        {ratingStatus === 'rated' && <ChevronDown className="w-4 h-4 text-gray-400" />}
+                      </button>
+                      <button
+                        onClick={() => { setRatingStatus('unrated'); setStarsCount('all'); setIsRatingDropdownOpen(false); setCurrentPage(1); }}
+                        className={`w-full text-right px-5 py-2.5 hover:bg-gray-50 text-sm font-medium transition-colors duration-150 ${ratingStatus === 'unrated' ? 'text-teal-700 bg-gray-50/50' : 'text-gray-600'}`}
+                      >
+                        غير مقيّم
+                      </button>
+
+                      {ratingStatus === 'rated' && (
+                        <>
+                          <div className="px-5 py-2 text-xs font-bold text-gray-400 border-y border-gray-50 mt-1 mb-1">عدد النجوم</div>
+                          <button
+                            onClick={() => { setStarsCount('all'); setIsRatingDropdownOpen(false); setCurrentPage(1); }}
+                            className={`w-full text-right px-5 py-2 hover:bg-gray-50 text-sm font-medium transition-colors duration-150 ${starsCount === 'all' ? 'text-teal-700 bg-gray-50/50' : 'text-gray-600'}`}
+                          >
+                            كل النجوم
+                          </button>
+                          {[5, 4, 3, 2, 1].map((stars) => (
+                            <button
+                              key={stars}
+                              onClick={() => { setStarsCount(stars.toString()); setIsRatingDropdownOpen(false); setCurrentPage(1); }}
+                              className={`w-full px-5 py-1.5 hover:bg-gray-50 transition-colors duration-150 flex items-center gap-1 justify-start ${starsCount === stars.toString() ? 'bg-gray-50/50' : ''}`}
+                            >
+                              <div className="flex gap-0.5">
+                                {[...Array(stars)].map((_, i) => (
+                                  <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                                ))}
+                              </div>
+                            </button>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex justify-between items-center mt-6 flex-col sm:flex-row gap-4">
                 <p className="text-base text-black">

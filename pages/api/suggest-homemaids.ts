@@ -511,6 +511,7 @@ export default async function handler(
         country: homemaid.office?.Country || homemaid.Nationalitycopy,
         picture: homemaid.Picture,
         relevanceScore: homemaid.relevanceScore,
+        bookingstatus: homemaid.bookingstatus,
       };
     });
 

@@ -28,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       // UPDATE rating
       case 'PUT':
-        const { idOrder, isRated, reason } = req.body;
+        const { idOrder, isRated, reason, stars } = req.body;
         
         // Check if rating exists
         const existingRating = await prisma.rating.findUnique({
@@ -45,6 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             ...(idOrder !== undefined && { idOrder: idOrder ? Number(idOrder) : null }),
             ...(isRated !== undefined && { isRated: Boolean(isRated) }),
             ...(reason !== undefined && { reason: reason || null }),
+            ...(stars !== undefined && { stars: stars ? Number(stars) : null }),
           },
         });
         return res.status(200).json(updatedRating);

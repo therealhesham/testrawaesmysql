@@ -157,6 +157,11 @@ console.log(id)
               officeName: true,
             },
           },
+          cancelledOrders: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: { ReasonOfCancellation: true },
+          },
           arrivals: {
             select: {
               DateOfApplication: true,
@@ -278,34 +283,7 @@ console.log(id)
         }
       }
 
-      // الموافقة التلقائية عند وجود رقم عقد إدارة المكاتب
-      if (order.arrivals && order.arrivals.length > 0) {
-        const arrival = order.arrivals[0];
-        const contractNumber = arrival?.InternalmusanedContract as string | null | undefined;
-        const hasApproval = !!arrival?.ExternalDateLinking;
-        
-        if (contractNumber && typeof contractNumber === 'string') {
-          const contractValue = contractNumber.trim();
-          if (contractValue && contractValue !== 'N/A' && contractValue !== '' && !hasApproval) {
-            // الموافقة التلقائية
-            await prisma.$transaction([
-              prisma.neworder.update({
-                where: { id: Number(id) },
-                data: { bookingstatus: 'office_link_approved' },
-              }),
-              prisma.arrivallist.updateMany({
-                where: { OrderId: Number(id) },
-                data: { ExternalDateLinking: new Date() },
-              }),
-            ]);
-            console.log('✅ تم تأكيد الموافقة تلقائياً عند تحميل الصفحة بسبب وجود رقم عقد إدارة المكاتب');
-            
-            // تحديث البيانات المحملة
-            (arrival as any).ExternalDateLinking = new Date();
-            order.bookingstatus = 'office_link_approved';
-          }
-        }
-      }
+
 
       // مصدر بيانات العاملة: من الربط المباشر، أو من cancelledOrders/rejectedOrders عند فك الربط
       const isCancelled = ['cancelled', 'عقد ملغي'].includes(order.bookingstatus || '');
@@ -420,6 +398,7 @@ console.log(id)
         paidAmount: order.paid ?? null,
         reasonOfRejection: (order as any).rejectedOrders?.[0]?.ReasonOfRejection ?? order.ReasonOfRejection ?? null,
         reasonOfCancellation: (order as any).cancelledOrders?.[0]?.ReasonOfCancellation ?? order.ReasonOfCancellation ?? null,
+        cancelledOrderNationality: (order as any).cancelledOrders?.[0]?.HomeMaid?.office?.Country ?? null,
         ticketsDetails: ((order as any).tickets_details || []).map((t: any) => ({
           id: t.id,
           order_id: t.order_id,
@@ -516,13 +495,189 @@ const cookieHeader = req.headers.cookie;
   }  
         
       if (!order || !order.arrivals || order.arrivals.length === 0) {
-
-
-        // console.log(order)
-        console.log(order?.arrivals)
-// console.log(order?.arrivals[0])
-
         return res.status(404).json({ error: 'بيانات الوصول غير متاحة .. يرجى التأكيد من حالة الطلب' });
+      }
+
+      if (section === 'medicalCheckFailed') {
+        const oldArrival = order.arrivals[0];
+
+        // 1. Cancel old order & unlink maid
+        await prisma.neworder.update({
+          where: { id: Number(id) },
+          data: {
+            bookingstatus: 'cancelled',
+            clientBookingStatus: 'cancelled',
+            ReasonOfCancellation: 'لم تجتز العاملة الفحص الطبي',
+            HomemaidId: null, // فك ارتباط العاملة بالطلب القديم
+          }
+        });
+
+        // Add to cancelledOrders
+        if (order.HomemaidId) {
+          await prisma.cancelledOrders.create({
+            data: {
+              order_id: Number(id),
+              HomeMaidId: order.HomemaidId,
+            }
+          });
+
+          // Update old maid profile
+          const oldMaid = await prisma.homemaid.findUnique({ where: { id: order.HomemaidId } });
+          const newNotes = oldMaid?.notes ? `${oldMaid.notes} | تم إلغاء الطلب رقم ${id} بسبب عدم اجتياز الفحص الطبي` : `تم إلغاء الطلب رقم ${id} بسبب عدم اجتياز الفحص الطبي`;
+          await prisma.homemaid.update({
+            where: { id: order.HomemaidId },
+            data: {
+              notes: newNotes,
+              isApproved: false, // تختفي من الموقع
+              bookingstatus: 'غير لائقة طبيا', // تحويل حالتها لـ غير لائقة طبياً
+            }
+          });
+        }
+
+        // Log in system
+        if (token) {
+          await prisma.systemUserLogs.create({
+            data: {
+              userId: Number(userId),
+              action: 'cancelled_medical_failed',
+              details: `تم إلغاء الطلب ${id} بسبب عدم اجتياز الفحص الطبي وإحلال طلب جديد`,
+            }
+          });
+        }
+
+        // 2. Create new order
+        const newOrder = await prisma.neworder.create({
+          data: {
+            ClientName: order.ClientName,
+            PhoneNumber: order.PhoneNumber,
+            clientID: order.clientID,
+            HomemaidId: null, // No maid yet
+            isAvailable: true,
+            orderDocument: order.orderDocument as any,
+            contract: order.contract,
+            bookingstatus: 'pending_external_office',
+            clientBookingStatus: 'pending_external_office',
+            typeOfContract: order.typeOfContract,
+            Nationality: order.Nationality,
+            Religion: order.Religion,
+            Passportnumber: null,
+            nationalId: order.nationalId,
+            clientphonenumber: order.clientphonenumber,
+            ExperienceYears: order.ExperienceYears,
+            maritalstatus: null,
+            Experience: null,
+            dateofbirth: null,
+            age: null,
+            PaymentMethod: order.PaymentMethod,
+            Total: order.Total,
+            paid: order.paid,
+            visaId: order.visaId,
+            ages: null,
+          }
+        });
+
+        // 3. Create arrival list for new order
+        await prisma.arrivallist.create({
+          data: {
+            OrderId: newOrder.id,
+            SponsorName: oldArrival.SponsorName,
+            SponsorIdnumber: oldArrival.SponsorIdnumber,
+            nationalidNumber: oldArrival.nationalidNumber,
+            VisaFile: oldArrival.VisaFile,
+            visaNumber: oldArrival.visaNumber,
+            InternalmusanedContract: oldArrival.InternalmusanedContract,
+            DateOfApplication: oldArrival.DateOfApplication,
+            externalmusanedContract: oldArrival.externalmusanedContract,
+            ExternalDateLinking: oldArrival.ExternalDateLinking,
+          }
+        });
+
+        // 4. Move financials
+        await prisma.clientAccountStatement.updateMany({
+          where: { orderId: Number(id) },
+          data: { orderId: newOrder.id, contractNumber: `ORD-${newOrder.id}` }
+        });
+
+        try {
+          // transactions might be misspelled as 'transactios' or 'transactions' in schema, checking Prisma type:
+          await (prisma as any).transactions?.updateMany({
+            where: { order_id: Number(id) },
+            data: { order_id: newOrder.id }
+          });
+        } catch (e) {}
+
+        return res.status(200).json({ success: true, newOrderId: newOrder.id });
+      }
+
+      if (section === 'assign_maid') {
+        const { homemaidId } = updatedData;
+        if (!homemaidId) return res.status(400).json({ error: 'عاملة غير محددة' });
+
+        const homemaid = await prisma.homemaid.findUnique({ where: { id: Number(homemaidId) } });
+        if (!homemaid) return res.status(404).json({ error: 'العاملة غير موجودة' });
+
+        // Reactivate if medically unfit
+        let wasUnfit = false;
+        if (homemaid.bookingstatus === 'غير لائقة طبيا' || homemaid.bookingstatus === 'غير لائقة طبياً') {
+          wasUnfit = true;
+          await prisma.homemaid.update({
+            where: { id: homemaid.id },
+            data: {
+              bookingstatus: '',
+              isApproved: true,
+            }
+          });
+          
+          const username = token?.username || 'system';
+          await logToHomemaidLogs(
+            username,
+            homemaid.id,
+            'إعادة تنشيط تلقائي',
+            `تمت إعادة تنشيط العاملة تلقائياً عند ربطها بالطلب رقم ${id} بعد فشل فحصها الطبي السابق`,
+            `تخصيص كبديل`
+          );
+        }
+
+        // Link maid to order
+        await prisma.neworder.update({
+          where: { id: Number(id) },
+          data: {
+            HomemaidId: homemaid.id,
+            HomemaidIdCopy: homemaid.id,
+          }
+        });
+
+        // Update arrival list with maid data
+        await prisma.arrivallist.updateMany({
+          where: { OrderId: Number(id) },
+          data: {
+            HomemaIdnumber: homemaid.id,
+            HomemaidName: homemaid.Name,
+            PassportNumber: homemaid.Passportnumber,
+            externalmusanedContract: null,
+            ExternalDateLinking: null,
+          }
+        });
+
+        // Mark maid as unavailable
+        const newNotes = homemaid.notes ? `${homemaid.notes} | تم تخصيص العاملة كبديل في الطلب رقم ${id}` : `تم تخصيص العاملة كبديل في الطلب رقم ${id}`;
+        await prisma.homemaid.update({
+          where: { id: homemaid.id },
+          data: { notes: newNotes }
+        });
+
+        // Log in system
+        if (token) {
+          await prisma.systemUserLogs.create({
+            data: {
+              userId: Number(userId),
+              action: 'assign_replacement_maid',
+              details: `تم اختيار العاملة البديلة #${homemaid.id} للطلب رقم ${id}`,
+            }
+          });
+        }
+
+        return res.status(200).json({ success: true });
       }
 
       // Handle existing status updates
@@ -632,8 +787,15 @@ const cookieHeader = req.headers.cookie;
               }
             }
             const oldOfficeLink = order.arrivals[0]?.ExternalDateLinking ? 'مكتمل' : 'غير مكتمل';
-            arrivalUpdate.ExternalDateLinking = value ? new Date() : null;
-            updateData.bookingstatus = value ? 'office_link_approved' : 'pending_office_link';
+            if (value) {
+              arrivalUpdate.ExternalDateLinking = new Date();
+              updateData.bookingstatus = 'office_link_approved';
+            } else {
+              arrivalUpdate.ExternalDateLinking = null;
+              arrivalUpdate.InternalmusanedContract = null;
+              arrivalUpdate.DateOfApplication = null;
+              updateData.bookingstatus = 'new_order';
+            }
             logMessage = `تعديل موافقة الربط مع إدارة المكاتب في الطلب ${id} من "${oldOfficeLink}" إلى "${value ? 'مكتمل' : 'غير مكتمل'}"`;
             break;
           case 'externalOfficeApproval':
@@ -731,6 +893,30 @@ const cookieHeader = req.headers.cookie;
         }
 
         console.log('💾 حفظ التعديلات...');
+        if (updateData.bookingstatus) {
+          if (updateData.bookingstatus === 'medical_check_passed') {
+            updateData.clientBookingStatus = 'pending_foreign_labor';
+          } else if (
+            updateData.bookingstatus === 'foreign_labor_approved' ||
+            updateData.bookingstatus === 'pending_agency_payment' ||
+            updateData.bookingstatus === 'agency_paid' ||
+            updateData.bookingstatus === 'pending_embassy'
+          ) {
+            updateData.clientBookingStatus = 'pending_embassy';
+          } else if (updateData.bookingstatus === 'embassy_approved') {
+            updateData.clientBookingStatus = 'pending_visa';
+          } else if (updateData.bookingstatus === 'visa_issued') {
+            updateData.clientBookingStatus = 'pending_travel_permit';
+          } else if (updateData.bookingstatus === 'travel_permit_issued') {
+            updateData.clientBookingStatus = 'pending_tickets';
+          } else if (updateData.bookingstatus === 'pending_receipt') {
+            updateData.clientBookingStatus = 'pending_arrival';
+          } else if (updateData.bookingstatus === 'office_link_approved') {
+            updateData.clientBookingStatus = 'pending_external_office';
+          } else {
+            updateData.clientBookingStatus = updateData.bookingstatus;
+          }
+        }
         const [updatedOrder, updatedArrivals] = await prisma.$transaction([
           prisma.neworder.update({
             where: { id: Number(id) },
@@ -859,6 +1045,28 @@ const cookieHeader = req.headers.cookie;
             const oldHomemaidId = order.HomemaidId;
             const newHomemaidId = updatedData['id'] ? Number(updatedData['id']) : order.HomemaidId;
             
+            // Reactivate if medically unfit
+            if (newHomemaidId) {
+              const homemaidObj = await prisma.homemaid.findUnique({ where: { id: Number(newHomemaidId) } });
+              if (homemaidObj && (homemaidObj.bookingstatus === 'غير لائقة طبيا' || homemaidObj.bookingstatus === 'غير لائقة طبياً')) {
+                await prisma.homemaid.update({
+                  where: { id: homemaidObj.id },
+                  data: {
+                    bookingstatus: '',
+                    isApproved: true,
+                  }
+                });
+                const username = token?.username || 'system';
+                await logToHomemaidLogs(
+                  username,
+                  homemaidObj.id,
+                  'إعادة تنشيط تلقائي',
+                  `تمت إعادة تنشيط العاملة تلقائياً عند ربطها بالطلب رقم ${id} بعد فشل فحصها الطبي السابق`,
+                  `تغيير العاملة في صفحة تتبع الطلب`
+                );
+              }
+            }
+
             // إذا كانت العاملة في طلب ملغي/مرفوض، نحررها أولاً
             const cancelledOrRejectedOrder = await prisma.neworder.findFirst({
               where: {
@@ -895,6 +1103,15 @@ const cookieHeader = req.headers.cookie;
                     HomemaidId: newHomemaidId,
                   },
                 });
+
+                // مسح رقم عقد التوثيق للمكتب الخارجي عند تغيير العاملة
+                await tx.arrivallist.updateMany({
+                  where: { OrderId: Number(id) },
+                  data: {
+                    externalmusanedContract: null,
+                    ExternalDateLinking: null,
+                  }
+                });
                 
                 return updated;
               });
@@ -910,6 +1127,15 @@ const cookieHeader = req.headers.cookie;
                   HomemaidIdCopy: newHomemaidId,
                   HomemaidId: newHomemaidId,
                 },
+              });
+
+              // مسح رقم عقد التوثيق للمكتب الخارجي عند تغيير العاملة
+              await prisma.arrivallist.updateMany({
+                where: { OrderId: Number(id) },
+                data: {
+                  externalmusanedContract: null,
+                  ExternalDateLinking: null,
+                }
               });
             }
             
@@ -1191,6 +1417,10 @@ const cookieHeader = req.headers.cookie;
             if (updatedData.deliveryFile !== undefined) {
               deliveryData.deliveryFile = updatedData.deliveryFile;
               changes.push('ملف التوصيل: تم التحديث');
+              if (updatedData.deliveryFile) {
+                updateData.bookingstatus = 'delivered';
+                updateData.clientBookingStatus = 'received';
+              }
             }
             if (updatedData.deliveryNotes !== undefined) {
               deliveryData.deliveryNotes = updatedData.deliveryNotes;
@@ -1258,7 +1488,10 @@ const cookieHeader = req.headers.cookie;
             return res.status(400).json({ error: 'Invalid section' });
         }
 
-        console.log('💾 حفظ التعديلات...');
+        console.log('💾 حفظ التعديلات في القسم المفتوح...');
+        if (updateData.bookingstatus) {
+          updateData.clientBookingStatus = updateData.bookingstatus === 'office_link_approved' ? 'pending_external_office' : updateData.bookingstatus;
+        }
         const [updatedOrder, updatedArrivals] = await prisma.$transaction([
           prisma.neworder.update({
             where: { id: Number(id) },

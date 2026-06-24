@@ -263,6 +263,31 @@ const arabicRegionMap: { [key: string]: string } = {
   'Tabarjal': 'طبرجل'
 };
 
+const levenshteinDistance = (s1: string, s2: string): number => {
+  if (s1.length === 0) return s2.length;
+  if (s2.length === 0) return s1.length;
+  const matrix = [];
+  for (let i = 0; i <= s2.length; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= s1.length; j++) {
+    matrix[0][j] = j;
+  }
+  for (let i = 1; i <= s2.length; i++) {
+    for (let j = 1; j <= s1.length; j++) {
+      if (s2.charAt(i - 1) === s1.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1)
+        );
+      }
+    }
+  }
+  return matrix[s2.length][s1.length];
+};
+
 const matchRegionKey = (cityName: string): string => {
   if (!cityName) return '';
   const cleanName = cityName.trim().toLowerCase();
@@ -278,8 +303,30 @@ const matchRegionKey = (cityName: string): string => {
       return key;
     }
   }
+
+  // Fuzzy matching for slight typos in English or Arabic
+  let bestMatch = '';
+  let minDistance = Infinity;
+  // Allow 1 typo for every 4 characters (e.g., length 6 allows 1 typo, length 8 allows 2 typos)
+  // Max typos allowed is 3 to prevent completely wrong matches
+  const maxAllowedDistance = Math.min(3, Math.max(1, Math.floor(cleanName.length / 4)));
+
+  for (const [key, value] of Object.entries(arabicRegionMap)) {
+    const distEng = levenshteinDistance(cleanName, key.toLowerCase());
+    const distAr = levenshteinDistance(cleanName, value.toLowerCase());
+    const dist = Math.min(distEng, distAr);
+    
+    if (dist < minDistance) {
+      minDistance = dist;
+      bestMatch = key;
+    }
+  }
   
-  return cityName;
+  if (minDistance <= maxAllowedDistance && minDistance > 0) {
+    return bestMatch;
+  }
+  
+  return '';
 };
 
 interface FormStep2Props {
@@ -447,9 +494,16 @@ export default function FormStep2({ onPrevious, onClose, data, onSuccess }: Form
     if (!formData.ArrivalCity.trim()) {
       newErrors.ArrivalCity = 'مدينة المغادرة مطلوبة';
       isValid = false;
+    } else if (!arabicRegionMap[formData.ArrivalCity]) {
+      newErrors.ArrivalCity = 'يجب اختيار مدينة من القائمة';
+      isValid = false;
     }
+
     if (!formData.finaldestination.trim()) {
       newErrors.finaldestination = 'مدينة الوصول مطلوبة';
+      isValid = false;
+    } else if (!arabicRegionMap[formData.finaldestination]) {
+      newErrors.finaldestination = 'يجب اختيار مدينة من القائمة';
       isValid = false;
     }
     if (!formData.internalReason.trim()) {
@@ -759,12 +813,22 @@ const arabicRegionMap: { [key: string]: string } = {
             throw new Error('لم يتم العثور على تفاصيل تذكرة صالحة في الملف');
           }
 
+          let isForeignArrival = false;
+          if (details.arrival_airport) {
+            const resolvedArrival = resolveIataCity(String(details.arrival_airport));
+            const matchedArrival = matchRegionKey(resolvedArrival);
+            // If it resolves to something but doesn't match an internal Saudi region
+            if (resolvedArrival && !matchedArrival) {
+                isForeignArrival = true;
+            }
+          }
+
           setFormData((prev) => {
             const newDepartureCity = details.departure_airport 
-              ? matchRegionKey(resolveIataCity(String(details.departure_airport))) 
+              ? matchRegionKey(resolveIataCity(String(details.departure_airport))) || prev.ArrivalCity
               : prev.ArrivalCity;
             const newArrivalCity = details.arrival_airport 
-              ? matchRegionKey(resolveIataCity(String(details.arrival_airport))) 
+              ? matchRegionKey(resolveIataCity(String(details.arrival_airport))) || prev.finaldestination
               : prev.finaldestination;
 
             return {
@@ -778,8 +842,13 @@ const arabicRegionMap: { [key: string]: string } = {
             };
           });
 
-          setAlertMessage('تم استخراج بيانات التذكرة وتعبئتها بنجاح عن طريق الذكاء الاصطناعي!');
-          setAlertType('success');
+          if (isForeignArrival) {
+            setAlertMessage('مدينة الوصول مدينة غير سعودية يرجى تسجيل المغادرة في المغادرة الخارجية');
+            setAlertType('error');
+          } else {
+            setAlertMessage('تم استخراج بيانات التذكرة وتعبئتها بنجاح عن طريق الذكاء الاصطناعي!');
+            setAlertType('success');
+          }
           setShowAlert(true);
         } catch (e: any) {
           console.error(e);
@@ -813,7 +882,11 @@ const arabicRegionMap: { [key: string]: string } = {
     
     if (!validateForm()) {
       setAlertType('error');
-      setAlertMessage('يرجى ملء جميع الحقول المطلوبة بشكل صحيح');
+      if (!formData.ArrivalCity || !arabicRegionMap[formData.ArrivalCity] || !formData.finaldestination || !arabicRegionMap[formData.finaldestination]) {
+        setAlertMessage('تأكد ان مدينة المغادرة والوصول مدن سعودية');
+      } else {
+        setAlertMessage('يرجى ملء جميع الحقول المطلوبة بشكل صحيح');
+      }
       setShowAlert(true);
       return;
     }

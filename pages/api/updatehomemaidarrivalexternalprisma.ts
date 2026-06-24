@@ -201,10 +201,55 @@ externalTicketFile,
       include: { Order: { include: { HomeMaid: true } } },
       where: { id :id},
       data: dataToUpdate,
-
-
-
     });
+
+    // إخراج العاملة من السكن تلقائيا بموعد الرحلة
+    if (createarrivallist.Order?.HomemaidId && validExternaldeparatureDate) {
+      const activeHousing = await prisma.housedworker.findFirst({
+        where: {
+          homeMaid_id: createarrivallist.Order.HomemaidId,
+          isActive: true
+        }
+      });
+
+      if (activeHousing) {
+        await prisma.housedworker.update({
+          where: { id: activeHousing.id },
+          data: {
+            isActive: false,
+            deparatureReason: createarrivallist.externalReason || 'مغادرة خارجية',
+            deparatureHousingDate: new Date(validExternaldeparatureDate).toISOString(),
+            checkIns: {
+              updateMany: {
+                where: { isActive: true },
+                data: { isActive: false }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    // تحديث حالة العاملة والطلبات المرتبطة بها (مغادرة خارجية)
+    if (createarrivallist.Order?.HomemaidId) {
+      // 1. تحديث بيانات العاملة لتصبح غير معتمدة وحالتها مغادرة خارجية
+      await prisma.homemaid.update({
+        where: { id: createarrivallist.Order.HomemaidId },
+        data: {
+          isApproved: false,
+          bookingstatus: 'مغادرة خارجية',
+        }
+      });
+
+      // 2. تحديث جميع طلباتها لتصبح مخفية وغير متاحة
+      await prisma.neworder.updateMany({
+        where: { HomemaidId: createarrivallist.Order.HomemaidId },
+        data: {
+          isAvailable: false,
+          isHidden: true,
+        }
+      });
+    }
 
 
 
@@ -251,9 +296,23 @@ try {
         userId = decoded?.username;
       }
 
+      const fromCity = createarrivallist.externaldeparatureCity || '';
+      const toCity = createarrivallist.externalArrivalCity || '';
+      const depDate = createarrivallist.externaldeparatureDate ? new Date(createarrivallist.externaldeparatureDate).toISOString().split('T')[0] : '';
+      const reason = createarrivallist.externalReason || '';
+      
+      const detailsArray = [];
+      if (fromCity) detailsArray.push(`من: ${fromCity}`);
+      if (toCity) detailsArray.push(`إلى: ${toCity}`);
+      if (depDate) detailsArray.push(`تاريخ المغادرة: ${depDate}`);
+      if (reason) detailsArray.push(`السبب: ${reason}`);
+      
+      const detailsStr = detailsArray.length > 0 ? detailsArray.join(' | ') : undefined;
+
       await prisma.logs.create({
         data: {
-          Status: `تم تعديل بيانات المغادرة الخارجية للعاملة ${createarrivallist.Order?.HomeMaid?.Name || ''} بنجاح`,
+          Status: `تم تسجيل مغادرة خارجية للعاملة ${createarrivallist.Order?.HomeMaid?.Name || ''} بنجاح`,
+          Details: detailsStr,
           homemaidId: createarrivallist.Order?.HomemaidId,
           userId: userId,
         },

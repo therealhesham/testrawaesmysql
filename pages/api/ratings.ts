@@ -17,7 +17,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       // CREATE rating
       case 'POST':
-        const { idOrder, isRated, reason } = req.body;
+        const { idOrder, isRated, reason, stars } = req.body;
         
         if (!idOrder) {
           return res.status(400).json({ error: 'Order ID is required' });
@@ -28,6 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             idOrder: Number(idOrder),
             isRated: isRated !== undefined ? Boolean(isRated) : false,
             reason: reason || null,
+            stars: stars ? Number(stars) : null,
           },
         });
         return res.status(201).json(newRating);

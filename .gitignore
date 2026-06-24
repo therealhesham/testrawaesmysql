@@ -54,3 +54,9 @@ patch.py
 production_migration.sql
 scratch/test-counts.js
 fix.js
+production_updates_utf8.sql
+production_updates.sql
+diff_full.sql
+diff_full_utf8.sql
+default_no_triggers.sql
+اخر تعديلات الداتا بيس لنظام التقييم.sql

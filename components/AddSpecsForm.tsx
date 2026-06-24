@@ -524,6 +524,11 @@ const fetchSuggestions = async () => {
 };
   // Function to handle suggestion acceptance
   const handleAcceptSuggestion = (suggestion: HomemaidSuggestion) => {
+    if ((suggestion as any).bookingstatus === 'غير لائقة طبيا' || (suggestion as any).bookingstatus === 'غير لائقة طبياً') {
+      if (!window.confirm("هذه العاملة فشلت بالفحص الطبي السابق هل تود المتابعة؟")) {
+        return;
+      }
+    }
     // تحويل العمر من رقم إلى رينج
     let ageRange = '';
     if (suggestion.age >= 21 && suggestion.age <= 30) {

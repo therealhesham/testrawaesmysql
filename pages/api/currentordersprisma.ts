@@ -37,6 +37,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         officeName,
         bookingstatus,
         bookingstatusIn,
+        isLinked,
+        dateFrom,
+        dateTo,
       } = req.query;
 
       // دعم التصدير: عند إرسال perPage كبير نستخدمه لجلب كل البيانات (صفحة واحدة كبيرة)
@@ -78,6 +81,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (parts.length) filters.bookingstatus = { in: parts };
       } else if (bookingstatus) {
         filters.bookingstatus = { equals: bookingstatus };
+      }
+
+      if (dateFrom || dateTo || isLinked) {
+        filters.arrivals = {
+          some: {
+            ...(dateFrom || dateTo ? {
+              DateOfApplication: {
+                ...(dateFrom && { gte: new Date(dateFrom as string).toISOString() }),
+                ...(dateTo && { lte: new Date(`${dateTo as string}T23:59:59.999Z`).toISOString() }),
+              }
+            } : {}),
+            ...(isLinked === 'true' && { ExternalDateLinking: { not: null } }),
+            ...(isLinked === 'false' && { ExternalDateLinking: null }),
+          }
+        };
       }
 
       if (searchTerm) {

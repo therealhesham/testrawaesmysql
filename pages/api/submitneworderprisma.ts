@@ -139,6 +139,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         message: `التأشيرة المحددة لا تطابق جنسية العاملة. التأشيرة: ${selectedVisa.nationality}، العاملة: ${Nationality}` 
       });
     }
+    // ✅ التحقق مما إذا كانت العاملة غير لائقة طبياً وإعادة تنشيطها تلقائياً
+    if (HomemaidId) {
+      const targetMaid = await prisma.homemaid.findUnique({
+        where: { id: Number(HomemaidId) }
+      });
+      if (targetMaid && (targetMaid.bookingstatus === 'غير لائقة طبيا' || targetMaid.bookingstatus === 'غير لائقة طبياً')) {
+        await prisma.homemaid.update({
+          where: { id: Number(HomemaidId) },
+          data: {
+            bookingstatus: '',
+            isApproved: true,
+          }
+        });
+        // فك تشفير التوكن لتسجيل اسم الموظف
+        let userName = 'system';
+        try {
+          const cookieHeader = req.headers?.cookie || "";
+          const cookies = cookieHeader ? cookie.parse(cookieHeader) : {};
+          const decoded = cookies.authToken ? jwtDecode(cookies.authToken) as any : null;
+          userName = decoded?.username || userName;
+        } catch (_) {}
+
+        await prisma.logs.create({
+          data: {
+            Status: 'إعادة تنشيط تلقائي',
+            Details: `تمت إعادة تنشيط العاملة تلقائياً عند ربطها بالطلب الجديد بعد فشل فحصها الطبي السابق`,
+            userId: userName,
+            homemaidId: Number(HomemaidId),
+          }
+        });
+      }
+    }
+
     const result = await prisma.neworder.create({
       include: { client: true },
       data: {

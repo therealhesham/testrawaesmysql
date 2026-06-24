@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { CashIcon } from '@heroicons/react/outline';
-import { Calendar, CreditCard, Wallet, CheckCircle, X, AlertCircle } from 'lucide-react';
+import { Calendar, CreditCard, Wallet, CheckCircle, X, AlertCircle, AlertTriangle } from 'lucide-react';
 import Style from 'styles/Home.module.css';
 
 interface FormData {
@@ -23,18 +23,18 @@ interface FormData {
 }
 
 interface ValidationErrors {
-  customerName?: string;
-  phoneNumber?: string;
-  nationalId?: string;
-  customerCity?: string;
-  workerId?: string;
-  contractDuration?: string;
-  contractStartDate?: string;
-  contractEndDate?: string;
-  contractFile?: string;
-  totalAmount?: string;
-  paidAmount?: string;
-  form?: string;
+  customerName?: string | null;
+  phoneNumber?: string | null;
+  nationalId?: string | null;
+  customerCity?: string | null;
+  workerId?: string | null;
+  contractDuration?: string | null;
+  contractStartDate?: string | null;
+  contractEndDate?: string | null;
+  contractFile?: string | null;
+  totalAmount?: string | null;
+  paidAmount?: string | null;
+  form?: string | null;
 }
 
 interface Homemaid {
@@ -96,6 +96,11 @@ export default function RentalForm() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
+
+  // Confirmation modal state (replaces window.confirm)
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalMessage, setConfirmModalMessage] = useState('');
+  const [pendingHomemaid, setPendingHomemaid] = useState<any>(null);
 
   // Validation functions
   const validatePhoneNumber = (phone: string): string | null => {
@@ -375,6 +380,7 @@ export default function RentalForm() {
               Name: homemaid.Name,
               Country: homemaid.office?.Country || '',
               religion: homemaid.Religion || '',
+              bookingstatus: homemaid.bookingstatus || '',
             }));
           }
         } else {
@@ -410,7 +416,7 @@ export default function RentalForm() {
     }
   };
 
-  const handleHomemaidSuggestionClick = (homemaid: any) => {
+  const selectHomemaid = useCallback((homemaid: any) => {
     setFormData((prev) => ({
       ...prev,
       workerId: homemaid.id.toString(),
@@ -419,6 +425,31 @@ export default function RentalForm() {
     setShowHomemaidSuggestions(false);
     setErrors(prev => ({ ...prev, workerId: null }));
     setTouched(prev => ({ ...prev, workerId: true }));
+  }, []);
+
+  const handleHomemaidSuggestionClick = (homemaid: any) => {
+    if (homemaid.bookingstatus === 'غير لائقة طبيا' || homemaid.bookingstatus === 'غير لائقة طبياً') {
+      setPendingHomemaid(homemaid);
+      setConfirmModalMessage('هذه العاملة فشلت في الفحص الطبي. هل تود المتابعة واختيارها؟');
+      setShowConfirmModal(true);
+      return;
+    }
+    selectHomemaid(homemaid);
+  };
+
+  const handleConfirmModalAccept = () => {
+    if (pendingHomemaid) {
+      selectHomemaid(pendingHomemaid);
+    }
+    setShowConfirmModal(false);
+    setPendingHomemaid(null);
+    setConfirmModalMessage('');
+  };
+
+  const handleConfirmModalCancel = () => {
+    setShowConfirmModal(false);
+    setPendingHomemaid(null);
+    setConfirmModalMessage('');
   };
 
   const handleHomemaidInputBlur = () => {
@@ -1146,6 +1177,40 @@ export default function RentalForm() {
             >
               موافق
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal (Medical Exam Warning) */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex items-center justify-center p-4">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md text-center relative" style={{ direction: 'rtl' }}>
+            <button
+              className="absolute top-3 left-3 text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100 transition-colors"
+              onClick={handleConfirmModalCancel}
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="flex flex-col items-center gap-4 mb-6">
+              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center">
+                <AlertTriangle className="w-10 h-10 text-amber-500" />
+              </div>
+              <p className="text-gray-800 text-lg font-semibold">{confirmModalMessage}</p>
+            </div>
+            <div className="flex gap-3 justify-center">
+              <button
+                className="flex-1 bg-teal-600 text-white px-4 py-2.5 rounded-lg font-medium hover:bg-teal-700 transition-colors"
+                onClick={handleConfirmModalAccept}
+              >
+                حسناً
+              </button>
+              <button
+                className="flex-1 border-2 border-gray-300 text-gray-700 px-4 py-2.5 rounded-lg font-medium hover:bg-gray-100 transition-colors"
+                onClick={handleConfirmModalCancel}
+              >
+                إلغاء
+              </button>
+            </div>
           </div>
         </div>
       )}

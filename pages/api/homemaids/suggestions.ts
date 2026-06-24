@@ -44,6 +44,7 @@ export default async function handler(
             },
           },
           Religion: true,
+          bookingstatus: true,
         },
         take: 10,
       });
@@ -54,6 +55,7 @@ export default async function handler(
         Passportnumber: homemaid.Passportnumber,
         Country: homemaid.office?.Country || '',
         religion: homemaid.Religion || '',
+        bookingstatus: homemaid.bookingstatus || '',
       }));
 
       res.status(200).json({ suggestions });

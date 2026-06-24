@@ -3,6 +3,7 @@ import { CheckCircle } from 'lucide-react';
 interface OrderStepperProps {
   status: string;
   onStepClick?: (stepIndex: number) => void;
+  reason?: string | null;
 }
 
 /** عناوين الخطوات الظاهرة في تتبع الطلب — مصدر واحد للـ UI وللبحث في الطلبات الحالية */
@@ -129,14 +130,30 @@ function calculateActiveStep(status: string | null | undefined): number {
   return ORDER_STEPPER_STATUS_STEP_MAP[status] ?? 0;
 }
 
-export default function OrderStepper({ status, onStepClick }: OrderStepperProps) {
+export default function OrderStepper({ status, onStepClick, reason }: OrderStepperProps) {
   const activeStep = calculateActiveStep(status);
 
-  if (status === 'cancelled') {
+  if (status === 'cancelled' || status === 'عقد ملغي') {
     return (
-      <section className="p-5 mb-6">
-        <h2 className="text-3xl font-normal text-center mb-10">تتبع الطلب</h2>
-        <div className="text-red-600 text-center p-4">تم إلغاء الطلب</div>
+      <section className="p-5 mb-4 flex flex-col items-center justify-center pointer-events-none">
+        <h2 className="text-4xl font-normal text-center text-gray-400 select-none">تتبع الطلب</h2>
+
+        <div className="relative z-10 inline-flex flex-col items-center justify-center p-6 md:p-8 border-4 border-red-600 rounded-lg shadow-lg transform -rotate-6 -mt-10 bg-white/80 backdrop-blur-[2px] mx-auto max-w-xl pointer-events-auto">
+          <div className="absolute inset-0 border-2 border-red-600 rounded-lg m-1 opacity-50 border-dashed pointer-events-none"></div>
+
+          <span className="text-4xl md:text-5xl font-black text-red-600 tracking-wider mb-3 uppercase drop-shadow-sm" style={{ textShadow: '2px 2px 0px rgba(220, 38, 38, 0.3)' }}>
+            الطلـــب ملغـــي
+          </span>
+
+          {reason && (
+            <div className="mt-2 p-3 bg-red-50/90 rounded border border-red-200 w-full text-center relative z-10 shadow-inner">
+              <span className="block text-xs md:text-sm text-red-800 font-bold mb-1">سبب الإلغاء:</span>
+              <p className="text-red-700 font-bold text-sm md:text-base leading-relaxed whitespace-pre-wrap">
+                {reason}
+              </p>
+            </div>
+          )}
+        </div>
       </section>
     );
   }
@@ -147,18 +164,17 @@ export default function OrderStepper({ status, onStepClick }: OrderStepperProps)
       <div className="flex no-wrap justify-center gap-5">
         {steps.map((step, index) => (
           <div key={index} className="flex items-start">
-            <div 
+            <div
               className="flex flex-col items-center w-24 text-center cursor-pointer"
               onClick={() => onStepClick?.(index)}
             >
               <div
-                className={`w-7 h-7 rounded-full flex items-center justify-center border ${
-                  index < activeStep
+                className={`w-7 h-7 rounded-full flex items-center justify-center border ${index < activeStep
                     ? 'bg-teal-800 border-teal-800 text-white'
                     : index === activeStep
-                    ? 'bg-teal-600 border-teal-600 text-white'
-                    : 'border-teal-800 text-teal-800'
-                } text-sm hover:scale-110 transition-transform`}
+                      ? 'bg-teal-600 border-teal-600 text-white'
+                      : 'border-teal-800 text-teal-800'
+                  } text-sm hover:scale-110 transition-transform`}
               >
                 {step.icon ? step.icon : index + 1}
               </div>
@@ -166,9 +182,8 @@ export default function OrderStepper({ status, onStepClick }: OrderStepperProps)
             </div>
             {index < steps.length - 1 && (
               <div
-                className={`flex-1 h-0.5 my-3.5 mx-2.5 ${
-                  index < activeStep ? 'bg-teal-800' : 'bg-gray-500'
-                }`}
+                className={`flex-1 h-0.5 my-3.5 mx-2.5 ${index < activeStep ? 'bg-teal-800' : 'bg-gray-500'
+                  }`}
               ></div>
             )}
           </div>

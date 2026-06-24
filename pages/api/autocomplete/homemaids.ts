@@ -24,11 +24,24 @@ export default async function handler(
   // Build the filter object dynamically based on query parameters
   const filters: any = {};
 
+  if (Country) {
+    filters.office = { Country: String(Country) };
+  }
+
   try {
     // Fetch data with the filters and pagination
-    const homemaids = await prisma.homemaid.findMany({select:{Name:true,id:true,dateofbirth:true,Passportnumber:true,office:{select:{office:true,Country:true}}}
-      
-      });
+    const homemaids = await prisma.homemaid.findMany({
+      where: filters,
+      select: {
+        Name:true,
+        id:true,
+        dateofbirth:true,
+        Passportnumber:true,
+        Nationalitycopy:true,
+        bookingstatus:true,
+        office:{select:{office:true,Country:true}}
+      }
+    });
 
     res.status(200).json({ data:homemaids });
   } catch (error) {

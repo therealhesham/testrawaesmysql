@@ -17,6 +17,7 @@ export function getPageTitleArabic(pageRoute: string | undefined): string {
     '/admin/neworders': 'طلبات جديدة',
     '/admin/currentorderstest': 'الطلبات الحالية',
     '/admin/endedorders': 'الطلبات المكتملة',
+    '/admin/rejectedorders': 'الطلبات الملغية',
     '/admin/clients': 'قائمة العملاء',
     '/admin/fulllist': 'قائمة العاملات',
     '/admin/availablelist': 'العاملات المتاحات',

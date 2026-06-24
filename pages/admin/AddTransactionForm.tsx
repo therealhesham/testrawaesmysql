@@ -19,6 +19,7 @@ interface HomeMaid {
   Name: string;
   Nationalitycopy: string;
   Passportnumber: string;
+  bookingstatus?: string;
 }
 
 interface AddTransactionFormProps {
@@ -379,6 +380,12 @@ console.log(files)
   };
 
   const handleHomemaidSuggestionClick = (homemaid: HomeMaid) => {
+    if (homemaid.bookingstatus === 'غير لائقة طبيا' || homemaid.bookingstatus === 'غير لائقة طبياً') {
+      const confirmMsg = "هذه العاملة فشلت في الفحص الطبي. هل تود المتابعة واختيارها؟";
+      if (!window.confirm(confirmMsg)) {
+        return;
+      }
+    }
     setFormData((prev) => ({
       ...prev,
       HomeMaidId: homemaid.id.toString(),

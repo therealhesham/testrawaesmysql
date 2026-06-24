@@ -113,6 +113,45 @@ export default async function handler(
       orderData.HomemaidIdCopy = homemaidId;
     }
 
+    // Reactivate if medically unfit
+    if (homemaidId) {
+      const targetMaid = await prisma.homemaid.findUnique({
+        where: { id: Number(homemaidId) }
+      });
+      if (targetMaid && (targetMaid.bookingstatus === 'غير لائقة طبيا' || targetMaid.bookingstatus === 'غير لائقة طبياً')) {
+        await prisma.homemaid.update({
+          where: { id: Number(homemaidId) },
+          data: {
+            bookingstatus: '',
+            isApproved: true,
+          }
+        });
+        
+        let userName = 'system';
+        try {
+          const cookieHeader = req.headers.cookie;
+          let cookies: { [key: string]: string } = {};
+          if (cookieHeader) {
+            cookieHeader.split(";").forEach((cookie) => {
+              const [key, value] = cookie.trim().split("=");
+              cookies[key] = decodeURIComponent(value);
+            });
+          }
+          const decoded = cookies.authToken ? jwtDecode(cookies.authToken) as any : null;
+          userName = decoded?.username || userName;
+        } catch (_) {}
+
+        await prisma.logs.create({
+          data: {
+            Status: 'إعادة تنشيط تلقائي',
+            Details: `تمت إعادة تنشيط العاملة تلقائياً عند ربطها بالطلب الجديد بعد فشل فحصها الطبي السابق`,
+            userId: userName,
+            homemaidId: Number(homemaidId),
+          }
+        });
+      }
+    }
+
     const result = await prisma.neworder.create({
       data: orderData,
       include: {

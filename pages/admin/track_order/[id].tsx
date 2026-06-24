@@ -18,7 +18,7 @@ import OrderStepper from 'components/OrderStepper';
 import ErrorModal from 'components/ErrorModal';
 import { CheckCircleIcon } from '@heroicons/react/solid';
 import { CashIcon, CreditCardIcon, CurrencyDollarIcon } from '@heroicons/react/outline';
-import { Calendar, AlarmClock, ArrowRight, Upload, FileText, Trash2, CheckCircle, Clock } from 'lucide-react';
+import { Calendar, AlarmClock, ArrowRight, Upload, FileText, Trash2, CheckCircle, Clock, AlertTriangle, X } from 'lucide-react';
 import { FaCog, FaTimes, FaUserCog, FaFileInvoiceDollar } from 'react-icons/fa';
 import Layout from 'example/containers/Layout';
 import Style from 'styles/Home.module.css';
@@ -67,6 +67,7 @@ interface OrderData {
   nationality?: string;
   reasonOfRejection?: string | null;
   reasonOfCancellation?: string | null;
+  cancelledOrderNationality?: string | null;
   deliveryDetails?: {
     deliveryDate?: string;
     deliveryTime?: string;
@@ -346,6 +347,9 @@ export default function TrackOrder() {
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showChangeHomemaidModal, setShowChangeHomemaidModal] = useState(false);
+  const [showUnfitChangeModal, setShowUnfitChangeModal] = useState(false);
+  const [unfitHomemaidForChange, setUnfitHomemaidForChange] = useState<any>(null);
+  const [homemaidSearchQuery, setHomemaidSearchQuery] = useState('');
   const [newHomemaidData, setNewHomemaidData] = useState({
     id: '',
     name: '',
@@ -371,6 +375,7 @@ export default function TrackOrder() {
     isOpen: boolean;
     title: string;
     message: string;
+    isWarning?: boolean;
     onConfirm: () => void;
     onCancel?: () => void;
   }>({
@@ -409,6 +414,7 @@ export default function TrackOrder() {
   const [destinationsPendingFile, setDestinationsPendingFile] = useState<File | null>(null);
   const [destinationsExternalFormData, setDestinationsExternalFormData] = useState<Record<string, string> | undefined>(undefined);
   const [extractedTicketDetails, setExtractedTicketDetails] = useState<any>(null);
+  const [pendingDeliveryOfficer, setPendingDeliveryOfficer] = useState<string | null>(null);
   const [users, setUsers] = useState<{ id: number; name: string }[]>([]);
 
   const [ticketExtractPromptOpen, setTicketExtractPromptOpen] = useState(false);
@@ -652,6 +658,13 @@ export default function TrackOrder() {
       if (data.bookingStatus === 'cancelled' || data.bookingStatus === 'عقد ملغي') {
         setShowCancelledModal(true);
       }
+      
+      // فتح نافذة اختيار العاملة إجبارياً إذا لم تكن هناك عاملة محددة
+      const noHomemaid = !data.homemaidInfo?.id || data.homemaidInfo.id === 'N/A' || data.homemaidInfo.id === '';
+      if (noHomemaid && data.bookingStatus !== 'cancelled' && data.bookingStatus !== 'عقد ملغي') {
+        setShowChangeHomemaidModal(true);
+      }
+
       // Update deliveryDetails state if available
       if (data.deliveryDetails) {
         setDeliveryDetails({
@@ -776,6 +789,42 @@ export default function TrackOrder() {
       } finally {
         setUpdating(false);
       }
+    }
+  };
+
+  const handleMedicalCheckFailed = async () => {
+    setUpdating(true);
+    try {
+      const res = await fetch(`/api/track_order/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ section: 'medicalCheckFailed' }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'حدث خطأ أثناء إجراء لم تجتز');
+      }
+
+      const data = await res.json();
+      if (data.newOrderId) {
+        setShowAlertModal({
+          isOpen: true,
+          message: 'تم إنشاء الطلب البديل بنجاح، سيتم توجيهك إليه الآن.',
+        });
+        setTimeout(() => {
+          router.push(`/admin/track_order/${data.newOrderId}`);
+        }, 2000);
+      }
+    } catch (error: any) {
+      console.error('Error handling medical check failed:', error);
+      setShowErrorModal({
+        isOpen: true,
+        title: 'خطأ',
+        message: error.message || 'حدث خطأ أثناء الاتصال بالخادم',
+      });
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -1022,8 +1071,8 @@ export default function TrackOrder() {
     }
     // التحقق من تاريخ ووقت الوصول والمغادرة في قسم الوجهات
     if (section === 'destinations') {
-      const departureDate = updatedData['تاريخ ووقت المغادرة_date'];
-      const arrivalDate = updatedData['تاريخ ووقت الوصول_date'];
+      const departureDate = updatedData['تاريخ ووقت المغادرة_date'] || (updatedData.departureDateTime ? updatedData.departureDateTime.split(' ')[0] : undefined);
+      const arrivalDate = updatedData['تاريخ ووقت الوصول_date'] || (updatedData.arrivalDateTime ? updatedData.arrivalDateTime.split(' ')[0] : undefined);
 
       if (!departureDate || departureDate.trim() === '' || !arrivalDate || arrivalDate.trim() === '') {
         setShowErrorModal({
@@ -1034,8 +1083,8 @@ export default function TrackOrder() {
         return Promise.reject(new Error('validation error'));
       }
 
-      const departureDateTime = updatedData['تاريخ ووقت المغادرة'];
-      const arrivalDateTime = updatedData['تاريخ ووقت الوصول'];
+      const departureDateTime = updatedData['تاريخ ووقت المغادرة'] || updatedData.departureDateTime;
+      const arrivalDateTime = updatedData['تاريخ ووقت الوصول'] || updatedData.arrivalDateTime;
       
       // التحقق من أن كلا التاريخين موجودان
       if (departureDateTime && arrivalDateTime) {
@@ -1089,6 +1138,9 @@ export default function TrackOrder() {
 
               // توحيد صيغة التاريخ من جهة العميل إلى YYYY-MM-DD
               if (section === 'destinations') {
+                if (pendingDeliveryOfficer !== null) {
+                  dataToSend.deliveryOfficer = pendingDeliveryOfficer;
+                }
                 if (dataToSend['تاريخ ووقت المغادرة_date']) {
                   dataToSend['تاريخ ووقت المغادرة_date'] = formatDateToYMD(dataToSend['تاريخ ووقت المغادرة_date']);
                 }
@@ -1135,9 +1187,12 @@ export default function TrackOrder() {
               }
 
               // Reset temporary parent states only after successful PATCH save
-              if (section === 'destinations' && extractedTicketDetails) {
-                setExtractedTicketDetails(null);
-                setDestinationsExternalFormData(undefined);
+              if (section === 'destinations') {
+                if (extractedTicketDetails) {
+                  setExtractedTicketDetails(null);
+                  setDestinationsExternalFormData(undefined);
+                }
+                setPendingDeliveryOfficer(null);
               }
 
               await fetchOrderData();
@@ -1594,16 +1649,8 @@ export default function TrackOrder() {
       });
     }
   };
-
-  const handleSaveHomemaidChange = async () => {
-    if (!newHomemaidData.name.trim()) {
-      setShowAlertModal({
-        isOpen: true,
-        message: 'يرجى إدخال اسم العاملة',
-      });
-      return;
-    }
-
+  const proceedSaveHomemaidChange = async () => {
+    setShowUnfitChangeModal(false);
     setUpdating(true);
     try {
       const res = await fetch(`/api/track_order/${id}`, {
@@ -1637,6 +1684,25 @@ export default function TrackOrder() {
     } finally {
       setUpdating(false);
     }
+  };
+
+  const handleSaveHomemaidChange = async () => {
+    if (!newHomemaidData.name.trim()) {
+      setShowAlertModal({
+        isOpen: true,
+        message: 'يرجى إدخال اسم العاملة',
+      });
+      return;
+    }
+
+    const selectedObj = homemaids.find((h) => String(h.id) === String(newHomemaidData.id));
+    if (selectedObj && ((selectedObj as any).bookingstatus === 'غير لائقة طبيا' || (selectedObj as any).bookingstatus === 'غير لائقة طبياً')) {
+      setUnfitHomemaidForChange(selectedObj);
+      setShowUnfitChangeModal(true);
+      return;
+    }
+
+    proceedSaveHomemaidChange();
   };
 
   const handleSaveDeliveryDetails = async () => {
@@ -1733,8 +1799,21 @@ export default function TrackOrder() {
     });
   };
 
-  // Format homemaids for react-select
-  const homemaidOptions = homemaids.map((homemaid) => ({
+  // Format homemaids for react-select, filtered by cancelled order nationality if available
+  let filteredHomemaids = orderData?.cancelledOrderNationality
+    ? homemaids.filter((h: any) => h.Nationalitycopy === orderData.cancelledOrderNationality)
+    : homemaids;
+
+  if (homemaidSearchQuery.trim() !== '') {
+    const query = homemaidSearchQuery.toLowerCase().trim();
+    filteredHomemaids = filteredHomemaids.filter((h: any) => 
+      h.Name?.toLowerCase().includes(query) ||
+      h.Passportnumber?.toLowerCase().includes(query) ||
+      h.id?.toString().includes(query)
+    );
+  }
+
+  const homemaidOptions = filteredHomemaids.map((homemaid) => ({
     value: homemaid.id,
     label: homemaid.Name,
   }));
@@ -1800,7 +1879,7 @@ export default function TrackOrder() {
           className="bg-white rounded-lg shadow-lg w-11/12 md:w-1/3 p-6"
           onClick={(e) => e.stopPropagation()}
         >
-          <h3 className="text-lg font-bold text-gray-900 mb-2 text-right">{showConfirmModal.title}</h3>
+          <h3 className={`text-lg font-bold mb-2 text-right ${showConfirmModal.isWarning ? 'text-red-600' : 'text-gray-900'}`}>{showConfirmModal.title}</h3>
           <p className="text-gray-700 mb-6 text-right">{showConfirmModal.message}</p>
           <div className="flex justify-end gap-3">
             <button
@@ -1815,7 +1894,7 @@ export default function TrackOrder() {
             </button>
             <button
               type="button"
-              className="px-4 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900"
+              className={`px-4 py-2 text-white rounded-md ${showConfirmModal.isWarning ? 'bg-red-600 hover:bg-red-700' : 'bg-teal-800 hover:bg-teal-900'}`}
               onClick={() => {
                 showConfirmModal.onConfirm();
                 setShowConfirmModal({ ...showConfirmModal, isOpen: false });
@@ -1907,6 +1986,44 @@ export default function TrackOrder() {
           >
             موافق
           </button>
+        </div>
+      </div>
+    );
+  };
+
+  // --- Unfit Change Modal ---
+  const UnfitChangeModal = () => {
+    if (!showUnfitChangeModal || !unfitHomemaidForChange) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center p-4">
+        <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md text-center relative" style={{ direction: 'rtl' }}>
+          <button
+            className="absolute top-3 left-3 text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100 transition-colors"
+            onClick={() => setShowUnfitChangeModal(false)}
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <div className="flex flex-col items-center gap-4 mb-6">
+            <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center">
+              <AlertTriangle className="w-10 h-10 text-amber-500" />
+            </div>
+            <p className="text-gray-800 text-lg font-semibold">هذه العاملة فشلت في الفحص الطبي. هل تود المتابعة واختيارها؟</p>
+          </div>
+          <div className="flex gap-3 justify-center">
+            <button
+              className="flex-1 bg-teal-600 text-white px-4 py-2.5 rounded-lg font-medium hover:bg-teal-700 transition-colors"
+              onClick={proceedSaveHomemaidChange}
+            >
+              حسناً
+            </button>
+            <button
+              className="flex-1 border-2 border-gray-300 text-gray-700 px-4 py-2.5 rounded-lg font-medium hover:bg-gray-100 transition-colors"
+              onClick={() => setShowUnfitChangeModal(false)}
+            >
+              إلغاء
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -2040,7 +2157,13 @@ export default function TrackOrder() {
             </div>
           </div>
 
-          <OrderStepper status={orderData.bookingStatus} onStepClick={handleStepClick} />
+          <OrderStepper 
+            status={orderData.bookingStatus} 
+            onStepClick={handleStepClick} 
+            reason={orderData.reasonOfCancellation}
+          />
+
+          <div className={(orderData.bookingStatus === 'cancelled' || orderData.bookingStatus === 'عقد ملغي') ? 'opacity-60 pointer-events-none grayscale relative' : ''}>
 
           <InfoCard
             title="معلومات العميل"
@@ -2190,14 +2313,32 @@ export default function TrackOrder() {
                   <CheckCircleIcon className="w-8 h-8 mx-auto text-teal-800" aria-label="تم الاجتياز" />
                 ) : (
                   <div className="flex flex-col items-center gap-2">
-                    <button
-                      className={`bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50 disabled:cursor-not-allowed`}
-                      onClick={() => handleStatusUpdate('medicalCheck', true)}
-                      disabled={updating || !canCompleteStep('medicalCheck')}
-                      title={!canCompleteStep('medicalCheck') ? `يجب إكمال: ${getPreviousIncompleteStep('medicalCheck')}` : ''}
-                    >
-                      تأكيد الاجتياز
-                    </button>
+                    <div className="flex gap-2 justify-center">
+                      <button
+                        className={`bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50 disabled:cursor-not-allowed`}
+                        onClick={() => handleStatusUpdate('medicalCheck', true)}
+                        disabled={updating || !canCompleteStep('medicalCheck')}
+                        title={!canCompleteStep('medicalCheck') ? `يجب إكمال: ${getPreviousIncompleteStep('medicalCheck')}` : ''}
+                      >
+                        تأكيد الاجتياز
+                      </button>
+                      <button
+                        className={`bg-red-600 text-white px-4 py-2 rounded-md text-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed`}
+                        onClick={() => {
+                          setShowConfirmModal({
+                            isOpen: true,
+                            title: 'تأكيد عدم الاجتياز',
+                            message: 'هل أنت متأكد من أن العاملة لم تجتز الفحص الطبي؟ سيتم إلغاء هذا الطلب وإنشاء طلب بديل فوري للعميل بنفس البيانات.',
+                            isWarning: true,
+                            onConfirm: () => handleMedicalCheckFailed(),
+                          });
+                        }}
+                        disabled={updating || !canCompleteStep('medicalCheck')}
+                        title={!canCompleteStep('medicalCheck') ? `يجب إكمال: ${getPreviousIncompleteStep('medicalCheck')}` : ''}
+                      >
+                        لم تجتز
+                      </button>
+                    </div>
                     {!canCompleteStep('medicalCheck') && (
                       <span className="text-red-600 text-sm">يجب إكمال: {getPreviousIncompleteStep('medicalCheck')}</span>
                     )}
@@ -2590,10 +2731,10 @@ export default function TrackOrder() {
                       <Select
                         options={users.map((u) => ({ value: u.name, label: u.name }))}
                         value={
-                          users.map((u) => ({ value: u.name, label: u.name })).find((opt) => opt.value === orderData.destinations?.deliveryOfficer) || null
+                          users.map((u) => ({ value: u.name, label: u.name })).find((opt) => opt.value === (pendingDeliveryOfficer !== null ? pendingDeliveryOfficer : orderData.destinations?.deliveryOfficer)) || null
                         }
                         onChange={(opt) => {
-                          handleSaveEdits('destinations', { ...orderData.destinations, deliveryOfficer: opt?.value || '' });
+                          setPendingDeliveryOfficer(opt?.value || '');
                         }}
                         placeholder="اختر مسؤول التوصيل"
                         isClearable
@@ -2680,6 +2821,7 @@ export default function TrackOrder() {
               setDestinationsPendingFile(null);
               setDestinationsExternalFormData(undefined);
               setExtractedTicketDetails(null);
+              setPendingDeliveryOfficer(null);
             }}
             actions={[
               {
@@ -3107,12 +3249,6 @@ export default function TrackOrder() {
                   disabled: updating,
                 },
               ] : []),
-              {
-                label: 'تراجع',
-                type: 'secondary' as const,
-                onClick: () => handleStatusUpdate('receipt', false),
-                disabled: updating || !orderData.receipt.received || getLastApprovedStage() !== 'receipt',
-              },
             ]}
           />
 
@@ -3642,6 +3778,7 @@ export default function TrackOrder() {
               </div>
             )}
           </section>
+          </div>
         </main>
 
         {/* Feedback when order reaches receipt stage - يظهر فقط عند وجود ملف استلام */}
@@ -4052,7 +4189,11 @@ export default function TrackOrder() {
         {showChangeHomemaidModal && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
-            onClick={() => setShowChangeHomemaidModal(false)}
+            onClick={() => {
+              if (orderData?.homemaidInfo?.id && orderData.homemaidInfo.id !== 'N/A') {
+                setShowChangeHomemaidModal(false);
+              }
+            }}
           >
             <div
               className="bg-white rounded-lg shadow-lg w-11/12 md:w-1/3 max-h-[90vh] overflow-y-auto"
@@ -4060,69 +4201,45 @@ export default function TrackOrder() {
             >
               <div className="p-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-4 text-right">تغيير العاملة</h2>
-                <p className="text-gray-700 text-right mb-6">
-                  يرجى اختيار العاملة الجديدة.
+                <p className="text-red-600 font-bold text-right mb-6">
+                  يجب عليك اختيار العاملة الجديدة للعميل ({orderData?.clientInfo?.name || ''}) لإكمال الطلب، وفي حالة الإلغاء سوف تعود للصفحة السابقة.
                 </p>
 
                 <div className="space-y-4 text-right">
+
                   <div>
-                    <label className="block text-md font-medium text-gray-700 mb-1">اسم العاملة</label>
-                    <Select
-                      options={homemaidOptions}
-                      value={selectedHomemaid}
-                      onChange={handleHomemaidSelect}
-                      placeholder="اختر العاملة"
-                      isClearable
-                      className="text-right"
-                      styles={{
-                        control: (base) => ({
-                          ...base,
-                          border: '1px solid #D1D5DB',
-                          borderRadius: '0.375rem',
-                          padding: '0.5rem',
-                          textAlign: 'right',
-                        }),
-                        menu: (base) => ({
-                          ...base,
-                          textAlign: 'right',
-                        }),
-                      }}
+                    <label className="block text-md font-medium text-gray-700 mb-1">بحث عن عاملة</label>
+                    <input
+                      type="text"
+                      placeholder="ابحث بالاسم أو الجواز أو رقم العاملة..."
+                      value={homemaidSearchQuery}
+                      onChange={(e) => setHomemaidSearchQuery(e.target.value)}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-800 text-right"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-md font-medium text-gray-700 mb-1">رقم جواز السفر</label>
-                    <input
-                      type="text"
-                      value={newHomemaidData.passportNumber}
-                      onChange={(e) =>
-                        setNewHomemaidData({ ...newHomemaidData, passportNumber: e.target.value })
-                      }
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-800"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-md font-medium text-gray-700 mb-1">الجنسية</label>
-                    <input
-                      type="text"
-                      value={newHomemaidData.nationality}
-                      onChange={(e) =>
-                        setNewHomemaidData({ ...newHomemaidData, nationality: e.target.value })
-                      }
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-800"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-md font-medium text-gray-700 mb-1">المكتب الخارجي</label>
-                    <input
-                      type="text"
-                      value={newHomemaidData.externalOffice}
-                      onChange={(e) =>
-                        setNewHomemaidData({ ...newHomemaidData, externalOffice: e.target.value })
-                      }
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-800"
-                    />
-                  </div>
+                  {filteredHomemaids.length > 0 ? (
+                    <div className="mt-6 border-t pt-4">
+                      <p className="text-sm font-medium text-gray-700 mb-3 text-right">نتائج البحث ({filteredHomemaids.length}):</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-h-48 overflow-y-auto pl-2">
+                        {filteredHomemaids.map((homemaid: any) => (
+                          <div 
+                            key={homemaid.id}
+                            className={`p-3 border rounded-md cursor-pointer transition-colors ${selectedHomemaid?.value === homemaid.id ? 'bg-teal-50 border-teal-500' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}
+                            onClick={() => handleHomemaidSelect({ value: homemaid.id, label: homemaid.Name || '' })}
+                          >
+                            <p className="font-semibold text-gray-800 text-right">{homemaid.Name}</p>
+                            <p className="text-sm text-gray-500 text-right">رقم العاملة: {homemaid.id}</p>
+                            <p className="text-sm text-gray-500 text-right">جواز السفر: {homemaid.Passportnumber || 'غير متوفر'}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-6 border-t pt-4 text-center text-gray-500">
+                      لا توجد نتائج مطابقة للبحث
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -4130,7 +4247,13 @@ export default function TrackOrder() {
                 <button
                   type="button"
                   className="px-4 py-2 border border-teal-800 text-teal-800 rounded-md hover:bg-teal-50 disabled:opacity-50"
-                  onClick={() => setShowChangeHomemaidModal(false)}
+                  onClick={() => {
+                    if (!orderData?.homemaidInfo?.id || orderData.homemaidInfo.id === 'N/A') {
+                      router.push('/admin/currentorderstest');
+                    } else {
+                      setShowChangeHomemaidModal(false);
+                    }
+                  }}
                   disabled={updating}
                 >
                   إلغاء
@@ -4147,6 +4270,7 @@ export default function TrackOrder() {
             </div>
           </div>
         )}
+        <UnfitChangeModal />
       </div>
     </Layout>
   );

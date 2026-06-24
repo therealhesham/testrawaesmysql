@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import prisma from '../../lib/prisma';
+import { jwtDecode } from 'jwt-decode';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -27,6 +28,43 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (existingOrder) {
       return res.status(400).json({ error: 'العاملة محجوزة بالفعل' });
+    }
+
+    // Reactivate if medically unfit
+    const targetMaid = await prisma.homemaid.findUnique({
+      where: { id: parseInt(workerId) }
+    });
+    if (targetMaid && (targetMaid.bookingstatus === 'غير لائقة طبيا' || targetMaid.bookingstatus === 'غير لائقة طبياً')) {
+      await prisma.homemaid.update({
+        where: { id: parseInt(workerId) },
+        data: {
+          bookingstatus: '',
+          isApproved: true,
+        }
+      });
+      
+      let userName = 'system';
+      try {
+        const cookieHeader = req.headers.cookie;
+        let cookies: { [key: string]: string } = {};
+        if (cookieHeader) {
+          cookieHeader.split(";").forEach((cookie) => {
+            const [key, value] = cookie.trim().split("=");
+            cookies[key] = decodeURIComponent(value);
+          });
+        }
+        const decoded = cookies.authToken ? jwtDecode(cookies.authToken) as any : null;
+        userName = decoded?.username || userName;
+      } catch (_) {}
+
+      await prisma.logs.create({
+        data: {
+          Status: 'إعادة تنشيط تلقائي',
+          Details: `تمت إعادة تنشيط العاملة تلقائياً عند ربطها بالطلب الجديد بعد فشل فحصها الطبي السابق`,
+          userId: userName,
+          homemaidId: parseInt(workerId),
+        }
+      });
     }
 
     // Create new booking

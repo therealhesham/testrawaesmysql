@@ -173,6 +173,33 @@ console.log("dataToUpdate",req.body.internalTicketFile)
       data: dataToUpdate,
     });
 
+    // إخراج العاملة من السكن تلقائيا بموعد الرحلة
+    if (createarrivallist.Order?.HomemaidId && validInternalDeparatureDate) {
+      const activeHousing = await prisma.housedworker.findFirst({
+        where: {
+          homeMaid_id: createarrivallist.Order.HomemaidId,
+          isActive: true
+        }
+      });
+
+      if (activeHousing) {
+        await prisma.housedworker.update({
+          where: { id: activeHousing.id },
+          data: {
+            isActive: false,
+            deparatureReason: createarrivallist.internalReason || 'مغادرة داخلية',
+            deparatureHousingDate: new Date(validInternalDeparatureDate).toISOString(),
+            checkIns: {
+              updateMany: {
+                where: { isActive: true },
+                data: { isActive: false }
+              }
+            }
+          }
+        });
+      }
+    }
+
     try {
       const token = req.cookies?.authToken;
       let userId: string | null = null;
@@ -202,9 +229,44 @@ console.log("dataToUpdate",req.body.internalTicketFile)
         }
       }
 
+      const arabicRegionMap: { [key: string]: string } = {
+        'Riyadh': 'الرياض', 'Al-Kharj': 'الخرج', 'Ad Diriyah': 'الدرعية', 'Al Majma\'ah': 'المجمعة', 'Al Zulfi': 'الزلفي',
+        'Ad Dawadimi': 'الدوادمي', 'Wadi Ad Dawasir': 'وادي الدواسر', 'Afif': 'عفيف', 'Al Quway\'iyah': 'القويعية',
+        'Shaqra': 'شقراء', 'Hotat Bani Tamim': 'حوطة بني تميم', 'Makkah': 'مكة المكرمة', 'Jeddah': 'جدة', 'Taif': 'الطائف',
+        'Rabigh': 'رابغ', 'Al Qunfudhah': 'القنفذة', 'Al Lith': 'الليث', 'Khulais': 'خليص', 'Ranyah': 'رنية', 'Turabah': 'تربة',
+        'Madinah': 'المدينة المنورة', 'Yanbu': 'ينبع', 'Al Ula': 'العلا', 'Badr': 'بدر', 'Al Hinakiyah': 'الحناكية',
+        'Mahd Al Dhahab': 'مهد الذهب', 'Dammam': 'الدمام', 'Al Khobar': 'الخبر', 'Dhahran': 'الظهران', 'Al Ahsa': 'الأحساء',
+        'Al Hufuf': 'الهفوف', 'Al Mubarraz': 'المبرز', 'Jubail': 'الجبيل', 'Hafr Al Batin': 'حفر الباطن', 'Al Khafji': 'الخفجي',
+        'Ras Tanura': 'رأس تنورة', 'Qatif': 'القطيف', 'Abqaiq': 'بقيق', 'Nairiyah': 'النعيرية', 'Qaryat Al Ulya': 'قرية العليا',
+        'Buraydah': 'بريدة', 'Unaizah': 'عنيزة', 'Ar Rass': 'الرس', 'Al Bukayriyah': 'البكيرية', 'Al Badaye': 'البدائع',
+        'Al Mithnab': 'المذنب', 'Riyad Al Khabra': 'رياض الخبراء', 'Abha': 'أبها', 'Khamis Mushait': 'خميس مشيط',
+        'Bisha': 'بيشة', 'Mahayil': 'محايل عسير', 'Al Namas': 'النماص', 'Tanomah': 'تنومة', 'Ahad Rafidah': 'أحد رفيدة',
+        'Sarat Abidah': 'سراة عبيدة', 'Balqarn': 'بلقرن', 'Tabuk': 'تبوك', 'Duba': 'ضباء', 'Al Wajh': 'الوجه',
+        'Umluj': 'أملج', 'Tayma': 'تيماء', 'Haqi': 'حقل', 'Hail': 'حائل', 'Baqa': 'بقعاء', 'Al Ghazalah': 'الغزالة',
+        'Arar': 'عرعر', 'Rafha': 'رفحاء', 'Turaif': 'طريف', 'Jazan': 'جازان', 'Sabya': 'صبيا', 'Abu Arish': 'أبو عريش',
+        'Samtah': 'صامطة', 'Baish': 'بيش', 'Ad Darb': 'الدرب', 'Al Aridah': 'العارضة', 'Fifa': 'فيفاء', 'Najran': 'نجران',
+        'Sharurah': 'شرورة', 'Hubuna': 'حبونا', 'Al Baha': 'الباحة', 'Baljurashi': 'بلجرشي', 'Al Mandq': 'المندق',
+        'Al Makhwah': 'المخواة', 'Qilwah': 'قلوة', 'Sakaka': 'سكاكا', 'Dumat Al Jandal': 'دومة الجندل', 'Al Qurayyat': 'القريات',
+        'Tabarjal': 'طبرجل'
+      };
+
+      const fromCity = createarrivallist.internaldeparatureCity ? (arabicRegionMap[createarrivallist.internaldeparatureCity] || createarrivallist.internaldeparatureCity) : '';
+      const toCity = createarrivallist.internalArrivalCity ? (arabicRegionMap[createarrivallist.internalArrivalCity] || createarrivallist.internalArrivalCity) : '';
+      const depDate = createarrivallist.internaldeparatureDate ? new Date(createarrivallist.internaldeparatureDate).toISOString().split('T')[0] : '';
+      const reason = createarrivallist.internalReason || '';
+      
+      const detailsArray = [];
+      if (fromCity) detailsArray.push(`من: ${fromCity}`);
+      if (toCity) detailsArray.push(`إلى: ${toCity}`);
+      if (depDate) detailsArray.push(`تاريخ المغادرة: ${depDate}`);
+      if (reason) detailsArray.push(`السبب: ${reason}`);
+      
+      const detailsStr = detailsArray.length > 0 ? detailsArray.join(' | ') : undefined;
+
       await prisma.logs.create({
         data: {
-          Status: `تم تعديل بيانات المغادرة الداخلية للعاملة ${createarrivallist.Order?.HomeMaid?.Name || ''} بنجاح`,
+          Status: `تم تسجيل مغادرة داخلية للعاملة ${createarrivallist.Order?.HomeMaid?.Name || ''} بنجاح`,
+          Details: detailsStr,
           homemaidId: createarrivallist.Order?.HomemaidId,
           userId: userId,
         },

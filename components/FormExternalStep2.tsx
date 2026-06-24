@@ -263,6 +263,31 @@ const arabicRegionMap: { [key: string]: string } = {
   'Tabarjal': 'طبرجل'
 };
 
+const levenshteinDistance = (s1: string, s2: string): number => {
+  if (s1.length === 0) return s2.length;
+  if (s2.length === 0) return s1.length;
+  const matrix = [];
+  for (let i = 0; i <= s2.length; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= s1.length; j++) {
+    matrix[0][j] = j;
+  }
+  for (let i = 1; i <= s2.length; i++) {
+    for (let j = 1; j <= s1.length; j++) {
+      if (s2.charAt(i - 1) === s1.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1)
+        );
+      }
+    }
+  }
+  return matrix[s2.length][s1.length];
+};
+
 const matchRegionKey = (cityName: string): string => {
   if (!cityName) return '';
   const cleanName = cityName.trim().toLowerCase();
@@ -278,8 +303,30 @@ const matchRegionKey = (cityName: string): string => {
       return key;
     }
   }
+
+  // Fuzzy matching for slight typos in English or Arabic
+  let bestMatch = '';
+  let minDistance = Infinity;
+  // Allow 1 typo for every 4 characters (e.g., length 6 allows 1 typo, length 8 allows 2 typos)
+  // Max typos allowed is 3 to prevent completely wrong matches
+  const maxAllowedDistance = Math.min(3, Math.max(1, Math.floor(cleanName.length / 4)));
+
+  for (const [key, value] of Object.entries(arabicRegionMap)) {
+    const distEng = levenshteinDistance(cleanName, key.toLowerCase());
+    const distAr = levenshteinDistance(cleanName, value.toLowerCase());
+    const dist = Math.min(distEng, distAr);
+    
+    if (dist < minDistance) {
+      minDistance = dist;
+      bestMatch = key;
+    }
+  }
   
-  return cityName;
+  if (minDistance <= maxAllowedDistance && minDistance > 0) {
+    return bestMatch;
+  }
+  
+  return '';
 };
 
 interface FormStepExternal2Props {
@@ -633,13 +680,17 @@ export default function FormStepExternal2({ onPrevious, onClose, data }: FormSte
             throw new Error('لم يتم العثور على تفاصيل تذكرة صالحة في الملف');
           }
 
+          const rawArrivalCity = details.arrival_airport ? resolveIataCity(String(details.arrival_airport)) : '';
+          const isSaudiArrival = rawArrivalCity ? !!matchRegionKey(rawArrivalCity) : false;
+
           setFormData((prev) => {
             const newDepartureCity = details.departure_airport 
-              ? matchRegionKey(resolveIataCity(String(details.departure_airport))) 
+              ? (matchRegionKey(resolveIataCity(String(details.departure_airport))) || prev.externaldeparatureCity)
               : prev.externaldeparatureCity;
-            const newArrivalCity = details.arrival_airport 
-              ? resolveIataCity(String(details.arrival_airport)) 
-              : prev.externalArrivalCity;
+            
+            const newArrivalCity = isSaudiArrival
+              ? prev.externalArrivalCity
+              : (rawArrivalCity || prev.externalArrivalCity);
 
             return {
               ...prev,
@@ -652,9 +703,15 @@ export default function FormStepExternal2({ onPrevious, onClose, data }: FormSte
             };
           });
 
-          setAlertMessage('تم استخراج بيانات التذكرة وتعبئتها بنجاح عن طريق الذكاء الاصطناعي!');
-          setAlertType('success');
-          setShowAlert(true);
+          if (isSaudiArrival) {
+            setAlertMessage('مدينة الوصول المستخرجة مدينة سعودية. يرجى التأكد من تسجيل المغادرة في المغادرة الداخلية.');
+            setAlertType('error');
+            setShowAlert(true);
+          } else {
+            setAlertMessage('تم استخراج بيانات التذكرة وتعبئتها بنجاح عن طريق الذكاء الاصطناعي!');
+            setAlertType('success');
+            setShowAlert(true);
+          }
         } catch (e: any) {
           console.error(e);
           setUploadError(e.message || 'حدث خطأ أثناء استخراج بيانات التذكرة عبر الذكاء الاصطناعي');
@@ -721,6 +778,9 @@ export default function FormStepExternal2({ onPrevious, onClose, data }: FormSte
     // Validate arrival city
     if (!formData.externalArrivalCity.trim()) {
       newErrors.externalArrivalCity = 'وجهة الوصول مطلوبة';
+      isValid = false;
+    } else if (matchRegionKey(formData.externalArrivalCity.trim())) {
+      newErrors.externalArrivalCity = 'وجهة الوصول لا يمكن أن تكون مدينة سعودية في المغادرة الخارجية';
       isValid = false;
     }
 

@@ -16,11 +16,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     age,
     clientphonenumber,
     Nationalitycopy,
+    ratingStatus,
+    starsCount,
+    fromDate,
+    toDate,
+    warrantyStatus,
     page,
     HomemaidId,
+    perPage,
   } = req.query;
 
-  const pageSize = 10;
+  const pageSize = perPage ? parseInt(perPage as string, 10) : 10;
   const pageNumber = parseInt(page as string, 10) || 1;
 
   if (pageNumber < 1) {
@@ -81,6 +87,66 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ];
   }
 
+  // 1. & 2. Rating Filters
+  if (ratingStatus === 'rated') {
+    filters.ratings = { some: { isRated: true } };
+  } else if (ratingStatus === 'unrated') {
+    filters.ratings = { none: { isRated: true } };
+  }
+
+  if (starsCount && starsCount !== 'all' && starsCount !== '') {
+    const starsNum = parseInt(starsCount as string, 10);
+    if (!isNaN(starsNum)) {
+      if (!filters.ratings) {
+        filters.ratings = { some: { stars: starsNum } };
+      } else if (filters.ratings.some) {
+        filters.ratings.some.stars = starsNum;
+      }
+    }
+  }
+
+  // 3. Date Filter (Delivery Date)
+  if (fromDate || toDate) {
+    const dateFilter: any = {};
+    if (fromDate) dateFilter.gte = new Date(fromDate as string);
+    if (toDate) {
+      const end = new Date(toDate as string);
+      end.setHours(23, 59, 59, 999);
+      dateFilter.lte = end;
+    }
+    filters.DeliveryDetails = {
+      some: {
+        deliveryFile: { not: null },
+        deliveryDate: dateFilter,
+      },
+    };
+  }
+
+  // 4. Warranty Filter
+  if (warrantyStatus && warrantyStatus !== 'all' && warrantyStatus !== '') {
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    
+    if (warrantyStatus === 'valid') {
+      filters.AND = [
+        ...(filters.AND || []),
+        { isContractEnded: { not: true } },
+        { arrivals: { some: { KingdomentryDate: { gte: ninetyDaysAgo } } } }
+      ];
+    } else if (warrantyStatus === 'expired') {
+      filters.AND = [
+        ...(filters.AND || []),
+        {
+          OR: [
+            { isContractEnded: true },
+            { arrivals: { some: { KingdomentryDate: { lt: ninetyDaysAgo } } } },
+            { arrivals: { none: {} } }
+          ]
+        }
+      ];
+    }
+  }
+
   // جلب البيانات - الطلبات المكتملة هي التي لديها ملف استلام
   const homemaids = await prisma.neworder.findMany({
     include: {
@@ -90,7 +156,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
       },
       client: true,
-      ratings: true,
+      ratings: {
+        orderBy: {
+          createdAt: 'desc',
+        },
+      },
       arrivals: {
         select: {
           KingdomentryDate: true,
@@ -112,7 +182,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     where: {
       ...filters,
       // الطلب مكتمل عندما يكون لديه DeliveryDetails مع deliveryFile موجود
-      DeliveryDetails: {
+      DeliveryDetails: filters.DeliveryDetails || {
         some: {
           deliveryFile: {
             not: null,
@@ -128,7 +198,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     where: {
       ...filters,
       // الطلب مكتمل عندما يكون لديه DeliveryDetails مع deliveryFile موجود
-      DeliveryDetails: {
+      DeliveryDetails: filters.DeliveryDetails || {
         some: {
           deliveryFile: {
             not: null,

@@ -222,7 +222,7 @@ title        String?   @db.VarChar(55)
 type          String? @db.VarChar(32)
 message        String?   @db.VarChar(255)
   createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  updatedAt       DateTime?  @updatedAt
   isRead          Boolean?  @default(false)
   userId          String?
   user            User?     @relation(fields: [userId], references: [username]) 
@@ -400,6 +400,7 @@ model Rating {
 
 isRated     Boolean   @default(false)
 reason      String? @db.VarChar(255)
+stars       Int?
   createdAt          DateTime? @default(now())
   updatedAt          DateTime? @updatedAt
   Order            neworder?     @relation(fields: [idOrder], references: [id]) 
@@ -420,6 +421,7 @@ model neworder {
       orderDocument   String?   @db.VarChar(255)
     contract String?   @db.VarChar(255)
   bookingstatus      String?   @db.VarChar(255)
+  clientBookingStatus String?  @db.VarChar(255) @default("new_order")
   profileStatus      String?   @db.VarChar(255)
 transactios transactions[]
   isHidden        Boolean? @default(false)

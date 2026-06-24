@@ -2,7 +2,7 @@ import Layout from "example/containers/Layout";
 import { useRouter } from "next/router";
 import { useEffect, useState, useRef } from "react";
 import type { ChangeEvent } from "react";
-import { FaFilePdf, FaPrint, FaSave, FaUser, FaGraduationCap, FaBriefcase, FaTools, FaDollarSign, FaFileAlt, FaMagic, FaArrowRight, FaCog, FaCheck, FaEdit, FaTimes, FaExchangeAlt, FaCrop } from "react-icons/fa";
+import { FaFilePdf, FaPrint, FaSave, FaUser, FaGraduationCap, FaBriefcase, FaTools, FaDollarSign, FaFileAlt, FaMagic, FaArrowRight, FaCog, FaCheck, FaEdit, FaTimes, FaExchangeAlt, FaCrop, FaUndo } from "react-icons/fa";
 import AlertModal from "components/AlertModal";
 import Head from "next/head";
 import { ScissorOutlined } from "@ant-design/icons";
@@ -74,6 +74,9 @@ function HomeMaidInfo() {
     notes: "",
     logs: [] as any[],
     inHouse: [] as any[],
+    bookingstatus: "",
+    externaldeparatureDate: "",
+    updatedAt: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -772,21 +775,34 @@ function HomeMaidInfo() {
       const birthInput = formatToInputDate(data.dateofbirth);
       const passportStartInput = formatToInputDate(data.passportStartDate || data.PassportStart || data.PassportStartDate);
       const passportEndInput = formatToInputDate(data.passportEndDate || data.PassportEnd || data.PassportEndDate);
-      
+
+      let externalDepDate = "";
+      if (data.NewOrder && data.NewOrder.length > 0) {
+        const sortedOrders = [...data.NewOrder].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        for (const order of sortedOrders) {
+           if (order.arrivals && order.arrivals.length > 0) {
+              const arrivalWithDate = order.arrivals.find((a: any) => a.externaldeparatureDate);
+              if (arrivalWithDate) {
+                 externalDepDate = arrivalWithDate.externaldeparatureDate;
+                 break;
+              }
+           }
+        }
+      }
+
       setFormData({
         Name: data.Name || "",
         Religion: data.Religion || "",
-        professionId: data.professionId || "",
         Nationalitycopy: data.Nationalitycopy || "",
+        professionId: data.professionId || "",
         maritalstatus: data.maritalstatus || "",
-
-        Picture: extractImageUrl(data.Picture) || "",
-        FullPicture: extractImageUrl(data.FullPicture) || "",
-        
         childrenCount: data.childrenCount || data.ChildrenCount || data.children || "", 
         height: data.height || data.Height || "", 
         weight: data.weight || data.Weight || "",
         
+        Picture: extractImageUrl(data.Picture) || "",
+        FullPicture: extractImageUrl(data.FullPicture) || "",
+
         dateofbirth: birthInput,
         Passportnumber: data.Passportnumber || "",
         passportStartDate: passportStartInput,
@@ -817,6 +833,9 @@ function HomeMaidInfo() {
         notes: data.notes || "",
         logs: data.logs || [],
         inHouse: data.inHouse || [],
+        bookingstatus: data.bookingstatus || "",
+        externaldeparatureDate: externalDepDate,
+        updatedAt: data.updatedAt || "",
       });
       
       // تحديث حالة الاعتماد
@@ -908,6 +927,37 @@ function HomeMaidInfo() {
         type: 'error',
         title: 'خطأ',
         message: 'حدث خطأ أثناء إلغاء اعتماد العاملة'
+      });
+    }
+  };
+
+  const handleReactivate = async () => {
+    if (!window.confirm("هل أنت متأكد من رغبتك في إعادة تنشيط العاملة؟ ستصبح العاملة متاحة ومعروضة مرة أخرى.")) return;
+    
+    try {
+      const response = await fetch('/api/reactivatehomemaid', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      if (!response.ok) throw new Error('فشل في إعادة تنشيط العاملة');
+      
+      setAlertModal({
+        isOpen: true,
+        type: 'success',
+        title: 'نجح',
+        message: 'تم إعادة تنشيط العاملة بنجاح'
+      });
+      
+      await fetchPersonalInfo();
+      checkExistingOrder();
+    } catch (error) {
+      console.error('Error reactivating worker:', error);
+      setAlertModal({
+        isOpen: true,
+        type: 'error',
+        title: 'خطأ',
+        message: 'حدث خطأ أثناء إعادة التنشيط'
       });
     }
   };
@@ -1562,11 +1612,26 @@ function HomeMaidInfo() {
                     <FaExchangeAlt className="w-4 h-4 text-teal-600" />
                     <span>تحويل ({formData.contractType === "recruitment" ? "استقدام → تأجير" : "تأجير → استقدام"})</span>
                   </button>
+
+                  {/* إعادة تنشيط العاملة */}
+                  {((formData as any).bookingstatus === 'مغادرة خارجية' || (formData as any).bookingstatus === 'غير لائقة طبيا' || (formData as any).bookingstatus === 'غير لائقة طبياً') && (
+                    <button
+                      onClick={() => {
+                        handleReactivate();
+                        setShowSettingsMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-orange-600 hover:bg-orange-50 transition-colors text-right border-t border-gray-100"
+                    >
+                      <FaUndo className="w-4 h-4" />
+                      <span>إعادة تنشيط العاملة</span>
+                    </button>
+                  )}
                 </div>
               </>
             )}
           </div>
         </div>
+
 
         {/* ✅ الصور */}
         <section className="mb-8">
@@ -1597,21 +1662,54 @@ function HomeMaidInfo() {
                     ) : null}
                   </div>
 
-                  <div className="flex justify-end">
-                    {url ? (
-                      <img
-                        src={url}
-                        alt={img.label}
-                        className="w-48 h-48 object-cover rounded-lg border border-gray-200 bg-gray-50"
-                        onError={(e) => {
-                          e.currentTarget.src = "/images/img.jpeg";
-                        }}
-                      />
-                    ) : (
-                      <div className="w-48 h-48 rounded-lg border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center text-gray-500 text-sm">
-                        لا توجد صورة
-                      </div>
-                    )}
+                  <div className="flex justify-between items-center mt-2">
+                    {/* Stamp Container on the left */}
+                    <div className="flex-1 flex justify-center items-center">
+                      {img.id === "Picture" && (formData as any).bookingstatus === 'مغادرة خارجية' && (
+                        <div className="border-4 border-red-600 rounded-lg p-2 opacity-80 transform -rotate-12 select-none pointer-events-none no-print shadow-md inline-block">
+                          <div className="border-2 border-red-600 px-4 py-2 rounded">
+                            <p className="text-red-600 font-bold text-xl tracking-widest text-center mb-1">مغادرة خارجية</p>
+                            <p className="text-red-600 font-bold text-xs text-center tracking-wide font-sans mb-1">FINAL EXIT</p>
+                            {(formData as any).externaldeparatureDate && (
+                              <p className="text-red-600 font-bold text-xs text-center border-t border-red-200 pt-1 mt-1 font-sans">
+                                {getDate((formData as any).externaldeparatureDate)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {img.id === "Picture" && ((formData as any).bookingstatus === 'غير لائقة طبيا' || (formData as any).bookingstatus === 'غير لائقة طبياً') && (
+                        <div className="border-4 border-red-600 rounded-lg p-2 opacity-80 transform -rotate-12 select-none pointer-events-none no-print shadow-md inline-block">
+                          <div className="border-2 border-red-600 px-4 py-2 rounded">
+                            <p className="text-red-600 font-bold text-xl tracking-widest text-center mb-1">غير لائقة طبياً</p>
+                            <p className="text-red-600 font-bold text-xs text-center tracking-wide font-sans mb-1">MEDICALLY UNFIT</p>
+                            {(formData as any).updatedAt && (
+                              <p className="text-red-600 font-bold text-xs text-center border-t border-red-200 pt-1 mt-1 font-sans">
+                                {getDate((formData as any).updatedAt)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Image on the right */}
+                    <div className="flex justify-end">
+                      {url ? (
+                        <img
+                          src={url}
+                          alt={img.label}
+                          className="w-48 h-48 object-cover rounded-lg border border-gray-200 bg-gray-50"
+                          onError={(e) => {
+                            e.currentTarget.src = "/images/img.jpeg";
+                          }}
+                        />
+                      ) : (
+                        <div className="w-48 h-48 rounded-lg border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center text-gray-500 text-sm">
+                          لا توجد صورة
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {isEditing && (

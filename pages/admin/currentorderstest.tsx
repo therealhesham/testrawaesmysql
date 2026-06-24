@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'; // أضف useCallback
 import { useRouter } from 'next/router';
 import { DocumentDownloadIcon, TableIcon } from '@heroicons/react/outline';
-import { Search, ChevronDown, X, Columns } from 'lucide-react';
+import { Search, ChevronDown, X, Columns, Hash, Phone, CreditCard, Book } from 'lucide-react';
 import Layout from 'example/containers/Layout';
 import Style from "styles/Home.module.css";
 import { jwtDecode } from 'jwt-decode';
@@ -17,19 +17,37 @@ import {
 } from 'components/OrderStepper';
 
 /** خيارات «حالة الطلب» — نفس عناوين خطوات الـ stepper في تتبع الطلب (بدون «في انتظار …») */
-const STATUS_FILTER_AR_OPTIONS = [...ORDER_STEPPER_VISUAL_STEP_LABELS];
+const STATUS_FILTER_AR_OPTIONS = [
+  'مازال الطلب، بانتظار الربط مع إدارة المكاتب',
+  'تم الربط مع إدارة المكاتب، بانتظار موافقة المكتب الخارجي',
+  'تمت موافقة المكتب الخارجي، بانتظار الفحص الطبي',
+  'تم الفحص الطبي، وفي انتظار موافقة مكتب العمل',
+  'تمت موافقة مكتب العمل، بانتظار دفع الوكالة',
+  'تم دفع الوكالة، بانتظار موافقة السفارة',
+  'موافقة السفارة، بانتظار إصدار التأشيرة',
+  'تم إصدار التأشيرة، بانتظار تصريح السفر',
+  'تم إصدار تصريح السفر، بانتظار تحديد الوجهات',
+  'تم تحديد الوجهات، بانتظار وصول واستلام العاملة',
+  'تم وصول العاملة، بانتظار التسليم للعميل',
+];
 
 function bookingStatusQueryFromStepLabel(
   label: string
-): { bookingstatus?: string; bookingstatusIn?: string } {
-  const idx = ORDER_STEPPER_VISUAL_STEP_LABELS.indexOf(
-    label as (typeof ORDER_STEPPER_VISUAL_STEP_LABELS)[number]
-  );
-  if (idx < 0) return {};
-  const statuses = ORDER_STEPPER_VISUAL_STEP_BOOKING_STATUSES[idx];
-  if (!statuses?.length) return {};
-  if (statuses.length === 1) return { bookingstatus: statuses[0] };
-  return { bookingstatusIn: [...statuses].join(',') };
+): Record<string, string> {
+  switch (label) {
+    case 'مازال الطلب، بانتظار الربط مع إدارة المكاتب': return { bookingstatus: 'pending_external_office', isLinked: 'false' };
+    case 'تم الربط مع إدارة المكاتب، بانتظار موافقة المكتب الخارجي': return { bookingstatus: 'pending_external_office', isLinked: 'true' };
+    case 'تمت موافقة المكتب الخارجي، بانتظار الفحص الطبي': return { bookingstatusIn: 'external_office_approved,pending_medical_check' };
+    case 'تم الفحص الطبي، وفي انتظار موافقة مكتب العمل': return { bookingstatusIn: 'medical_check_passed,pending_foreign_labor' };
+    case 'تمت موافقة مكتب العمل، بانتظار دفع الوكالة': return { bookingstatusIn: 'foreign_labor_approved,pending_agency_payment' };
+    case 'تم دفع الوكالة، بانتظار موافقة السفارة': return { bookingstatusIn: 'agency_paid,pending_embassy' };
+    case 'موافقة السفارة، بانتظار إصدار التأشيرة': return { bookingstatusIn: 'embassy_approved,pending_visa' };
+    case 'تم إصدار التأشيرة، بانتظار تصريح السفر': return { bookingstatusIn: 'visa_issued,pending_travel_permit' };
+    case 'تم إصدار تصريح السفر، بانتظار تحديد الوجهات': return { bookingstatus: 'travel_permit_issued' };
+    case 'تم تحديد الوجهات، بانتظار وصول واستلام العاملة': return { bookingstatusIn: 'destinations_set,pending_receipt' };
+    case 'تم وصول العاملة، بانتظار التسليم للعميل': return { bookingstatus: 'received' };
+    default: return {};
+  }
 }
 
 /** تاريخ العقد (من أول سجل وصول) بصيغة YYYY-MM-DD للعرض والعداد */
@@ -46,28 +64,16 @@ const ORDER_TABLE_COLUMNS_STORAGE = 'currentorderstest_table_columns_v1';
 type OrderTableColKey =
   | 'orderId'
   | 'clientName'
-  | 'clientPhone'
-  | 'nationalId'
-  | 'maidId'
   | 'maidName'
-  | 'country'
-  | 'passport'
   | 'musanedContract'
-  | 'elapsedContract'
   | 'externalOffice'
   | 'status';
 
 const ORDER_TABLE_COLUMNS: { key: OrderTableColKey; label: string; locked?: boolean }[] = [
   { key: 'orderId', label: 'رقم الطلب', locked: true },
-  { key: 'clientName', label: 'اسم العميل' },
-  { key: 'clientPhone', label: 'جوال العميل' },
-  { key: 'nationalId', label: 'هوية العميل' },
-  { key: 'maidId', label: 'رقم العاملة' },
-  { key: 'maidName', label: 'اسم العاملة' },
-  { key: 'country', label: 'الجنسية' },
-  { key: 'passport', label: 'رقم جواز السفر' },
-  { key: 'musanedContract', label: 'رقم عقد مساند' },
-  { key: 'elapsedContract', label: 'مضى منذ تاريخ العقد' },
+  { key: 'clientName', label: 'بيانات العميل' },
+  { key: 'maidName', label: 'بيانات العاملة' },
+  { key: 'musanedContract', label: 'بيانات العقد' },
   { key: 'externalOffice', label: 'اسم المكتب الخارجي' },
   { key: 'status', label: 'حالة الطلب' },
 ];
@@ -130,6 +136,9 @@ export default function Dashboard({
   const [nationality, setNationality] = useState('');
   const [office, setOffice] = useState('');
   const [status, setStatus] = useState('');
+  const [dateFilterType, setDateFilterType] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [offices, setOffices] = useState(initialOffices || []);
   const [nationalities, setNationalities] = useState(initialNationalities || []);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -149,35 +158,80 @@ export default function Dashboard({
   const skipNextOrderColumnSave = useRef(true);
 
   // دالة ترجمة حالة الطلب من الإنجليزية إلى العربية
-  const translateBookingStatus = (status: string) => {
-    const statusTranslations: { [key: string]: string } = {
-      'pending': 'قيد الانتظار',
-      'office_link_approved': 'موافقة الربط مع إدارة المكاتب',
-      'pending_office_link': 'في انتظار الربط مع إدارة المكاتب',
-      'external_office_approved': 'موافقة المكتب الخارجي',
-      'pending_external_office': 'في انتظار المكتب الخارجي',
-      'medical_check_passed': 'تم اجتياز الفحص الطبي',
-      'pending_medical_check': 'في انتظار الفحص الطبي',
-      'foreign_labor_approved': 'موافقة وزارة العمل الأجنبية',
-      'pending_foreign_labor': 'في انتظار وزارة العمل الأجنبية',
-      'agency_paid': 'تم دفع الوكالة',
-      'pending_agency_payment': 'في انتظار دفع الوكالة',
-      'embassy_approved': 'موافقة السفارة السعودية',
-      'pending_embassy': 'في انتظار السفارة السعودية',
-      'visa_issued': 'تم إصدار التأشيرة',
-      'pending_visa': 'في انتظار إصدار التأشيرة',
-      'travel_permit_issued': 'تم إصدار تصريح السفر',
-      'pending_travel_permit': 'في انتظار تصريح السفر',
-      'received': 'تم الاستلام',
-      'pending_receipt': 'في انتظار الاستلام',
+  const translateBookingStatus = (status: string, booking?: any) => {
+    const statusTranslations: Record<string, string> = {
+      'pending': 'قيد الانتظار، بانتظار الربط',
+      'office_link_approved': 'تم الربط مع إدارة المكاتب، بانتظار موافقة المكتب الخارجي',
+      'pending_office_link': 'في انتظار الربط مع المكاتب',
+      'external_office_approved': 'تمت موافقة المكتب الخارجي، بانتظار الفحص الطبي',
+      'pending_external_office': 'في انتظار موافقة المكتب الخارجي',
+      'pending_medical_check': 'تمت موافقة المكتب الخارجي، بانتظار الفحص الطبي',
+      'medical_check_passed': 'تم الفحص الطبي، وفي انتظار موافقة مكتب العمل',
+      'pending_foreign_labor': 'تم الفحص الطبي، وفي انتظار موافقة مكتب العمل',
+      'foreign_labor_approved': 'تمت موافقة مكتب العمل، بانتظار دفع الوكالة',
+      'pending_agency_payment': 'تمت موافقة مكتب العمل، بانتظار دفع الوكالة',
+      'agency_paid': 'تم دفع الوكالة، بانتظار موافقة السفارة',
+      'pending_embassy': 'تم دفع الوكالة، بانتظار موافقة السفارة',
+      'embassy_approved': 'موافقة السفارة، بانتظار إصدار التأشيرة',
+      'pending_visa': 'موافقة السفارة، بانتظار إصدار التأشيرة',
+      'visa_issued': 'تم إصدار التأشيرة، بانتظار تصريح السفر',
+      'pending_travel_permit': 'تم إصدار التأشيرة، بانتظار تصريح السفر',
+      'travel_permit_issued': 'تم إصدار تصريح السفر، بانتظار تحديد الوجهات',
+      'destinations_set': 'تم تحديد الوجهات، بانتظار وصول واستلام العاملة',
+      'pending_receipt': 'تم تحديد الوجهات، بانتظار وصول واستلام العاملة',
+      'received': 'تم وصول العاملة، بانتظار التسليم للعميل',
       'cancelled': 'ملغي',
       'rejected': 'مرفوض',
-      'delivered': 'تم التسليم',
-      'new_order': 'طلب جديد',
+      'delivered': 'تم التسليم للعميل',
+      'new_order': 'طلب جديد، بانتظار الربط',
       'new_orders': 'طلبات جديدة'
     };
 
-    return statusTranslations[status] || status;
+    let translated = statusTranslations[status] || status;
+
+    if (status === 'pending_external_office') {
+      if (!booking?.arrivals?.[0]?.ExternalDateLinking) {
+        translated = 'مازال الطلب، بانتظار الربط مع إدارة المكاتب';
+      } else {
+        translated = 'تم الربط مع إدارة المكاتب، بانتظار موافقة المكتب الخارجي';
+      }
+    }
+
+    return translated;
+  };
+
+  const handleDateFilterChange = (type: string) => {
+    setDateFilterType(type);
+    const now = new Date();
+    
+    if (type === 'all') {
+      setDateFrom('');
+      setDateTo('');
+    } else if (type === 'today') {
+      const today = now.toISOString().split('T')[0];
+      setDateFrom(today);
+      setDateTo(today);
+    } else if (type === 'week') {
+      const day = now.getDay();
+      const diff = day === 6 ? 0 : day + 1; // Assuming Saturday is start of week
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - diff);
+      setDateFrom(startOfWeek.toISOString().split('T')[0]);
+      setDateTo(now.toISOString().split('T')[0]);
+    } else if (type === 'month') {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      setDateFrom(startOfMonth.toISOString().split('T')[0]);
+      setDateTo(endOfMonth.toISOString().split('T')[0]);
+    } else if (type === 'year') {
+      const startOfYear = new Date(now.getFullYear(), 0, 1);
+      const endOfYear = new Date(now.getFullYear(), 11, 31);
+      setDateFrom(startOfYear.toISOString().split('T')[0]);
+      setDateTo(endOfYear.toISOString().split('T')[0]);
+    } else if (type === 'custom') {
+      setDateFrom('');
+      setDateTo('');
+    }
   };
 
   const pageSize = 10;
@@ -198,6 +252,8 @@ export default function Dashboard({
         ...(nationality && { Nationalitycopy: nationality }),
         ...(office && { officeName: office }),
         ...(status && bookingStatusQueryFromStepLabel(status)),
+        ...(dateFrom && { dateFrom }),
+        ...(dateTo && { dateTo }),
       });
 
       const res = await fetch(`/api/currentordersprisma?${queryParams.toString()}`);
@@ -220,7 +276,7 @@ export default function Dashboard({
     } finally {
       setIsLoading(false);
     }
-  }, [hasPermission, contractType, searchTerm, nationality, office, status]); // Dependencies for useCallback
+  }, [hasPermission, contractType, searchTerm, nationality, office, status, dateFrom, dateTo]); // Dependencies for useCallback
 useEffect(() => {
   const authToken = localStorage.getItem('token');
   const decoder = authToken ? jwtDecode(authToken) as any : null;
@@ -397,7 +453,7 @@ useEffect(() => {
       setCurrentPage(1);
       fetchData(1);
     }
-  }, [contractType, searchTerm, nationality, office, status, hasPermission, isCheckingAuth, fetchData]);
+  }, [contractType, searchTerm, nationality, office, status, dateFrom, dateTo, hasPermission, isCheckingAuth, fetchData]);
 
 const exportedData = async ()=>{
 
@@ -481,7 +537,7 @@ const exportedData = async ()=>{
           const elapsed = formatElapsedSinceContractDate(contractDateIsoFromBooking(row));
           const elapsedCell = elapsed ? `مضى ${elapsed}` : '—';
           return [
-            truncateToTwoWords(translateBookingStatus(row.bookingstatus) || 'غير متوفر'),
+            truncateToTwoWords(translateBookingStatus(row.bookingstatus, row) || 'غير متوفر'),
             truncateToTwoWords(row.HomeMaid?.office?.office || 'غير متوفر'),
             truncateToTwoWords(row.arrivals?.[0]?.InternalmusanedContract || row.arrivals?.InternalmusanedContract || 'غير متوفر'),
             elapsedCell,
@@ -602,7 +658,7 @@ const exportedData = async ()=>{
             contract: row.arrivals?.[0]?.InternalmusanedContract || row.arrivals?.InternalmusanedContract || 'غير متوفر',
             elapsedSinceContract: elapsed ? `مضى ${elapsed}` : '—',
             office: row.HomeMaid?.office?.office || 'غير متوفر',
-            status: translateBookingStatus(row.bookingstatus) || 'غير متوفر',
+            status: translateBookingStatus(row.bookingstatus, row) || 'غير متوفر',
           })
           .alignment = { horizontal: 'right' };
       });
@@ -629,6 +685,9 @@ const exportedData = async ()=>{
     setNationality('');
     setOffice('');
     setStatus('');
+    setDateFilterType('all');
+    setDateFrom('');
+    setDateTo('');
     setCurrentPage(1); // Reset to first page
     // fetchData(1); // Fetch data with reset filters for page 1
   };
@@ -769,7 +828,6 @@ const exportedData = async ()=>{
                     طلبات الاستقدام <span className="text-md align-super">{recruitmentCount}</span>
                   </a>
                   <a
-                    // href="#"
                     onClick={(e) => {
                       e.preventDefault();
                       setContractType('rental');
@@ -808,71 +866,110 @@ const exportedData = async ()=>{
                 </div>
               </div>
               <div className="mb-6 flex flex-col gap-3">
-                <div className="flex w-full flex-row flex-nowrap items-center gap-3">
-                  <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-3 overflow-x-auto py-1 [scrollbar-width:thin]">
-                    <div className="flex shrink-0 items-center bg-gray-50 border border-gray-300 rounded gap-4">
-                      <input
-                        type="text"
-                        placeholder="بحث"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="min-w-[120px] border-none bg-transparent text-md text-gray-500 text-right"
-                      />
-                      <Search className="w-4 h-4 shrink-0 text-gray-500" />
-                    </div>
-                    <div className="relative shrink-0">
-                      <select
-                        value={status}
-                        onChange={(e) => setStatus(e.target.value)}
-                        className="flex max-w-[min(100vw-8rem,14rem)] items-center bg-gray-50 border border-gray-300 rounded gap-10 text-md text-gray-500 cursor-pointer text-right"
-                      >
-                        <option value="">حالة الطلب</option>
-                        {STATUS_FILTER_AR_OPTIONS.map((s) => (
-                          <option key={s} value={s}>
-                            {s}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="flex shrink-0 flex-nowrap items-center gap-3">
-                      <div className="relative">
-                        <select
-                          value={nationality}
-                          onChange={(e) => setNationality(e.target.value)}
-                          className="flex max-w-[min(100vw-8rem,12rem)] items-center bg-gray-50 border border-gray-300 rounded gap-10 text-md text-gray-500 cursor-pointer appearance-none text-right"
-                        >
-                          <option value="">كل الجنسيات</option>
-                          {nationalities.map((nat) => (
-                            <option key={nat?.Country} value={nat?.Country}>
-                              {nat?.Country}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="relative">
-                        <select
-                          value={office}
-                          onChange={(e) => setOffice(e.target.value)}
-                          className="flex max-w-[min(100vw-8rem,12rem)] items-center bg-gray-50 border border-gray-300 rounded gap-10 text-md text-gray-500 cursor-pointer appearance-none text-right"
-                        >
-                          <option value="">كل المكاتب</option>
-                          {offices.map((off: any) => (
-                            <option key={off.id} value={off.office}>
-                              {off.office}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
+                <div className="flex w-full flex-wrap items-center gap-3">
+                  <div className="flex shrink-0 items-center bg-gray-50 border border-gray-300 rounded gap-2 px-3 py-1.5">
+                    <input
+                      type="text"
+                      placeholder="بحث"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="min-w-[120px] border-none bg-transparent text-md text-gray-500 text-right outline-none"
+                    />
+                    <Search className="w-4 h-4 shrink-0 text-gray-500" />
                   </div>
+                  
+                  <div className="relative shrink-0 flex-1 min-w-[140px] max-w-[200px]">
+                    <select
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-300 rounded py-1.5 text-md text-gray-500 cursor-pointer outline-none text-right bg-[position:left_0.75rem_center] !pr-3 !pl-10"
+                    >
+                      <option value="">حالة الطلب</option>
+                      {STATUS_FILTER_AR_OPTIONS.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="relative shrink-0 flex-1 min-w-[140px] max-w-[200px]">
+                    <select
+                      value={nationality}
+                      onChange={(e) => setNationality(e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-300 rounded py-1.5 text-md text-gray-500 cursor-pointer outline-none text-right bg-[position:left_0.75rem_center] !pr-3 !pl-10"
+                    >
+                      <option value="">كل الجنسيات</option>
+                      {nationalities.map((nat) => (
+                        <option key={nat?.Country} value={nat?.Country}>
+                          {nat?.Country}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="relative shrink-0 flex-1 min-w-[140px] max-w-[200px]">
+                    <select
+                      value={office}
+                      onChange={(e) => setOffice(e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-300 rounded py-1.5 text-md text-gray-500 cursor-pointer outline-none text-right bg-[position:left_0.75rem_center] !pr-3 !pl-10"
+                    >
+                      <option value="">كل المكاتب</option>
+                      {offices.map((off: any) => (
+                        <option key={off.id} value={off.office}>
+                          {off.office}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="relative shrink-0 flex-1 min-w-[160px] max-w-[220px]">
+                    <select
+                      value={dateFilterType}
+                      onChange={(e) => handleDateFilterChange(e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-300 rounded py-1.5 text-md text-gray-500 cursor-pointer outline-none text-right bg-[position:left_0.75rem_center] !pr-3 !pl-10"
+                    >
+                      <option value="all">تاريخ العقد: جميع الأوقات</option>
+                      <option value="today">تاريخ العقد: اليوم</option>
+                      <option value="week">تاريخ العقد: هذا الأسبوع</option>
+                      <option value="month">تاريخ العقد: هذا الشهر</option>
+                      <option value="year">تاريخ العقد: هذه السنة</option>
+                      <option value="custom">تاريخ العقد: مخصص</option>
+                    </select>
+                  </div>
+
                   <button
                     type="button"
                     onClick={handleResetFilters}
-                    className="shrink-0 bg-teal-900 text-white border-none rounded px-4 py-2 text-md font-tajawal cursor-pointer"
+                    className="shrink-0 bg-teal-900 text-white border-none rounded px-4 py-1.5 text-md font-tajawal cursor-pointer"
                   >
                     إعادة ضبط
                   </button>
                 </div>
+
+                {dateFilterType === 'custom' && (
+                  <div className="flex w-full flex-wrap items-center gap-4 p-3 bg-gray-50 border border-gray-200 rounded-md shadow-sm">
+                    <span className="text-gray-700 text-sm font-bold">تحديد فترة العقد المخصصة:</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600 text-sm">من تاريخ</span>
+                      <input
+                        type="date"
+                        value={dateFrom}
+                        onChange={(e) => setDateFrom(e.target.value)}
+                        className="bg-white border border-gray-300 rounded px-3 py-1 text-sm text-gray-600 focus:outline-none focus:border-teal-600"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600 text-sm">إلى تاريخ</span>
+                      <input
+                        type="date"
+                        value={dateTo}
+                        onChange={(e) => setDateTo(e.target.value)}
+                        className="bg-white border border-gray-300 rounded px-3 py-1 text-sm text-gray-600 focus:outline-none focus:border-teal-600"
+                      />
+                    </div>
+                  </div>
+                )}
                 <div className="flex w-full justify-end">
                   <div
                     className="relative"
@@ -987,59 +1084,49 @@ const exportedData = async ()=>{
                                   case 'clientName':
                                     return (
                                       <td key={col.key} className="p-4 text-md text-gray-800 text-right">
-                                        {booking.client?.fullname || 'غير متوفر'}
-                                      </td>
-                                    );
-                                  case 'clientPhone':
-                                    return (
-                                      <td key={col.key} className="p-4 text-md text-gray-800 text-right">
-                                        {booking.client?.phonenumber || 'غير متوفر'}
-                                      </td>
-                                    );
-                                  case 'nationalId':
-                                    return (
-                                      <td key={col.key} className="p-4 text-md text-gray-800 text-right">
-                                        {booking.client?.nationalId || 'غير متوفر'}
-                                      </td>
-                                    );
-                                  case 'maidId':
-                                    return (
-                                      <td key={col.key} className="p-4 text-md text-gray-800 text-right">
-                                        {booking.HomeMaid?.id || 'غير متوفر'}
+                                        <div className="font-medium whitespace-nowrap">
+                                          <span className="cursor-pointer hover:text-teal-700 transition-colors hover:underline" onClick={() => booking.client?.id && router.push(`/admin/clientdetails?id=${booking.client.id}`)}>
+                                            {booking.client?.fullname || 'غير متوفر'}
+                                          </span>
+                                        </div>
+                                        <div className="text-sm text-gray-500 mt-1 flex flex-nowrap gap-2 items-center whitespace-nowrap">
+                                          <span className="flex items-center gap-1" title="رقم الجوال"><Phone className="w-3.5 h-3.5 text-gray-400" />{booking.client?.phonenumber || 'غير متوفر'}</span>
+                                          <span className="text-gray-300">|</span>
+                                          <span className="flex items-center gap-1" title="الهوية الوطنية"><CreditCard className="w-3.5 h-3.5 text-gray-400" />{booking.client?.nationalId || 'غير متوفر'}</span>
+                                        </div>
                                       </td>
                                     );
                                   case 'maidName':
                                     return (
                                       <td key={col.key} className="p-4 text-md text-gray-800 text-right">
-                                        {booking.HomeMaid?.Name || 'غير متوفر'}
-                                      </td>
-                                    );
-                                  case 'country':
-                                    return (
-                                      <td key={col.key} className="p-4 text-md text-gray-800 text-right">
-                                        {booking.HomeMaid?.office?.Country || 'غير متوفر'}
-                                      </td>
-                                    );
-                                  case 'passport':
-                                    return (
-                                      <td key={col.key} className="p-4 text-md text-gray-800 text-right">
-                                        {booking.HomeMaid?.Passportnumber || 'غير متوفر'}
+                                        <div className="font-medium whitespace-nowrap flex items-center gap-2">
+                                          <span className="cursor-pointer hover:text-teal-700 transition-colors hover:underline" onClick={() => booking.HomeMaid?.id && router.push(`/admin/homemaidinfo?id=${booking.HomeMaid.id}`)}>
+                                            {booking.HomeMaid?.Name || 'غير متوفر'}
+                                          </span>
+                                          <span className="text-gray-400 font-normal text-sm flex items-center gap-0.5" title="رقم العاملة">
+                                            <Hash className="w-3 h-3" />{booking.HomeMaid?.id || 'غير متوفر'}
+                                          </span>
+                                        </div>
+                                        <div className="text-sm text-gray-500 mt-1 flex flex-nowrap gap-2 items-center whitespace-nowrap">
+                                          <span>{booking.HomeMaid?.office?.Country || 'غير متوفر'}</span>
+                                          <span className="text-gray-300">|</span>
+                                          <span className="flex items-center gap-1" title="رقم جواز السفر"><Book className="w-3.5 h-3.5 text-gray-400" />{booking.HomeMaid?.Passportnumber || 'غير متوفر'}</span>
+                                        </div>
                                       </td>
                                     );
                                   case 'musanedContract':
                                     return (
                                       <td key={col.key} className="p-4 text-md text-gray-800 text-right">
-                                        {booking.arrivals[0]?.InternalmusanedContract || 'غير متوفر'}
-                                      </td>
-                                    );
-                                  case 'elapsedContract':
-                                    return (
-                                      <td key={col.key} className="p-4 text-md text-gray-700 text-right">
-                                        {contractIso ? (
-                                          <ContractElapsedBadge contractDate={contractIso} />
-                                        ) : (
-                                          <span className="text-gray-500">—</span>
-                                        )}
+                                        <div className="font-medium whitespace-nowrap mb-1">
+                                          {booking.arrivals[0]?.InternalmusanedContract || 'غير متوفر'}
+                                        </div>
+                                        <div className="whitespace-nowrap">
+                                          {contractIso ? (
+                                            <ContractElapsedBadge contractDate={contractIso} />
+                                          ) : (
+                                            <span className="text-gray-500 text-sm">—</span>
+                                          )}
+                                        </div>
                                       </td>
                                     );
                                   case 'externalOffice':
@@ -1049,9 +1136,15 @@ const exportedData = async ()=>{
                                       </td>
                                     );
                                   case 'status':
+                                    const statusText = translateBookingStatus(booking.bookingstatus, booking) || 'غير متوفر';
+                                    const statusParts = statusText.split('، ');
                                     return (
                                       <td key={col.key} className="p-4 text-md text-gray-800 text-right">
-                                        {translateBookingStatus(booking.bookingstatus) || 'غير متوفر'}
+                                        {statusParts.map((part, index) => (
+                                          <div key={index} className={(index === 0 && statusParts.length > 1) ? "text-sm text-gray-500 mb-1" : "font-semibold text-teal-700"}>
+                                            {part}
+                                          </div>
+                                        ))}
                                       </td>
                                     );
                                   default:
