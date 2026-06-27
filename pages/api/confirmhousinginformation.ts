@@ -268,6 +268,7 @@ if (req.body.location) {
       maidPhone,
       maidDateOfBirth,
       nationality,
+      isRehousing,
     } = req.body;
 
     const idToUse = homeMaidId ?? housedWorkerId;
@@ -318,6 +319,7 @@ if (req.body.location) {
           deliveryDate: deliveryDate
             ? new Date(deliveryDate).toISOString()
             : search.deliveryDate,
+          ...(isRehousing && { deparatureHousingDate: null }),
           isHasEntitlements:
             isHasEntitlements !== undefined
               ? isHasEntitlements

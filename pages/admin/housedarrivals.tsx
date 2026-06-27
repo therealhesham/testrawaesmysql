@@ -979,6 +979,7 @@ useEffect(()=>{
         location_id: rehousingWorker.location_id,
         Details: rehousingWorker.Details,
         isHasEntitlements: rehousingWorker.isHasEntitlements,
+        isRehousing: true,
       });
 
       // 2. Add a special red note with previous housing data
