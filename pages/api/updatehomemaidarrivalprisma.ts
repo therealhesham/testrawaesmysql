@@ -175,28 +175,47 @@ console.log("dataToUpdate",req.body.internalTicketFile)
 
     // إخراج العاملة من السكن تلقائيا بموعد الرحلة
     if (createarrivallist.Order?.HomemaidId && validInternalDeparatureDate) {
-      const activeHousing = await prisma.housedworker.findFirst({
-        where: {
-          homeMaid_id: createarrivallist.Order.HomemaidId,
-          isActive: true
-        }
+      const now = new Date();
+      const saudiTimeFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Riyadh',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
       });
+      const parts = saudiTimeFormatter.formatToParts(now);
+      const year = parseInt(parts.find(p => p.type === 'year')?.value || '0');
+      const month = parseInt(parts.find(p => p.type === 'month')?.value || '0') - 1;
+      const day = parseInt(parts.find(p => p.type === 'day')?.value || '0');
+      
+      const today = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+      const depDate = new Date(validInternalDeparatureDate);
+      depDate.setHours(0, 0, 0, 0);
 
-      if (activeHousing) {
-        await prisma.housedworker.update({
-          where: { id: activeHousing.id },
-          data: {
-            isActive: false,
-            deparatureReason: createarrivallist.internalReason || 'مغادرة داخلية',
-            deparatureHousingDate: new Date(validInternalDeparatureDate).toISOString(),
-            checkIns: {
-              updateMany: {
-                where: { isActive: true },
-                data: { isActive: false }
-              }
-            }
+      // إخراج العاملة من السكن فقط إذا كان تاريخ المغادرة اليوم أو في الماضي
+      if (depDate <= today) {
+        const activeHousing = await prisma.housedworker.findFirst({
+          where: {
+            homeMaid_id: createarrivallist.Order.HomemaidId,
+            isActive: true
           }
         });
+
+        if (activeHousing) {
+          await prisma.housedworker.update({
+            where: { id: activeHousing.id },
+            data: {
+              isActive: false,
+              deparatureReason: createarrivallist.internalReason || 'مغادرة داخلية',
+              deparatureHousingDate: new Date(validInternalDeparatureDate).toISOString(),
+              checkIns: {
+                updateMany: {
+                  where: { isActive: true },
+                  data: { isActive: false }
+                }
+              }
+            }
+          });
+        }
       }
     }
 

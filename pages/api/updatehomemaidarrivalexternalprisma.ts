@@ -203,52 +203,68 @@ externalTicketFile,
       data: dataToUpdate,
     });
 
-    // إخراج العاملة من السكن تلقائيا بموعد الرحلة
+    // إخراج العاملة من السكن تلقائيا بموعد الرحلة وتحديث حالتها
     if (createarrivallist.Order?.HomemaidId && validExternaldeparatureDate) {
-      const activeHousing = await prisma.housedworker.findFirst({
-        where: {
-          homeMaid_id: createarrivallist.Order.HomemaidId,
-          isActive: true
-        }
+      const now = new Date();
+      const saudiTimeFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Riyadh',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
       });
+      const parts = saudiTimeFormatter.formatToParts(now);
+      const year = parseInt(parts.find(p => p.type === 'year')?.value || '0');
+      const month = parseInt(parts.find(p => p.type === 'month')?.value || '0') - 1;
+      const day = parseInt(parts.find(p => p.type === 'day')?.value || '0');
+      
+      const today = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+      const depDate = new Date(validExternaldeparatureDate);
+      depDate.setHours(0, 0, 0, 0);
 
-      if (activeHousing) {
-        await prisma.housedworker.update({
-          where: { id: activeHousing.id },
-          data: {
-            isActive: false,
-            deparatureReason: createarrivallist.externalReason || 'مغادرة خارجية',
-            deparatureHousingDate: new Date(validExternaldeparatureDate).toISOString(),
-            checkIns: {
-              updateMany: {
-                where: { isActive: true },
-                data: { isActive: false }
+      // تحديث الحالة وإخراج من السكن فقط إذا كان تاريخ المغادرة اليوم أو في الماضي
+      if (depDate <= today) {
+        const activeHousing = await prisma.housedworker.findFirst({
+          where: {
+            homeMaid_id: createarrivallist.Order.HomemaidId,
+            isActive: true
+          }
+        });
+
+        if (activeHousing) {
+          await prisma.housedworker.update({
+            where: { id: activeHousing.id },
+            data: {
+              isActive: false,
+              deparatureReason: createarrivallist.externalReason || 'مغادرة خارجية',
+              deparatureHousingDate: new Date(validExternaldeparatureDate).toISOString(),
+              checkIns: {
+                updateMany: {
+                  where: { isActive: true },
+                  data: { isActive: false }
+                }
               }
             }
+          });
+        }
+
+        // 1. تحديث بيانات العاملة لتصبح غير معتمدة وحالتها مغادرة خارجية
+        await prisma.homemaid.update({
+          where: { id: createarrivallist.Order.HomemaidId },
+          data: {
+            isApproved: false,
+            bookingstatus: 'مغادرة خارجية',
+          }
+        });
+
+        // 2. تحديث جميع طلباتها لتصبح مخفية وغير متاحة
+        await prisma.neworder.updateMany({
+          where: { HomemaidId: createarrivallist.Order.HomemaidId },
+          data: {
+            isAvailable: false,
+            isHidden: true,
           }
         });
       }
-    }
-
-    // تحديث حالة العاملة والطلبات المرتبطة بها (مغادرة خارجية)
-    if (createarrivallist.Order?.HomemaidId) {
-      // 1. تحديث بيانات العاملة لتصبح غير معتمدة وحالتها مغادرة خارجية
-      await prisma.homemaid.update({
-        where: { id: createarrivallist.Order.HomemaidId },
-        data: {
-          isApproved: false,
-          bookingstatus: 'مغادرة خارجية',
-        }
-      });
-
-      // 2. تحديث جميع طلباتها لتصبح مخفية وغير متاحة
-      await prisma.neworder.updateMany({
-        where: { HomemaidId: createarrivallist.Order.HomemaidId },
-        data: {
-          isAvailable: false,
-          isHidden: true,
-        }
-      });
     }
 
 
