@@ -7,12 +7,12 @@ import axios from 'axios';
  */
 export async function sendSMS(to: string, message: string): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
-    const user = process.env.SMS_USER;
-    const pass = process.env.SMS_PASS;
-    const sender = process.env.SMS_SENDER;
-    const apiUrl = process.env.SMS_API_URL || 'https://www.brcitco-api.com/api/sendsms/';
+    const user = process.env.MSEGAT_USERNAME;
+    const apiKey = process.env.MSEGAT_API_KEY;
+    const sender = process.env.MSEGAT_SENDER_NAME;
+    const apiUrl = process.env.MSEGAT_API_URL || 'https://www.msegat.com/gw/sendsms.php';
 
-    if (!user || !pass || !sender) {
+    if (!user || !apiKey || !sender) {
       throw new Error('SMS service credentials are missing in the environment variables (.env)');
     }
 
@@ -29,15 +29,18 @@ export async function sendSMS(to: string, message: string): Promise<{ success: b
     
     const formattedRecipient = `966${cleanPhone}`;
 
-    // Execute GET request to Brcitco SMS API
-    const response = await axios.get(apiUrl, {
-      params: {
-        user,
-        pass,
-        to: formattedRecipient,
-        message,
-        sender,
-      },
+    // Execute POST request to Msegat SMS API
+    const response = await axios.post(apiUrl, {
+      userName: user,
+      apiKey: apiKey,
+      numbers: formattedRecipient,
+      userSender: sender,
+      msg: message,
+      msgEncoding: "UTF8"
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
     });
 
     console.log(`[SMS Service] Message sent successfully to ${formattedRecipient}. Response:`, response.data);
