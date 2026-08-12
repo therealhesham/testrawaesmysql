@@ -404,38 +404,8 @@ export default function Home() {
   const [taxMonthlyStatsEndDate, setTaxMonthlyStatsEndDate] = useState<string>('');
   const [taxMonthlyStatsMonthSelection, setTaxMonthlyStatsMonthSelection] = useState<string>('current');
 
-  const [homemaidProfessionStats, setHomemaidProfessionStats] = useState<{
-    recruitment: HomemaidListStats;
-    rental: HomemaidListStats;
-  } | null>(null);
-  const [homemaidStatsContractType, setHomemaidStatsContractType] = useState<'recruitment' | 'rental'>('recruitment');
-  const [homemaidStatsPeriod, setHomemaidStatsPeriod] = useState<string>('month');
-  const [homemaidStatsMonthSelection, setHomemaidStatsMonthSelection] = useState<string>('current');
-  // YYYY-MM — يحدّد نافذة 8→7 بدءاً من الشهر المختار (يتجاوز monthSelection عند الإرسال)
-  const initialReferenceMonth = (() => {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    return `${y}-${m}`;
-  })();
-  const [homemaidStatsReferenceMonth, setHomemaidStatsReferenceMonth] = useState<string>(initialReferenceMonth);
-  const [homemaidStatsStartDate, setHomemaidStatsStartDate] = useState<string>('');
-  const [homemaidStatsEndDate, setHomemaidStatsEndDate] = useState<string>('');
-  const [homemaidStatsDateRangeMeta, setHomemaidStatsDateRangeMeta] = useState<{
-    start: string;
-    end: string;
-    period?: string;
-  } | null>(null);
-  const [homemaidStatsLoading, setHomemaidStatsLoading] = useState(true);
-
-  const shiftReferenceMonth = (delta: number) => {
-    const m = (homemaidStatsReferenceMonth || initialReferenceMonth).match(/^(\d{4})-(\d{1,2})$/);
-    if (!m) return;
-    const d = new Date(Number(m[1]), Number(m[2]) - 1 + delta, 1);
-    const y = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    setHomemaidStatsReferenceMonth(`${y}-${mm}`);
-  };
+  const [promissoryNotesClients, setPromissoryNotesClients] = useState<any[]>([]);
+  const [promissoryNotesLoading, setPromissoryNotesLoading] = useState(true);
 
   // Sources filter states
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
@@ -960,59 +930,26 @@ export default function Home() {
   }, []); // Empty dependency array - only run on mount
 
   useEffect(() => {
-    if (homemaidStatsPeriod === 'custom' && (!homemaidStatsStartDate || !homemaidStatsEndDate)) {
-      setHomemaidStatsLoading(false);
-      setHomemaidProfessionStats(null);
-      setHomemaidStatsDateRangeMeta(null);
-      return;
-    }
     let cancelled = false;
-    setHomemaidStatsLoading(true);
+    setPromissoryNotesLoading(true);
     (async () => {
       try {
-        const monthQuery =
-          homemaidStatsPeriod === 'month'
-            ? homemaidStatsMonthSelection === 'pick' && homemaidStatsReferenceMonth
-              ? `&referenceMonth=${encodeURIComponent(homemaidStatsReferenceMonth)}`
-              : `&monthSelection=${encodeURIComponent(homemaidStatsMonthSelection)}`
-            : '';
-        const url =
-          homemaidStatsPeriod === 'custom'
-            ? `/api/reports/homemaid-profession-stats?period=custom&startDate=${encodeURIComponent(
-                homemaidStatsStartDate
-              )}&endDate=${encodeURIComponent(homemaidStatsEndDate)}`
-            : `/api/reports/homemaid-profession-stats?period=${encodeURIComponent(
-                homemaidStatsPeriod
-              )}${monthQuery}`;
-        const res = await fetch(url);
+        const res = await fetch('/api/reports/clients-with-promissory-notes');
         if (!res.ok || cancelled) return;
         const data = await res.json();
-        if (!cancelled && data?.recruitment && data?.rental) {
-          setHomemaidProfessionStats(data);
-          if (data.dateRange?.start && data.dateRange?.end) {
-            setHomemaidStatsDateRangeMeta({
-              start: data.dateRange.start,
-              end: data.dateRange.end,
-              period: data.dateRange.period,
-            });
-          }
+        if (!cancelled) {
+          setPromissoryNotesClients(data);
         }
       } catch (e) {
-        if (!cancelled) console.error('Error fetching homemaid profession stats:', e);
+        if (!cancelled) console.error('Failed to load promissory notes clients:', e);
       } finally {
-        if (!cancelled) setHomemaidStatsLoading(false);
+        if (!cancelled) setPromissoryNotesLoading(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [
-    homemaidStatsPeriod,
-    homemaidStatsMonthSelection,
-    homemaidStatsReferenceMonth,
-    homemaidStatsStartDate,
-    homemaidStatsEndDate,
-  ]);
+  }, []);
 
   // Separate useEffect for orders stats
   useEffect(() => {
@@ -1952,14 +1889,7 @@ export default function Home() {
     </SkeletonTheme>
   );
 
-  const openFullListWithHomemaidStatsFilter = (opts: { professionGender?: string; professionId?: string }) => {
-    const q = new URLSearchParams();
-    q.set('type', 'recruitment');
-    q.set('page', '1');
-    if (opts.professionGender) q.set('professionGender', opts.professionGender);
-    if (opts.professionId) q.set('professionId', opts.professionId);
-    router.push(`/admin/fulllist?${q.toString()}`);
-  };
+
 
   // Loading state
   if (loading) {
@@ -2068,173 +1998,113 @@ export default function Home() {
 
         <div className="max-w-7xl mx-auto">
           {/* إحصائيات العاملات: جنس المهنة والمهنة — الانتقال إلى قائمة العاملات مع الفلتر */}
+          {/* العملاء الذين لديهم في طلبهم ملف سند لامر مرفوع مع السجل المحاسبي للطلب */}
           <div className="bg-white rounded-xl p-6 shadow-sm mb-5 relative">
-            <div className="flex flex-col gap-3 mb-4">
-              <div className="flex flex-wrap items-center gap-3">
-                <select
-                  value={homemaidStatsPeriod}
-                  onChange={(e) => setHomemaidStatsPeriod(e.target.value)}
-                  className="bg-white text-black py-1 rounded text-sm border"
-                >
-                  <option value="week">أسبوعي</option>
-                  <option value="month">شهري (من ٨ إلى ٧)</option>
-                  <option value="year">سنوي</option>
-                  <option value="custom">مخصص</option>
-                </select>
-                {homemaidStatsPeriod === 'month' && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <select
-                      value={homemaidStatsMonthSelection}
-                      onChange={(e) => setHomemaidStatsMonthSelection(e.target.value)}
-                      className="bg-white text-black py-1 rounded text-sm border"
-                    >
-                      <option value="current">المدة الحالية (٨–٧)</option>
-                      <option value="previous">المدة السابقة (٨–٧)</option>
-                      <option value="pick">اختيار شهر…</option>
-                    </select>
-                    {homemaidStatsMonthSelection === 'pick' && (
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          aria-label="الشهر السابق"
-                          onClick={() => shiftReferenceMonth(-1)}
-                          className="px-2 py-1 border rounded text-sm hover:bg-gray-50"
-                        >
-                          ‹
-                        </button>
-                        <input
-                          type="month"
-                          value={homemaidStatsReferenceMonth}
-                          onChange={(e) => setHomemaidStatsReferenceMonth(e.target.value)}
-                          className="border rounded px-2 py-1 text-sm"
-                        />
-                        <button
-                          type="button"
-                          aria-label="الشهر التالي"
-                          onClick={() => shiftReferenceMonth(1)}
-                          className="px-2 py-1 border rounded text-sm hover:bg-gray-50"
-                        >
-                          ›
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setHomemaidStatsReferenceMonth(initialReferenceMonth)}
-                          className="px-2 py-1 border rounded text-xs text-gray-700 hover:bg-gray-50"
-                        >
-                          هذا الشهر
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {homemaidStatsPeriod === 'custom' && (
-                  <div className="flex gap-2 flex-wrap">
-                    <input
-                      type="date"
-                      value={homemaidStatsStartDate}
-                      onChange={(e) => setHomemaidStatsStartDate(e.target.value)}
-                      className="border rounded px-2 py-1 text-sm"
-                    />
-                    <input
-                      type="date"
-                      value={homemaidStatsEndDate}
-                      onChange={(e) => setHomemaidStatsEndDate(e.target.value)}
-                      className="border rounded px-2 py-1 text-sm"
-                    />
-                  </div>
-                )}
-              </div>
-              {homemaidStatsDateRangeMeta && (
-                <p className="text-xs text-gray-600 text-right">
-                  {/* فترة احتساب الطلبات (حسب <span className="font-medium">createdAt</span>):{' '} */}
-                  {new Date(homemaidStatsDateRangeMeta.start).toLocaleDateString('ar-EG')} —{' '}
-                  {new Date(homemaidStatsDateRangeMeta.end).toLocaleDateString('ar-EG')}
-                </p>
-              )}
-            </div>
             <div className="flex flex-col sm:flex-row flex-wrap justify-between items-start sm:items-center gap-4 mb-4 pb-4 border-b-2 border-gray-200">
               <h3 className="text-base font-semibold text-gray-800">
-                إحصائيات الطلبات حسب عاملة الطلب (جنس المهنة والمهنة)
+                العملاء الذين لديهم ملف سند لأمر مرفوع مع السجل المحاسبي
               </h3>
-              <div className="flex gap-8 border-b border-gray-300 pb-2 w-full sm:w-auto justify-start">
-              </div>
             </div>
-            {!homemaidProfessionStats && homemaidStatsLoading ? (
-              <div className="py-8 text-center text-gray-500 text-sm">جاري تحميل إحصائيات الطلبات...</div>
-            ) : !homemaidProfessionStats &&
-              homemaidStatsPeriod === 'custom' &&
-              (!homemaidStatsStartDate || !homemaidStatsEndDate) ? (
+            {promissoryNotesLoading ? (
+              <div className="py-8 text-center text-gray-500 text-sm">جاري التحميل...</div>
+            ) : promissoryNotesClients.length === 0 ? (
               <div className="py-8 text-center text-gray-500 text-sm">
-                اختر تاريخ البداية والنهاية للفترة المخصصة لعرض الإحصائيات
-              </div>
-            ) : !homemaidProfessionStats ? (
-              <div className="py-8 text-center text-gray-500 text-sm">
-                لا توجد بيانات أو تعذر التحميل. أعد المحاولة أو غيّر الفترة.
+                لا يوجد عملاء يطابقون هذه المعايير.
               </div>
             ) : (
-              (() => {
-                const s = homemaidProfessionStats.recruitment;
-                const pct = (n: number) =>
-                  s.gender.total > 0 ? Math.round((n / s.gender.total) * 100) : 0;
-                const rowKey = (professionId: number | null) =>
-                  professionId == null ? 'none' : String(professionId);
-                const genderBtn = (bucket: 'male' | 'female' | 'other', label: string) => (
-                  <button
-                    type="button"
-                    key={bucket}
-                    onClick={() => openFullListWithHomemaidStatsFilter({ professionGender: bucket })}
-                    className="rounded-lg border border-teal-100 bg-teal-50/60 p-3 w-full text-center transition-all hover:bg-teal-100/80 hover:border-teal-300 outline-none focus-visible:ring-2 focus-visible:ring-teal-600"
-                  >
-                    <div className="text-teal-800 font-bold text-xl">
-                      {bucket === 'male' ? s.gender.male : bucket === 'female' ? s.gender.female : s.gender.other}
-                    </div>
-                    <div className="text-gray-600 mt-1 text-sm">{label}</div>
-                    <div className="text-xs text-gray-400">
-                      {pct(bucket === 'male' ? s.gender.male : bucket === 'female' ? s.gender.female : s.gender.other)}٪
-                    </div>
-                    {/* <div className="text-[10px] text-teal-700 mt-1">فتح قائمة العاملات مع الفلتر</div> */}
-                  </button>
-                );
-                return (
-                  <div className={`grid grid-cols-1 lg:grid-cols-2 gap-4 ${homemaidStatsLoading ? 'opacity-60 pointer-events-none' : ''}`}>
-                    <div className="rounded-xl border border-teal-200 bg-teal-50/40 p-4">
-                      {/* <h4 className="text-sm font-bold text-teal-900 mb-3">
-                        جنس مهنة العاملة في الطلبات (من professions عبر HomemaidId)
-                      </h4> */}
-                      <div className="grid grid-cols-3 gap-2">{genderBtn('male', 'ذكر')}{genderBtn('female', 'أنثى')}{genderBtn('other', 'غير محدد / بدون مهنة')}</div>
-                      <p className="text-xs text-gray-500 mt-2 text-right">
-                        إجمالي طلبات في الفترة المختارة: {s.gender.total} 
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-teal-200 p-4">
-                      <h4 className="text-sm font-bold text-teal-900 mb-3">المهن (عدد الطلبات لكل مهنة العاملة)</h4>
-                      <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 text-right">
-                        {s.byProfession.length === 0 ? (
-                          <p className="text-gray-500 text-sm">لا توجد بيانات</p>
-                        ) : (
-                          s.byProfession.map((row, idx) => {
-                            const key = rowKey(row.professionId);
+              <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                <table className="min-w-full divide-y divide-gray-200 text-right">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="px-6 py-3 text-sm font-medium text-gray-500">اسم العميل</th>
+                      <th className="px-6 py-3 text-sm font-medium text-gray-500">رقم الهاتف</th>
+                      <th className="px-6 py-3 text-sm font-medium text-gray-500">رقم الطلب</th>
+                      <th className="px-6 py-3 text-sm font-medium text-gray-500">حالة الطلب</th>
+                      <th className="px-6 py-3 text-sm font-medium text-gray-500">السجل المحاسبي</th>
+                      <th className="px-6 py-3 text-sm font-medium text-gray-500">ملف سند الأمر</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {promissoryNotesClients.map((order, idx) => {
+                      const statusTranslations: Record<string, string> = {
+                        new_order: 'طلب جديد',
+                        cancelled: 'ملغي',
+                        received: 'تم الاستلام',
+                        rejected: 'مرفوض',
+                        travel_permit_issued: 'تم إصدار تصريح السفر',
+                        office_link_approved: 'تم ربط المكتب',
+                        foreign_labor_approved: 'موافقة العمالة الأجنبية',
+                        pending_embassy: 'في انتظار السفارة',
+                        agency_paid: 'تم دفع الوكالة',
+                        visa_issued: 'تم إصدار التأشيرة',
+                        external_office_approved: 'موافقة المكتب الخارجي',
+                        embassy_approved: 'موافقة السفارة',
+                        medical_check_passed: 'اجتاز الفحص الطبي',
+                        pending_external_office: 'في انتظار المكتب الخارجي',
+                        destinations_set: 'تم تحديد الوجهات',
+                        delivered: 'تم التسليم'
+                      };
+                      return (
+                      <tr key={idx} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {order.client?.fullname || 'غير معروف'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {order.client?.phonenumber || 'غير متوفر'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-teal-600">
+                          <a href={`/admin/track_order/${order.id}`} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                            طلب #{order.id}
+                          </a>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {statusTranslations[order.bookingstatus] || order.bookingstatus || 'غير متوفر'}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          {(() => {
+                            const statement = order.clientAccountStatement?.[0];
+                            if (!statement) return 'لا يوجد';
+                            
+                            let remainingBalance = 0;
+                            let totalDebit = 0;
+                            
+                            if (statement.entries && statement.entries.length > 0) {
+                              totalDebit = statement.entries.reduce((sum: number, entry: any) => sum + Number(entry.debit || 0), 0);
+                              const totalCredit = statement.entries.reduce((sum: number, entry: any) => sum + Number(entry.credit || 0), 0);
+                              remainingBalance = totalDebit - totalCredit;
+                            } else {
+                              remainingBalance = Number(statement.netAmount);
+                              totalDebit = Number(statement.totalRevenue);
+                            }
+                            
                             return (
-                              <button
-                                type="button"
-                                key={`${key}-${idx}`}
-                                onClick={() => openFullListWithHomemaidStatsFilter({ professionId: key })}
-                                className="flex w-full justify-between items-center gap-2 py-1.5 px-2 rounded-md text-sm bg-gray-50 hover:bg-teal-50 border border-transparent hover:border-teal-200 transition-all outline-none focus-visible:ring-2 focus-visible:ring-teal-600"
-                              >
-                                <span className="font-semibold text-teal-900 tabular-nums shrink-0">{row.count}</span>
-                                <span className="text-gray-800 truncate">{row.name}</span>
-                              </button>
+                              <div className="flex flex-col gap-1 items-start bg-gray-50 p-2 rounded-lg border border-gray-100 min-w-[140px]">
+                                {remainingBalance <= 0 ? (
+                                  <span className="text-green-600 font-bold bg-green-50 px-2 py-1 rounded w-full text-center">تم السداد بالكامل</span>
+                                ) : (
+                                  <>
+                                    <span className="text-red-600 font-bold bg-red-50 px-2 py-1 rounded w-full text-center">
+                                      المتبقي: {remainingBalance}
+                                    </span>
+                                    <span className="text-gray-400 text-xs mt-1 w-full text-center">
+                                      الإجمالي: {totalDebit}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
                             );
-                          })
-                        )}
-                      </div>
-                      <p className="text-[11px] text-gray-500 mt-2 text-right">
-                        {/* يفتح قائمة العاملات بنفس مهنة العاملة في الطلب (فلتر homemaid، ليس فلتر الطلبات) */}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })()
+                          })()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-teal-600">
+                          <a href={order.orderDocument} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                            عرض الملف
+                          </a>
+                        </td>
+                      </tr>
+                    )})}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
 
