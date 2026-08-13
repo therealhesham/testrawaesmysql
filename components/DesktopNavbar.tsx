@@ -17,6 +17,13 @@ const DesktopNavbar = () => {
   const [isBugModalOpen, setIsBugModalOpen] = useState(false);
   const [bugScreenshot, setBugScreenshot] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
+  
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  
   const router = useRouter();
 
   // Function to calculate time ago
@@ -90,6 +97,31 @@ const DesktopNavbar = () => {
     }
   }, [activeTab, userName]);
 
+  // Search logic
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (!searchQuery.trim()) {
+        setSearchResults([]);
+        setIsSearching(false);
+        return;
+      }
+      setIsSearching(true);
+      try {
+        const res = await fetch(`/api/globalsearch?q=${encodeURIComponent(searchQuery)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setSearchResults(data.results || []);
+        }
+      } catch (err) {
+        console.error("Search error", err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   useEffect(() => {
     refreshNotifications();
   }, [refreshNotifications]);
@@ -98,11 +130,15 @@ const DesktopNavbar = () => {
     const handleClickOutside = (event: MouseEvent) => {
       const notificationDiv = document.querySelector('.notification-dropdown');
       const userDropdownDiv = document.querySelector('.user-dropdown');
+      const searchDiv = document.querySelector('.global-search-container');
       if (notificationDiv && !notificationDiv.contains(event.target as Node)) {
         setIsNotificationOpen(false);
       }
       if (userDropdownDiv && !userDropdownDiv.contains(event.target as Node)) {
         setIsUserDropdownOpen(false);
+      }
+      if (searchDiv && !searchDiv.contains(event.target as Node)) {
+        setShowSearchResults(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -223,6 +259,78 @@ const DesktopNavbar = () => {
               className="h-20 w-30 object-contain"
               alt="لوجو روائس"
             />
+            {/* Global Search Input */}
+            <div className="relative global-search-container mr-6">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="بحث برقم الطلب، اسم العميل، الجواز..."
+                  className="w-80 px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm bg-gray-50"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setShowSearchResults(true);
+                  }}
+                  onFocus={() => {
+                    if (searchQuery.trim()) setShowSearchResults(true);
+                  }}
+                />
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                {isSearching && (
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <div className="w-4 h-4 border-2 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Search Results Dropdown */}
+              {showSearchResults && searchQuery.trim() && (
+                <div className="absolute top-12 right-0 w-[400px] bg-white shadow-xl rounded-lg z-50 border border-gray-100 max-h-96 overflow-y-auto">
+                  {searchResults.length > 0 ? (
+                    <ul className="py-2">
+                      {searchResults.map((result, idx) => (
+                        <li key={idx} className="border-b border-gray-50 last:border-b-0">
+                          <Link href={result.url}>
+                            <a 
+                              className="block px-4 py-3 hover:bg-teal-50 transition-colors"
+                              onClick={() => setShowSearchResults(false)}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-full ${
+                                  result.type === 'client' ? 'bg-blue-100 text-blue-600' :
+                                  result.type === 'maid' ? 'bg-pink-100 text-pink-600' :
+                                  'bg-teal-100 text-teal-600'
+                                }`}>
+                                  {result.type === 'client' && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>}
+                                  {result.type === 'maid' && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>}
+                                  {result.type === 'order' && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-semibold text-gray-800">{result.label}</p>
+                                  <span className="text-xs text-gray-500">
+                                    {result.type === 'client' ? 'ملف عميل' : result.type === 'maid' ? 'ملف عاملة' : 'تفاصيل طلب'}
+                                  </span>
+                                </div>
+                              </div>
+                            </a>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    !isSearching && (
+                      <div className="p-4 text-center text-gray-500 text-sm">
+                        لا توجد نتائج مطابقة لبحثك
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-2">

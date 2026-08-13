@@ -70,6 +70,12 @@ export default async function handler(
       }
     }
 
+    if (PaymentMethod !== 'cash' && PaymentMethod !== 'كاش') {
+      if (!orderDocument) {
+        return res.status(400).json({ message: "ملف سند لأمر إجباري لطرق الدفع غير الكاش" });
+      }
+    }
+
     // Get user info from token for logging
     const cookieHeader = req.headers.cookie;
     let cookies: { [key: string]: string } = {};

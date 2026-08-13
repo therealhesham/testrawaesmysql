@@ -101,6 +101,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
+    if (PaymentMethod !== 'cash' && PaymentMethod !== 'كاش') {
+      if (!orderDocument) {
+        return res.status(400).json({ message: "ملف سند لأمر إجباري لطرق الدفع غير الكاش" });
+      }
+    }
+
     // ✅ التحقق من وجود التأشيرة وأنها متاحة
     if (!visaId) {
       return res.status(400).json({ message: "يجب اختيار تأشيرة للطلب" });

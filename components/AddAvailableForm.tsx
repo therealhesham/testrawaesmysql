@@ -731,9 +731,7 @@ const validateForm = () => {
       newErrors.orderDocument = 'ملف سند الأمر مطلوب';
     }
   }
-  if (!fileUploaded.contract && !formData.contract?.trim()) {
-    newErrors.contract = 'ملف العقد مطلوب';
-  }
+
 
   setErrors(newErrors);
   return Object.keys(newErrors).length === 0;
@@ -1294,7 +1292,10 @@ const arabicRegionMap: { [key: string]: string } = {
     { id: 'contract', label: 'ملف العقد', show: true },
   ].filter((file) => file.show).map((file) => (
     <div key={file.id} className="flex flex-col gap-2">
-      <label htmlFor={file.id} className="text-base">{file.label}</label>
+      <label htmlFor={file.id} className="text-base">
+        {file.label}
+        {file.id === 'orderDocument' && <span className="text-red-500 mr-1">*</span>}
+      </label>
       <div className={`file-upload-display border ${
         errors[file.id] ? 'border-red-500' : 'border-gray-300'
       } rounded p-2 flex justify-between items-center`}>

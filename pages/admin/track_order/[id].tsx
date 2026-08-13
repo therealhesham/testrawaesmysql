@@ -2560,6 +2560,16 @@ export default function TrackOrder() {
             ]}
           />
 
+          {/* تنبيه وامض لضرورة الدفعة الثانية للطلبات التي تحتوي على سند لأمر */}
+          {orderData.orderFiles?.orderDocument && (
+            <div className="bg-red-50 border border-red-200 text-red-700 p-4 mb-4 rounded-lg flex items-center gap-3 animate-pulse shadow-sm w-full mx-auto max-w-4xl">
+              <AlertTriangle className="w-6 h-6 flex-shrink-0" />
+              <p className="font-semibold text-base m-0">
+                تنبيه: قبل هذه الخطوة يجب على العميل إكمال سداد الدفعة الثانية
+              </p>
+            </div>
+          )}
+
           <InfoCard
             id="visa-issuance"
             title="8- إصدار التأشيرة"

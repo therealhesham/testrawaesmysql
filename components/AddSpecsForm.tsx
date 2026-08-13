@@ -669,9 +669,7 @@ const fetchSuggestions = async () => {
     if (!isCashPayment && !fileUploaded.orderDocument) {
       newErrors.orderDocument = 'ملف سند الأمر مطلوب';
     }
-    if (!fileUploaded.contract) {
-      newErrors.contract = 'ملف العقد مطلوب';
-    }
+
 
     // Homemaid validation - يجب اختيار عاملة
     if (!formData.selectedHomemaidId) {
@@ -1316,7 +1314,7 @@ const arabicRegionMap: { [key: string]: string } = {
 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
   {[
     { id: 'orderDocument', label: 'ملف سند الأمر', required: formData.PaymentMethod !== 'cash' && formData.PaymentMethod !== 'كاش' },
-    { id: 'contract', label: 'ملف العقد', required: true },
+    { id: 'contract', label: 'ملف العقد', required: false },
   ].filter(file => {
     // إخفاء ملف سند الأمر إذا كان الدفع كاش
     if (file.id === 'orderDocument' && (formData.PaymentMethod === 'cash' || formData.PaymentMethod === 'كاش')) {
