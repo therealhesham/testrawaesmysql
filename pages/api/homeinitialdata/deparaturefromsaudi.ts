@@ -42,7 +42,7 @@ externalArrivalCity:true,
         HomemaidName: true,
         id: true,
       },
-      take: 3, 
+      take: 100, 
       orderBy: { externaldeparatureDate: "desc" },
     });
     res.status(200).json({data:deparatures,deparaturesCount});

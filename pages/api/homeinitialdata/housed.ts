@@ -8,7 +8,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         
         deparatureHousingDate: null,
       },
-      take: 3,
+      take: 100,
       include: {
         Order: {
           select: {

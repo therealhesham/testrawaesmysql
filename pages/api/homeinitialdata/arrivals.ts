@@ -13,7 +13,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       where: {
         KingdomentryDate: { not: null },
       },
-      take:  3,
+      take:  100,
       orderBy: { KingdomentryDate: "desc" },
     });
     res.status(200).json({ data: arrivals, arrivalsCount });
