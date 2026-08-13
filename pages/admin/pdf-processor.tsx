@@ -948,7 +948,7 @@ export default function PDFProcessor() {
         // لم يتم استخراج جنسية
         setSelectedNationality(null);
         setFilteredOffices(offices);
-        setInvalidNationality(null);
+        setInvalidNationality({ field: 'nationality', value: 'غير متوفرة' });
         
         // التحقق من المكتب بدون تصفية
         const extractedOfficeName = geminiData.jsonResponse.company_name || geminiData.jsonResponse.CompanyName || geminiData.jsonResponse.office_name || geminiData.jsonResponse.OfficeName;
@@ -1555,6 +1555,10 @@ const handleSave = async () => {
         setInvalidNationality({ field: 'nationality', value: String(extractedNationality) });
         return;
       }
+    } else if (!extractedNationality) {
+      setError('يجب اختيار جنسية صحيحة من قائمة الجنسيات قبل الحفظ');
+      setInvalidNationality({ field: 'nationality', value: 'غير متوفرة' });
+      return;
     }
 
     // --- 2. التحقق من المكتب ---
@@ -2653,10 +2657,12 @@ const handleSave = async () => {
                             {invalidNationality ? (
                               <>
                                 <h3 className="text-lg font-medium text-yellow-800 mb-2 text-right">
-                                  تحذير: الجنسية غير موجودة في القائمة
+                                  {invalidNationality.value === 'غير متوفرة' ? 'تنبيه: الجنسية غير متوفرة في السيرة الذاتية' : 'تحذير: الجنسية غير موجودة في القائمة'}
                                 </h3>
                                 <p className="text-sm text-yellow-700 mb-4 text-right">
-                                  الجنسية المستخرجة: <span className="font-semibold">{invalidNationality.value}</span> غير موجودة في قاعدة البيانات. يرجى اختيار جنسية صحيحة من القائمة أدناه.
+                                  {invalidNationality.value === 'غير متوفرة' 
+                                    ? 'لم يتمكن الذكاء الصناعي من استخراج الجنسية. يرجى اختيار الجنسية يدوياً من القائمة أدناه.'
+                                    : <>الجنسية المستخرجة: <span className="font-semibold">{invalidNationality.value}</span> غير موجودة في قاعدة البيانات. يرجى اختيار جنسية صحيحة من القائمة أدناه.</>}
                                 </p>
                               </>
                             ) : (
