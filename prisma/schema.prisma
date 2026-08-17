@@ -64,7 +64,7 @@ model homemaid {
   createdAt         DateTime?   @default(now())
   updatedAt         DateTime?  @updatedAt
   logs              logs[]
-  displayOrder      Int?       @unique 
+  displayOrder      Int? 
   transferSponsorShips transferSponsorShips?
   isExternal          Boolean? @default(false)
 sewingLevel String? @db.VarChar(100)
