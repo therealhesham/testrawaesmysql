@@ -964,11 +964,14 @@ model AutomaticEmployee {
 }
 
 model foreignOfficeFinancial {
-  id             Int       @id @default(autoincrement())
-  date           DateTime
-  clientName     String    @db.VarChar(255)
-  contractNumber String?   @db.VarChar(255)
-  payment        String?   @db.VarChar(255)
+    id             Int       @id @default(autoincrement())
+    date           DateTime
+    clientName     String    @db.VarChar(255)
+    contractNumber String?   @db.VarChar(255)
+    maidName       String?   @db.VarChar(255)
+    maidPassport   String?   @db.VarChar(255)
+    contractDate   DateTime?
+    payment        String?   @db.VarChar(255)
   description    String?   @db.VarChar(500)
   credit         Decimal   @default(0)
   debit          Decimal   @default(0)

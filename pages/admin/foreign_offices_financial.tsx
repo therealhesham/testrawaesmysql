@@ -110,6 +110,7 @@ export default function ForeignOfficesFinancial() {
   const [offices, setOffices] = useState<Office[]>([]);
   const [loadingOffices, setLoadingOffices] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [activeAddTab, setActiveAddTab] = useState<'new' | 'old'>('new');
   const [newRecord, setNewRecord] = useState({
     contractNumber: '',
     maidName: '',
@@ -142,6 +143,7 @@ export default function ForeignOfficesFinancial() {
   const [selectedOfficeIdFromContract, setSelectedOfficeIdFromContract] = useState<
     number | null
   >(null);
+  const [manualOfficeId, setManualOfficeId] = useState<string>('');
   const [showEditModal, setShowEditModal] = useState(false);
   const [editRecord, setEditRecord] = useState<FinancialRecord | null>(null);
   const [editForm, setEditForm] = useState({
@@ -674,9 +676,12 @@ export default function ForeignOfficesFinancial() {
         return;
       }
       const officeIdFromSelection =
-        selectedOfficeIdFromContract ??
-        (selectedOfficeName ? resolveOfficeIdByName(selectedOfficeName) : null) ??
-        (filters.officeId ? parseInt(filters.officeId, 10) : null);
+        activeAddTab === 'old'
+          ? (manualOfficeId ? parseInt(manualOfficeId, 10) : null)
+          : (selectedOfficeIdFromContract ??
+            (selectedOfficeName ? resolveOfficeIdByName(selectedOfficeName) : null) ??
+            (filters.officeId ? parseInt(filters.officeId, 10) : null));
+            
       const defaultOfficeId =
         officeIdFromSelection != null && officeIdFromSelection > 0
           ? String(officeIdFromSelection)
@@ -714,6 +719,7 @@ export default function ForeignOfficesFinancial() {
         setInvoiceFileName('');
         setLastBalance(0);
         setSelectedOfficeIdFromContract(null);
+        setManualOfficeId('');
         fetchFinancialRecords(pagination.page);
         showAlert('تم إضافة السجل بنجاح', 'success');
       }
@@ -1072,6 +1078,8 @@ export default function ForeignOfficesFinancial() {
                   await fetchLastBalance(defaultOfficeId);
                   setSelectedOfficeName(''); // مسح اسم المكتب عند فتح modal جديد
                   setSelectedOfficeIdFromContract(null);
+                  setManualOfficeId('');
+                  setActiveAddTab('new');
                   setShowAddModal(true);
                 }}
               >
@@ -1145,6 +1153,16 @@ export default function ForeignOfficesFinancial() {
                 >
                   <RefreshIcon className="w-5 h-5" />
                 </button>
+                  {/* 
+                  <button
+                    onClick={handleRecalculateBalances}
+                    disabled={recalculating}
+                    title={filters.officeId ? 'إعادة حساب الأرصدة للمكتب المحدد' : 'إعادة حساب الأرصدة لكل المكاتب'}
+                    className="inline-flex items-center gap-2 rounded-lg border-2 border-orange-400 bg-gradient-to-b from-orange-500 to-orange-600 px-4 py-2 text-sm font-bold text-white shadow-md ring-2 ring-orange-200/80 transition hover:from-orange-600 hover:to-orange-700 hover:ring-orange-300 disabled:cursor-not-allowed disabled:border-gray-300 disabled:from-gray-400 disabled:to-gray-500 disabled:ring-0 disabled:shadow-none"
+                  >
+                    {recalculating ? 'جاري الحساب...' : 'إعادة حساب الأرصدة'}
+                  </button>
+                  */}
               </div>
             </section>
 
@@ -1168,6 +1186,7 @@ export default function ForeignOfficesFinancial() {
                 </div>
 
                  <div className="flex flex-wrap items-center gap-2">
+                  {/* 
                   <button
                     type="button"
                     onClick={handleRecalculateBalances}
@@ -1177,6 +1196,7 @@ export default function ForeignOfficesFinancial() {
                   >
                     {recalculating ? 'جارٍ الحساب...' : 'إعادة حساب الأرصدة'}
                   </button>
+                  */}
                   <button
                     className="bg-[#1A4D4F] text-white border-none rounded-sm px-3  flex items-center gap-1 py-2 text-md hover:bg-[#164044] "
                     onClick={() => handleExport('Excel')}
@@ -1377,105 +1397,204 @@ export default function ForeignOfficesFinancial() {
       {/* Add Record Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" dir="rtl">
-          <div className="bg-white rounded-lg p-8 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-bold text-center mb-8 text-gray-800">إضافة سجل</h2>
+          <div className="bg-white rounded-lg p-8 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto relative">
+            <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">
+              {activeAddTab === 'new' ? 'إضافة سجل' : 'إضافة سجل قديم'}
+            </h2>
+
+            <div className="flex border-b border-gray-200 mb-6">
+              <button
+                type="button"
+                className={`flex-1 py-2 text-center text-lg font-semibold border-b-2 transition-colors ${
+                  activeAddTab === 'new'
+                    ? 'border-[#1A4D4F] text-[#1A4D4F]'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+                onClick={() => setActiveAddTab('new')}
+              >
+                إضافة سجل
+              </button>
+              <button
+                type="button"
+                className={`flex-1 py-2 text-center text-lg font-semibold border-b-2 transition-colors ${
+                  activeAddTab === 'old'
+                    ? 'border-[#1A4D4F] text-[#1A4D4F]'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+                onClick={() => setActiveAddTab('old')}
+              >
+                إضافة سجل قديم
+              </button>
+            </div>
             
             <form onSubmit={(e) => { e.preventDefault(); handleAddRecord(); }}>
-              {/* Contract Search */}
-              <div className="mb-6">
-                <label className="block text-md font-bold mb-2 text-gray-700">رقم العقد</label>
-                <div className="relative contract-search-container">
-                  <input
-                    type="text"
-                    name="contractNumber"
-                    value={newRecord.contractNumber}
-                    onChange={handleContractNumberChange}
-                    onBlur={handleContractInputBlur}
-                    onFocus={() => newRecord.contractNumber.length >= 1 && setShowContractSuggestions(true)}
-                    placeholder="ابحث برقم العقد"
-                    className="w-full p-3 border border-gray-300 rounded-md bg-white text-md pr-10"
-                  />
-                  {isSearchingContract && (
-                    <div className="absolute right-3 top-3">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#1A4D4F]"></div>
-                    </div>
-                  )}
-                  
-                  {/* Contract Suggestions Dropdown */}
-                  {showContractSuggestions && contractSuggestions.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                      {contractSuggestions.map((suggestion, index) => (
-                        <div
-                          key={index}
-                          onClick={() => handleContractSuggestionClick(suggestion)}
-                          className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
-                        >
-                          <div className="font-medium text-md">
-                            <span className="text-gray-700">رقم العقد: {suggestion.contractNumber}</span>
-                            <span className="text-gray-500 mr-2">• {suggestion.officeName}</span>
-                          </div>
-                          {(suggestion.maidName || suggestion.passportNumber) && (
-                            <div className="text-xs text-gray-600 mt-1 space-y-0.5">
-                              {suggestion.maidName ? (
-                                <div>العاملة: {suggestion.maidName}</div>
-                              ) : null}
-                              {suggestion.passportNumber ? (
-                                <div>رقم الجواز: {suggestion.passportNumber}</div>
-                              ) : null}
+              {/* Contract Search / Manual Input */}
+              {activeAddTab === 'new' ? (
+                <div className="mb-6">
+                  <label className="block text-md font-bold mb-2 text-gray-700">رقم العقد</label>
+                  <div className="relative contract-search-container">
+                    <input
+                      type="text"
+                      name="contractNumber"
+                      value={newRecord.contractNumber}
+                      onChange={handleContractNumberChange}
+                      onBlur={handleContractInputBlur}
+                      onFocus={() => newRecord.contractNumber.length >= 1 && setShowContractSuggestions(true)}
+                      placeholder="ابحث برقم العقد"
+                      className="w-full p-3 border border-gray-300 rounded-md bg-white text-md pr-10"
+                    />
+                    {isSearchingContract && (
+                      <div className="absolute right-3 top-3">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#1A4D4F]"></div>
+                      </div>
+                    )}
+                    
+                    {/* Contract Suggestions Dropdown */}
+                    {showContractSuggestions && contractSuggestions.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                        {contractSuggestions.map((suggestion, index) => (
+                          <div
+                            key={index}
+                            onClick={() => handleContractSuggestionClick(suggestion)}
+                            className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
+                          >
+                            <div className="font-medium text-md">
+                              <span className="text-gray-700">رقم العقد: {suggestion.contractNumber}</span>
+                              <span className="text-gray-500 mr-2">• {suggestion.officeName}</span>
                             </div>
-                          )}
-                        </div>
-                      ))}
+                            {(suggestion.maidName || suggestion.passportNumber) && (
+                              <div className="text-xs text-gray-600 mt-1 space-y-0.5">
+                                {suggestion.maidName ? (
+                                  <div>العاملة: {suggestion.maidName}</div>
+                                ) : null}
+                                {suggestion.passportNumber ? (
+                                  <div>رقم الجواز: {suggestion.passportNumber}</div>
+                                ) : null}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Display Selected Office Name */}
+                  {selectedOfficeName && newRecord.contractNumber && (
+                    <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                      <span className="text-sm text-blue-800">
+                        <strong>المكتب:</strong> {selectedOfficeName}
+                      </span>
                     </div>
                   )}
-                </div>
-                
-                {/* Display Selected Office Name */}
-                {selectedOfficeName && newRecord.contractNumber && (
-                  <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
-                    <span className="text-sm text-blue-800">
-                      <strong>المكتب:</strong> {selectedOfficeName}
-                    </span>
-                  </div>
-                )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                  <div>
-                    <label className="block text-md font-bold mb-2 text-gray-700">اسم العاملة</label>
-                    <input
-                      type="text"
-                      readOnly
-                      value={newRecord.maidName}
-                      placeholder="يظهر تلقائياً عند اختيار العقد"
-                      className="w-full p-3 border border-gray-200 rounded-md bg-gray-50 text-md cursor-default"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-md font-bold mb-2 text-gray-700">رقم جواز العاملة</label>
-                    <input
-                      type="text"
-                      readOnly
-                      value={newRecord.maidPassport}
-                      placeholder="يظهر تلقائياً عند اختيار العقد"
-                      className="w-full p-3 border border-gray-200 rounded-md bg-gray-50 text-md cursor-default"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-md font-bold mb-2 text-gray-700">تاريخ العقد</label>
-                    <input
-                      type="text"
-                      readOnly
-                      value={
-                        newRecord.contractDate
-                          ? getDate(newRecord.contractDate) || newRecord.contractDate
-                          : ''
-                      }
-                      placeholder="يظهر تلقائياً عند اختيار العقد (من إدارة المكاتب)"
-                      className="w-full p-3 border border-gray-200 rounded-md bg-gray-50 text-md cursor-default"
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                    <div>
+                      <label className="block text-md font-bold mb-2 text-gray-700">اسم العاملة</label>
+                      <input
+                        type="text"
+                        readOnly
+                        value={newRecord.maidName}
+                        placeholder="يظهر تلقائياً عند اختيار العقد"
+                        className="w-full p-3 border border-gray-200 rounded-md bg-gray-50 text-md cursor-default"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-md font-bold mb-2 text-gray-700">رقم جواز العاملة</label>
+                      <input
+                        type="text"
+                        readOnly
+                        value={newRecord.maidPassport}
+                        placeholder="يظهر تلقائياً عند اختيار العقد"
+                        className="w-full p-3 border border-gray-200 rounded-md bg-gray-50 text-md cursor-default"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-md font-bold mb-2 text-gray-700">تاريخ العقد</label>
+                      <input
+                        type="text"
+                        readOnly
+                        value={
+                          newRecord.contractDate
+                            ? getDate(newRecord.contractDate) || newRecord.contractDate
+                            : ''
+                        }
+                        placeholder="يظهر تلقائياً عند اختيار العقد (من إدارة المكاتب)"
+                        className="w-full p-3 border border-gray-200 rounded-md bg-gray-50 text-md cursor-default"
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-md font-bold mb-2 text-gray-700">المكتب</label>
+                      <select
+                        value={manualOfficeId}
+                        onChange={(e) => {
+                          setManualOfficeId(e.target.value);
+                          if (e.target.value) {
+                            fetchLastBalance(Number(e.target.value));
+                          }
+                        }}
+                        className="w-full p-3 border border-gray-300 rounded-md bg-white text-md bg-[position:left_0.75rem_center] pr-3 pl-8"
+                        required={activeAddTab === 'old'}
+                      >
+                        <option value="">اختر المكتب</option>
+                        {offices.map(o => (
+                          <option key={o.id} value={o.id}>{o.office}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-md font-bold mb-2 text-gray-700">رقم العقد</label>
+                      <input
+                        type="text"
+                        name="contractNumber"
+                        value={newRecord.contractNumber}
+                        onChange={handleNewRecordChange}
+                        placeholder="ادخل رقم العقد"
+                        className="w-full p-3 border border-gray-300 rounded-md bg-white text-md"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-md font-bold mb-2 text-gray-700">اسم العاملة</label>
+                      <input
+                        type="text"
+                        name="maidName"
+                        value={newRecord.maidName}
+                        onChange={handleNewRecordChange}
+                        placeholder="ادخل اسم العاملة"
+                        className="w-full p-3 border border-gray-300 rounded-md bg-white text-md"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-md font-bold mb-2 text-gray-700">رقم جواز العاملة</label>
+                      <input
+                        type="text"
+                        name="maidPassport"
+                        value={newRecord.maidPassport}
+                        onChange={handleNewRecordChange}
+                        placeholder="ادخل رقم جواز العاملة"
+                        className="w-full p-3 border border-gray-300 rounded-md bg-white text-md"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-md font-bold mb-2 text-gray-700">تاريخ العقد</label>
+                      <input
+                        type="date"
+                        name="contractDate"
+                        value={newRecord.contractDate ? newRecord.contractDate.split('T')[0] : ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setNewRecord(prev => ({...prev, contractDate: val ? val + 'T00:00:00.000Z' : ''}));
+                        }}
+                        className="w-full p-3 border border-gray-300 rounded-md bg-white text-md"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Form Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -1625,6 +1744,7 @@ export default function ForeignOfficesFinancial() {
                   type="button"
                   onClick={() => {
                     setShowAddModal(false);
+                    setActiveAddTab('new');
                     const todayIso = new Date().toISOString().split('T')[0];
                     setNewRecord({
                       contractNumber: '',
@@ -1644,6 +1764,7 @@ export default function ForeignOfficesFinancial() {
                     setInvoiceFile(null);
                     setInvoiceFileName('');
                     setLastBalance(0);
+                    setManualOfficeId('');
                   }}
                   className="bg-transparent text-[#1A4D4F] border-2 border-[#1A4D4F] px-8 py-3 rounded-md font-bold hover:bg-[#1A4D4F] hover:text-white"
                 >

@@ -87,11 +87,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
           return {
             ...item,
-            internalMusanedContract: arrival?.InternalmusanedContract || null,
-            /** تاريخ العقد من قسم الربط مع إدارة المكاتب (track_order) — حقل DateOfApplication في arrivallist */
+            internalMusanedContract: arrival?.InternalmusanedContract || item.contractNumber,
+            /** تاريخ العقد من قسم الربط مع إدارة المكاتب أو من الإدخال اليدوي */
             contractDate: arrival?.DateOfApplication
               ? (arrival.DateOfApplication as Date).toISOString()
-              : null,
+              : item.contractDate 
+                ? new Date(item.contractDate).toISOString() 
+                : null,
+            maidName: item.maidName || null,
+            maidPassport: item.maidPassport || null,
           }
         })
       );
@@ -111,6 +115,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         date,
         clientName,
         contractNumber,
+        maidName,
+        maidPassport,
+        contractDate,
         payment,
         description,
         credit,
@@ -129,6 +136,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           date: new Date(date),
           clientName: String(clientName),
           contractNumber: contractNumber ? String(contractNumber) : null,
+          maidName: maidName ? String(maidName) : null,
+          maidPassport: maidPassport ? String(maidPassport) : null,
+          contractDate: contractDate ? new Date(contractDate) : null,
           payment: payment ? String(payment) : null,
           description: description ? String(description) : null,
           credit: credit ? new Prisma.Decimal(credit) : new Prisma.Decimal(0),
