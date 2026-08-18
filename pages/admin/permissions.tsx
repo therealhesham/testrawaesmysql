@@ -195,6 +195,7 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
     'إدارة المكاتب الخارجية',
     'إدارة الصلاحيات',
     'إدارة الشكاوى',
+    'إدارة الإشعارات',
   ];
   
   // دالة لإرجاع الصلاحيات المناسبة لكل قسم
@@ -202,6 +203,10 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
     // قسم الشكاوى له صلاحيات مختلفة
     if (section === 'إدارة الشكاوى') {
       return [ 'حل'];
+    }
+    // قسم الإشعارات له خيارات مختلفة
+    if (section === 'إدارة الإشعارات') {
+      return ['اشعارات الطلب الجديد - موقع وايميل', 'اشعارات الطلب الجديد - sms'];
     }
     // باقي الأقسام لها الصلاحيات الافتراضية
     return ['عرض', 'إضافة', 'تعديل', 'حذف'];

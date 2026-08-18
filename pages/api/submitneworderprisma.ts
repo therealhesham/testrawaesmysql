@@ -10,6 +10,7 @@ import {
   parseConfirmGenderQuotaWarning,
   REQUIRES_GENDER_QUOTA_CONFIRMATION,
 } from "../../lib/bookingGenderQuota";
+import { sendOrderNotifications } from "lib/notificationsHelper";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -311,6 +312,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             },
           });
         }
+        
+        // إرسال الإشعارات بناءً على الصلاحيات
+        await sendOrderNotifications(
+          result.id,
+          result.ClientName || 'عميل',
+          result.HomemaidId || '',
+          (res.socket as any)?.server?.io
+        );
 
       } catch (err) {
         console.error("Error in background processing:", err);

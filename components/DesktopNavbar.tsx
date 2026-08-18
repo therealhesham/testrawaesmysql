@@ -68,7 +68,7 @@ const DesktopNavbar = () => {
       // Filter notifications based on active tab
       let filteredData = data;
       if (activeTab === 'personal') {
-        filteredData = data.filter((n: any) => n.userId === userName);
+        filteredData = data.filter((n: any) => n.userId?.toLowerCase() === userName?.toLowerCase());
       } else if (activeTab === 'general') {
         filteredData = data.filter((n: any) => !n.userId || n.userId === null || n.userId === '');
       }

@@ -1,11 +1,12 @@
 import { PrismaClient } from '@prisma/client';
 import eventBus from 'lib/eventBus';
 import { jwtDecode } from 'jwt-decode';
+import type { NextApiRequest, NextApiResponse } from 'next';
 
 const prisma = new PrismaClient();
 
-export default async function handler(req, res) {
-  const { id } = req.query;
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const id = req.query.id as string;
   const { method } = req;
 
   switch (method) {
@@ -32,7 +33,7 @@ export default async function handler(req, res) {
         if (cookieHeader) {
           try {
             const cookies: { [key: string]: string } = {};
-            cookieHeader.split(";").forEach((cookie) => {
+            cookieHeader.split(";").forEach((cookie: string) => {
               const [key, value] = cookie.trim().split("=");
               cookies[key] = decodeURIComponent(value);
             });
@@ -48,8 +49,12 @@ export default async function handler(req, res) {
 const findeRole = await prisma.user.findFirst({where:{id:Number(userId)},select:{role:true}})
 const roleUpdated = await prisma.role.findFirst({where:{id:parseInt(id)}})
 console.log(findeRole?.role?.order, roleUpdated?.order)
-if(findeRole?.role?.order > roleUpdated?.order || findeRole?.role?.order == roleUpdated?.order) { // افضل ترتيب هو اقل رقم
-  return res.status(404).json({ error: 'لا يمكن تحديث رتبة أعلى او رتبتك' });
+if (findeRole?.role?.name?.toLowerCase() !== 'owner') {
+  const currentOrder = findeRole?.role?.order ?? 9999;
+  const targetOrder = roleUpdated?.order ?? 9999;
+  if (currentOrder >= targetOrder) { // افضل ترتيب هو اقل رقم
+    return res.status(404).json({ error: 'لا يمكن تحديث رتبة أعلى او رتبتك' });
+  }
 }
         const { name, permissions } = req.body;
         const role = await prisma.role.update({
@@ -75,7 +80,7 @@ if(findeRole?.role?.order > roleUpdated?.order || findeRole?.role?.order == role
         if (cookieHeader) {
           try {
             const cookies: { [key: string]: string } = {};
-            cookieHeader.split(";").forEach((cookie) => {
+            cookieHeader.split(";").forEach((cookie: string) => {
               const [key, value] = cookie.trim().split("=");
               cookies[key] = decodeURIComponent(value);
             });
