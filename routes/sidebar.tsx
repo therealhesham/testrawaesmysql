@@ -8,7 +8,13 @@ interface IRoute {
   path?: string;
   icon?: string;
   name: string;
-  routes?: IRoute[];
+  routes?: IRoute[
+  {
+    path: '/admin/external-website',
+    icon: 'OutlineCogIcon',
+    name: 'التحكم في الموقع الخارجي',
+  },
+];
   checkActive?(pathname: String, route: IRoute): boolean;
   exact?: boolean;
 }
@@ -178,6 +184,11 @@ const routes: IRoute[] = [
   //     name: 'Add Female Worker',
   //     // exact: true,
   //   }
+  {
+    path: "/admin/external-website",
+    icon: "CardsIcon",
+    name: "التحكم في الموقع الخارجي",
+  }
 ];
 
 export type { IRoute };

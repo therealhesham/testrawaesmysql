@@ -1373,3 +1373,15 @@ model Complaint {
   @@index([status])
   @@index([createdAt])
 }
+model NationalityCard {
+  id              Int      @id @default(autoincrement())
+  countryArabic   String   @db.VarChar(255)
+  countryEnglish  String   @db.VarChar(255)
+  flagUrl         String   @db.VarChar(255)
+  price           String   @db.VarChar(255)
+  oldPrice        String?  @db.VarChar(255)
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}

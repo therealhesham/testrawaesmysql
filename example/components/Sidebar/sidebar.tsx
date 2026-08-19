@@ -113,6 +113,12 @@ const menuItems: MenuItem[] = [
   { id: 7, label: "التقارير", icon: ReportsIcon, link: "/admin/reportsconverted" },
   { id: 8, label: "القوالب", icon: TemplateIcon, link: "/admin/templates" },
   {
+    id: 12,
+    label: "التحكم في الموقع الخارجي",
+    icon: FaCog,
+    link: "/admin/external-website",
+  },
+  {
     id: 9,
     label: " المراسلات",
     icon: FaEnvelope,
@@ -168,7 +174,7 @@ const menuItems: MenuItem[] = [
     label: "الشكاوى",
     icon: FaExclamationTriangle,
     link: "/admin/complaints",
-  },
+  }
 ];
 
 const Sidebar = (props: any) => {
@@ -192,7 +198,7 @@ const Sidebar = (props: any) => {
   );
 
   const wrapperClasses = classNames(
-    "bg-[#1a4d4f] text-white sticky top-0 h-[100vh] flex flex-col shadow-xl transition-width duration-500 ease-in-out font-inter overflow-y-hidden flex-shrink-0 relative",
+    "bg-[#1a4d4f] text-white sticky top-0 h-[100vh] flex flex-col shadow-xl transition-width duration-500 ease-in-out font-inter flex-shrink-0 relative z-50",
     {
       "w-80": !toggleCollapse,
       "w-20": toggleCollapse,
@@ -296,17 +302,13 @@ const Sidebar = (props: any) => {
 
  return (
   <div className={wrapperClasses}>
-    {/* زر الـ collapse ثابت في مكانه ودائري - في الوسط عند وضع الـ collapse */}
+    {/* نتوء فتح وإغلاق القائمة الجانبية (Tab) */}
     <button
       onClick={handleSidebarToggle}
-      className={classNames(
-        "absolute bottom-28 z-20 p-2.5 rounded-full bg-teal-900/90 hover:bg-teal-700/90 transition-all duration-300 ease-in-out shadow-md border border-teal-600/50",
-        "left-1/2 -translate-x-1/2",
-        { "rotate-180": !toggleCollapse }
-      )}
+      className="absolute top-1/2 -translate-y-1/2 -left-5 w-5 h-14 bg-[#1a4d4f] rounded-l-lg border-y border-l border-teal-700/50 flex items-center justify-center shadow-[-3px_0_8px_rgba(0,0,0,0.15)] hover:bg-teal-700/90 transition-all duration-300 cursor-pointer z-50"
       aria-label={toggleCollapse ? "Expand sidebar" : "Collapse sidebar"}
     >
-      <CollapsIcon className="w-5 h-5 text-white" />
+      <CollapsIcon className={classNames("w-3 h-3 text-white transition-transform duration-300", { "rotate-180": !toggleCollapse })} />
     </button>
 
     <div className="flex flex-col relative min-h-full">
