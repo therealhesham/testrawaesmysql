@@ -966,7 +966,7 @@ model AutomaticEmployee {
 model foreignOfficeFinancial {
     id             Int       @id @default(autoincrement())
     date           DateTime
-    clientName     String    @db.VarChar(255)
+    clientName     String?   @db.VarChar(255)
     contractNumber String?   @db.VarChar(255)
     maidName       String?   @db.VarChar(255)
     maidPassport   String?   @db.VarChar(255)
@@ -977,10 +977,24 @@ model foreignOfficeFinancial {
   debit          Decimal   @default(0)
   balance        Decimal   @default(0)
   invoice        String?   @db.VarChar(500)
+  invoiceNumber  String?   @db.VarChar(255)
   officeId       Int
   office         offices   @relation(fields: [officeId], references: [id])
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+  debitSettlements  ForeignOfficeSettlement[] @relation("DebitSettlements")
+  creditSettlements ForeignOfficeSettlement[] @relation("CreditSettlements")
+}
+
+model ForeignOfficeSettlement {
+  id               Int      @id @default(autoincrement())
+  debitRecordId    Int
+  creditRecordId   Int
+  settledAmount    Decimal
+  date             DateTime @default(now())
+  
+  debitRecord      foreignOfficeFinancial @relation("DebitSettlements", fields: [debitRecordId], references: [id])
+  creditRecord     foreignOfficeFinancial @relation("CreditSettlements", fields: [creditRecordId], references: [id])
 }
 
 // Client Account Statement Models
@@ -1384,4 +1398,15 @@ model NationalityCard {
   sortOrder       Int      @default(0)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model QuickClient {
+  id          Int      @id @default(autoincrement())
+  phoneNumber String   @db.VarChar(50)
+  notes       String   @db.Text
+  clientName  String?  @db.VarChar(255)
+  source      String?  @db.VarChar(255)
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

@@ -15,6 +15,7 @@ import "@fortawesome/fontawesome-free/css/all.css";
 import { SidebarProvider } from "utils/sidebarcontext";
 import { GlobalToastProvider } from "../components/GlobalToast";
 import { DeliveryNotificationWrapper } from "../components/DeliveryNotificationWrapper";
+import QuickClientRegistrationModal from "../components/QuickClientRegistrationModal";
 // import { SidebarProvider } from "context/SidebarContext";
 function MyApp({ Component, pageProps }: AppProps) {
   const [user, setUser] = useState("ssssss");
@@ -48,6 +49,7 @@ function MyApp({ Component, pageProps }: AppProps) {
           <Component {...pageProps} />
           {/* </Windmill> */}
       </SidebarProvider>
+      <QuickClientRegistrationModal />
     </GlobalToastProvider>
   );
 }

@@ -1,16 +1,21 @@
 import Head from 'next/head';
-import { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import type { ChangeEvent } from 'react';
 import Layout from 'example/containers/Layout';
 import { useRouter } from 'next/router';
 import Style from "styles/Home.module.css";
-import { FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons';
+import { FileExcelOutlined, FilePdfOutlined, HistoryOutlined } from '@ant-design/icons';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import ExcelJS from 'exceljs';
 import { jwtDecode } from 'jwt-decode';
 import { RefreshIcon } from '@heroicons/react/outline';
+import SettlementModal from 'example/components/SettlementModal';
+import BulkAddRecordTab from 'example/components/BulkAddRecordTab';
+import ModernAddRecordModal from 'example/components/ModernAddRecordModal';
+import RecordSettlementHistoryModal from 'example/components/RecordSettlementHistoryModal';
+import InvoiceSettlementHistoryModal from 'example/components/InvoiceSettlementHistoryModal';
 
 interface Office {
   id: number;
@@ -33,6 +38,9 @@ interface FinancialRecord {
   debit: number;
   balance: number;
   invoice?: string;
+  invoiceNumber?: string | null;
+  debitSettlements?: any[];
+  creditSettlements?: any[];
   officeId: number;
   office?: Office;
 }
@@ -90,6 +98,11 @@ function parseDMYToIso(dmy: string): string | null {
 
 export default function ForeignOfficesFinancial() {
   const router = useRouter();
+  
+  // -- FEATURE FLAGS --
+  const useLegacyModal = false;
+
+  // -- STATES --
   const [userName, setUserName] = useState('');
   const [financialRecords, setFinancialRecords] = useState<FinancialRecord[]>([]);
   const [loadingData, setLoadingData] = useState(false);
@@ -104,13 +117,17 @@ export default function ForeignOfficesFinancial() {
     officeId: '',
     fromDate: '',
     toDate: '',
+    groupByInvoice: false,
   });
+  const [expandedInvoice, setExpandedInvoice] = useState<string | null>(null);
   const [selectedCurrency, setSelectedCurrency] = useState<CurrencyCode>('USD');
   const [searchTerm, setSearchTerm] = useState('');
   const [offices, setOffices] = useState<Office[]>([]);
   const [loadingOffices, setLoadingOffices] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [activeAddTab, setActiveAddTab] = useState<'new' | 'old'>('new');
+  const [showSettlementModal, setShowSettlementModal] = useState(false);
+  const [activeAddTab, setActiveAddTab] = useState<'new' | 'old' | 'bulk'>('new');
+  const [newRecordIsContract, setNewRecordIsContract] = useState(true);
   const [newRecord, setNewRecord] = useState({
     contractNumber: '',
     maidName: '',
@@ -123,6 +140,7 @@ export default function ForeignOfficesFinancial() {
     credit: '',
     debit: '',
     invoice: '',
+    invoiceNumber: '',
     balance: '0',
     date: new Date().toISOString().split('T')[0]
   });
@@ -166,18 +184,44 @@ export default function ForeignOfficesFinancial() {
 
   const pageTotals = useMemo(() => {
     return financialRecords.reduce(
-      (acc, curr) => ({
-        debit: acc.debit + Number(curr.debit || 0),
-        credit: acc.credit + Number(curr.credit || 0),
-      }),
+      (acc, curr) => {
+        let debitRemaining = 0;
+        let creditRemaining = 0;
+
+        if (filters.groupByInvoice) {
+          debitRemaining = Math.max(0, Number(curr.debit || 0) - Number(curr.totalDebitSettled || 0));
+          creditRemaining = Math.max(0, Number(curr.credit || 0) - Number(curr.totalCreditSettled || 0));
+        } else {
+          const debitSettled = curr.debitSettlements?.reduce((sum: number, s: any) => sum + Number(s.settledAmount), 0) || 0;
+          const creditSettled = curr.creditSettlements?.reduce((sum: number, s: any) => sum + Number(s.settledAmount), 0) || 0;
+          debitRemaining = Math.max(0, Number(curr.debit || 0) - debitSettled);
+          creditRemaining = Math.max(0, Number(curr.credit || 0) - creditSettled);
+        }
+
+        return {
+          debit: acc.debit + debitRemaining,
+          credit: acc.credit + creditRemaining,
+        };
+      },
       { debit: 0, credit: 0 }
     );
-  }, [financialRecords]);
+  }, [financialRecords, filters.groupByInvoice]);
   
   // Delete confirmation modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<FinancialRecord | null>(null);
   const [selectedClientRecord, setSelectedClientRecord] = useState<FinancialRecord | null>(null);
+
+  // السجل المحدد لعرض تاريخ تسويته
+  const [selectedRecordForHistory, setSelectedRecordForHistory] = useState<number | null>(null);
+  const [selectedInvoiceForHistory, setSelectedInvoiceForHistory] = useState<string | null>(null);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showInvoiceHistoryModal, setShowInvoiceHistoryModal] = useState(false);
+
+  const handleShowHistory = (recordId: number) => {
+    setSelectedRecordForHistory(recordId);
+    setShowHistoryModal(true);
+  };
 
   // File upload state
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
@@ -205,6 +249,8 @@ export default function ForeignOfficesFinancial() {
         ...(filters.fromDate && { fromDate: filters.fromDate }),
         ...(filters.toDate && { toDate: filters.toDate }),
         ...(searchTerm && { search: searchTerm }),
+        ...(filters.groupByInvoice && { groupByInvoice: 'true' }),
+        ...(filters.hideSettled && { hideSettled: 'true' }),
       });
 
       const res = await axios.get(`/api/foreign-offices-financial?${params}`);
@@ -348,6 +394,8 @@ export default function ForeignOfficesFinancial() {
       ...(filters.fromDate && { fromDate: filters.fromDate }),
       ...(filters.toDate && { toDate: filters.toDate }),
       ...(searchTerm && { search: searchTerm }),
+      ...(filters.groupByInvoice && { groupByInvoice: 'true' }),
+      ...(filters.hideSettled && { hideSettled: 'true' }),
     }).toString();
     const res = await fetch(`/api/foreign-offices-financial?${query}`);
     
@@ -403,7 +451,17 @@ export default function ForeignOfficesFinancial() {
       doc.setLanguage('ar');
       doc.setFontSize(12);
 
-      const tableColumn = [
+      const tableColumn = filters.groupByInvoice ? [
+        'صافي الفاتورة',
+        'إجمالي دائن',
+        'إجمالي مدين',
+        'عدد الحركات',
+        'الفاتورة المجمعة',
+        'المكتب',
+        'الدولة',
+        'تاريخ أول حركة',
+        '#',
+      ] : [
         'الرصيد',
         'دائن',
         'مدين',
@@ -417,19 +475,35 @@ export default function ForeignOfficesFinancial() {
         '#',
       ];
 
-      const tableRows = dataToExport.map((row: FinancialRecord, index: number) => [
-        formatCurrency(row.balance),
-        row.credit > 0 ? formatCurrency(row.credit) : '-',
-        row.debit > 0 ? formatCurrency(row.debit) : '-',
-        row.description || 'غير متوفر',
-        row.internalMusanedContract || 'غير متوفر',
-        row.contractDate ? getDate(row.contractDate) : 'غير متوفر',
-        row.clientName || 'غير متوفر',
-        row.office?.office || 'غير متوفر',
-        row.office?.Country || 'غير متوفر',
-        row.date ? getDate(row.date) : 'غير متوفر',
-        (index + 1).toString(),
-      ]);
+      const tableRows = dataToExport.map((row: any, index: number) => {
+        if (filters.groupByInvoice) {
+          const netValue = Number(row.debit) - Number(row.credit);
+          return [
+            netValue !== 0 ? formatCurrency(Math.abs(netValue)) + (netValue > 0 ? ' مدين' : ' دائن') : '-',
+            row.credit > 0 ? formatCurrency(row.credit) : '-',
+            row.debit > 0 ? formatCurrency(row.debit) : '-',
+            `${row.recordsCount} حركات`,
+            row.invoiceNumber,
+            row.office?.office || 'غير متوفر',
+            row.office?.Country || 'غير متوفر',
+            row.date ? getDate(row.date) : 'غير متوفر',
+            (index + 1).toString(),
+          ];
+        }
+        return [
+          formatCurrency(row.balance),
+          row.credit > 0 ? formatCurrency(row.credit) : '-',
+          row.debit > 0 ? formatCurrency(row.debit) : '-',
+          row.description || 'غير متوفر',
+          row.internalMusanedContract || 'غير متوفر',
+          row.contractDate ? getDate(row.contractDate) : 'غير متوفر',
+          row.clientName || 'غير متوفر',
+          row.office?.office || 'غير متوفر',
+          row.office?.Country || 'غير متوفر',
+          row.date ? getDate(row.date) : 'غير متوفر',
+          (index + 1).toString(),
+        ];
+      });
 
       doc.autoTable({
         head: [tableColumn],
@@ -509,37 +583,66 @@ export default function ForeignOfficesFinancial() {
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('كشف حساب للمكاتب الخارجية', { properties: { defaultColWidth: 20 } });
       
-      worksheet.columns = [
-        { header: '#', key: 'index', width: 10 },
-        { header: 'التاريخ', key: 'date', width: 15 },
-        { header: 'الدولة', key: 'country', width: 15 },
-        { header: 'اسم المكتب', key: 'office', width: 20 },
-        { header: 'اسم العميل', key: 'clientName', width: 20 },
-        { header: 'رقم العقد', key: 'contractNumber', width: 15 },
-        { header: 'تاريخ العقد', key: 'contractDate', width: 15 },
-        { header: 'البيان', key: 'description', width: 20 },
-        { header: 'مدين', key: 'debit', width: 15 },
-        { header: 'دائن', key: 'credit', width: 15 },
-        { header: 'الرصيد', key: 'balance', width: 15 },
-      ];
+      if (filters.groupByInvoice) {
+        worksheet.columns = [
+          { header: '#', key: 'index', width: 10 },
+          { header: 'تاريخ أول حركة', key: 'date', width: 15 },
+          { header: 'الدولة', key: 'country', width: 15 },
+          { header: 'المكتب', key: 'office', width: 20 },
+          { header: 'الفاتورة المجمعة', key: 'invoiceNumber', width: 20 },
+          { header: 'عدد الحركات', key: 'recordsCount', width: 15 },
+          { header: 'إجمالي مدين', key: 'debit', width: 15 },
+          { header: 'إجمالي دائن', key: 'credit', width: 15 },
+          { header: 'صافي الفاتورة', key: 'net', width: 15 },
+        ];
+      } else {
+        worksheet.columns = [
+          { header: '#', key: 'index', width: 10 },
+          { header: 'التاريخ', key: 'date', width: 15 },
+          { header: 'الدولة', key: 'country', width: 15 },
+          { header: 'اسم المكتب', key: 'office', width: 20 },
+          { header: 'اسم العميل', key: 'clientName', width: 20 },
+          { header: 'رقم العقد', key: 'contractNumber', width: 15 },
+          { header: 'تاريخ العقد', key: 'contractDate', width: 15 },
+          { header: 'البيان', key: 'description', width: 20 },
+          { header: 'مدين', key: 'debit', width: 15 },
+          { header: 'دائن', key: 'credit', width: 15 },
+          { header: 'الرصيد', key: 'balance', width: 15 },
+        ];
+      }
 
       worksheet.getRow(1).font = { name: 'Amiri', size: 12 };
       worksheet.getRow(1).alignment = { horizontal: 'right' };
 
-      dataToExport.forEach((row: FinancialRecord, index: number) => {
-        worksheet.addRow({
-          index: index + 1,
-          date: row.date ? getDate(row.date) : 'غير متوفر',
-          country: row.office?.Country || 'غير متوفر',
-          office: row.office?.office || 'غير متوفر',
-          clientName: row.clientName || 'غير متوفر',
-          contractNumber: row.internalMusanedContract || 'غير متوفر',
-          contractDate: row.contractDate ? getDate(row.contractDate) : 'غير متوفر',
-          description: row.description || 'غير متوفر',
-          debit: row.debit > 0 ? formatCurrency(row.debit) : '-',
-          credit: row.credit > 0 ? formatCurrency(row.credit) : '-',
-          balance: formatCurrency(row.balance),
-        }).alignment = { horizontal: 'right' };
+      dataToExport.forEach((row: any, index: number) => {
+        if (filters.groupByInvoice) {
+          const netValue = Number(row.debit) - Number(row.credit);
+          worksheet.addRow({
+            index: index + 1,
+            date: row.date ? getDate(row.date) : 'غير متوفر',
+            country: row.office?.Country || 'غير متوفر',
+            office: row.office?.office || 'غير متوفر',
+            invoiceNumber: row.invoiceNumber,
+            recordsCount: `${row.recordsCount} حركات`,
+            debit: row.debit > 0 ? formatCurrency(row.debit) : '-',
+            credit: row.credit > 0 ? formatCurrency(row.credit) : '-',
+            net: netValue !== 0 ? formatCurrency(Math.abs(netValue)) + (netValue > 0 ? ' مدين' : ' دائن') : '-',
+          }).alignment = { horizontal: 'right' };
+        } else {
+          worksheet.addRow({
+            index: index + 1,
+            date: row.date ? getDate(row.date) : 'غير متوفر',
+            country: row.office?.Country || 'غير متوفر',
+            office: row.office?.office || 'غير متوفر',
+            clientName: row.clientName || 'غير متوفر',
+            contractNumber: row.internalMusanedContract || 'غير متوفر',
+            contractDate: row.contractDate ? getDate(row.contractDate) : 'غير متوفر',
+            description: row.description || 'غير متوفر',
+            debit: row.debit > 0 ? formatCurrency(row.debit) : '-',
+            credit: row.credit > 0 ? formatCurrency(row.credit) : '-',
+            balance: formatCurrency(row.balance),
+          }).alignment = { horizontal: 'right' };
+        }
       });
 
       const buffer = await workbook.xlsx.writeBuffer();
@@ -573,6 +676,7 @@ export default function ForeignOfficesFinancial() {
       officeId: '',
       fromDate: '',
       toDate: '',
+      groupByInvoice: false,
     });
     setSearchTerm('');
     fetchFinancialRecords(1);
@@ -711,6 +815,7 @@ export default function ForeignOfficesFinancial() {
           credit: '',
           debit: '',
           invoice: '',
+          invoiceNumber: '',
           balance: '0',
           date: todayIso
         });
@@ -1071,9 +1176,22 @@ export default function ForeignOfficesFinancial() {
           <main className="flex-1 p-4 md:p-8" dir="rtl">
             <div className="flex justify-between items-center mb-10">
               <h2 className="text-3xl text-black">كشف حساب للمكاتب الخارجية</h2>
-              <button
-                className="bg-[#1A4D4F] text-white border-none rounded-md px-4 py-2 flex items-center gap-2 text-md cursor-pointer hover:bg-[#164044]"
-                onClick={async () => {
+              <div className="flex gap-4">
+                <button
+                  className="bg-[#1A4D4F] text-white border-none rounded-md px-4 py-2 flex items-center gap-2 text-md cursor-pointer hover:bg-[#164044]"
+                  onClick={() => {
+                    if (!filters.officeId) {
+                      showAlert('الرجاء اختيار المكتب أولاً', 'error');
+                      return;
+                    }
+                    setShowSettlementModal(true);
+                  }}
+                >
+                  <span>مركز التسوية</span>
+                </button>
+                <button
+                  className="bg-[#1A4D4F] text-white border-none rounded-md px-4 py-2 flex items-center gap-2 text-md cursor-pointer hover:bg-[#164044]"
+                  onClick={async () => {
                   const defaultOfficeId = filters.officeId ? parseInt(filters.officeId) : (offices.length > 0 ? offices[0].id : 1);
                   await fetchLastBalance(defaultOfficeId);
                   setSelectedOfficeName(''); // مسح اسم المكتب عند فتح modal جديد
@@ -1088,6 +1206,7 @@ export default function ForeignOfficesFinancial() {
                   <path d="M4 1v6M1 4h6" stroke="white" strokeWidth="2" strokeLinecap="round"/>
                 </svg>
               </button>
+              </div>
             </div>
 
             {/* Filters Section */}
@@ -1139,6 +1258,8 @@ export default function ForeignOfficesFinancial() {
                   </div>
                 </div>
 
+
+
                 <button
                   className="bg-teal-800 text-white border-none rounded px-4 py-2 text-md cursor-pointer h-[42px] hover:bg-teal-700 transition-colors"
                   onClick={handleSearch}
@@ -1171,18 +1292,63 @@ export default function ForeignOfficesFinancial() {
               {/* Table Controls */}
               <div className="flex justify-between items-center px-4 py-6">
                
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="بحث (عميل، عقد، بيان، اسم المكتب)"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-[428px] p-2 bg-[#F7F8FA] border border-[#E0E0E0] rounded-md text-md text-gray-600 pr-10"
-                  />
-                  <svg className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <circle cx="11" cy="11" r="8" strokeWidth="2" />
-                    <path d="M21 21l-4.35-4.35" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
+                <div className="flex items-center gap-4">
+                  <div className="inline-flex shadow-sm rounded-md" role="group">
+                    <button
+                      onClick={() => setFilters(prev => ({ ...prev, hideSettled: !prev.hideSettled }))}
+                      className={`flex items-center gap-2 px-4 py-2 text-sm font-bold transition-colors border border-gray-300 rounded-r-md ${
+                        filters.hideSettled 
+                          ? 'bg-[#1A4D4F] text-white border-[#1A4D4F] shadow-inner z-10' 
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                      title={filters.hideSettled ? 'إظهار جميع السجلات' : 'إخفاء السجلات المسددة بالكامل'}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        {filters.hideSettled ? (
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.478 0-8.268-2.943-9.542-7z" />
+                        ) : (
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a9.978 9.978 0 013.9-5.147M15 12a3 3 0 01-4.243 4.243M9.878 9.878a3 3 0 014.244-4.244M21.542 12a9.978 9.978 0 01-3.9 5.147M3 3l18 18" />
+                        )}
+                      </svg>
+                      <span>
+                        {filters.hideSettled ? 'إظهار المسددة' : 'إخفاء المسددة'}
+                      </span>
+                    </button>
+                    
+                    <button
+                      onClick={() => setFilters(prev => ({ ...prev, groupByInvoice: !prev.groupByInvoice }))}
+                      className={`flex items-center gap-2 px-4 py-2 text-sm font-bold transition-colors border border-r-0 border-gray-300 rounded-l-md ${
+                        filters.groupByInvoice 
+                          ? 'bg-[#1A4D4F] text-white border-[#1A4D4F] border-r-[#1A4D4F] shadow-inner z-10' 
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                      title={filters.groupByInvoice ? 'إلغاء تجميع الفواتير وعرض السجلات الفردية' : 'تجميع السجلات كفواتير'}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        {filters.groupByInvoice ? (
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                        ) : (
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        )}
+                      </svg>
+                      <span>
+                        {filters.groupByInvoice ? 'عرض السجلات' : 'عرض كفواتير'}
+                      </span>
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="بحث (عميل، عقد، بيان، اسم المكتب)"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-[428px] p-2 bg-[#F7F8FA] border border-[#E0E0E0] rounded-md text-md text-gray-600 pr-10"
+                    />
+                    <svg className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <circle cx="11" cy="11" r="8" strokeWidth="2" />
+                      <path d="M21 21l-4.35-4.35" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                  </div>
                 </div>
 
                  <div className="flex flex-wrap items-center gap-2">
@@ -1219,6 +1385,212 @@ export default function ForeignOfficesFinancial() {
 
               {/* Data Table */}
               <div className="overflow-x-auto">
+                {filters.groupByInvoice ? (
+                  <table className="w-full bg-white border-collapse">
+                    <thead>
+                      <tr>
+                        <th className="bg-[#1A4D4F] text-white p-4 text-center text-md font-normal">#</th>
+                        <th className="bg-[#1A4D4F] text-white p-4 text-center text-md font-normal">تاريخ أول حركة</th>
+                        <th className="bg-[#1A4D4F] text-white p-4 text-center text-md font-normal">الدولة</th>
+                        <th className="bg-[#1A4D4F] text-white p-4 text-center text-md font-normal">المكتب</th>
+                        <th className="bg-[#1A4D4F] text-white p-4 text-center text-md font-normal">الفاتورة المجمعة</th>
+                        <th className="bg-[#1A4D4F] text-white p-4 text-center text-md font-normal">عدد الحركات</th>
+                        <th className="bg-[#1A4D4F] text-white p-4 text-center text-md font-normal">إجمالي مدين</th>
+                        <th className="bg-[#1A4D4F] text-white p-4 text-center text-md font-normal">إجمالي دائن</th>
+                        <th className="bg-[#1A4D4F] text-white p-4 text-center text-md font-normal">صافي الفاتورة</th>
+                        <th className="bg-[#1A4D4F] text-white p-4 text-center text-md font-normal">إجراءات</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loadingData ? (
+                        <tr>
+                          <td colSpan={9} className="p-8 text-center text-gray-500">جاري التحميل...</td>
+                        </tr>
+                      ) : dataError ? (
+                        <tr>
+                          <td colSpan={9} className="p-8 text-center text-red-500">{dataError}</td>
+                        </tr>
+                      ) : financialRecords.length === 0 ? (
+                        <tr>
+                          <td colSpan={9} className="p-8 text-center text-gray-500">لا توجد سجلات</td>
+                        </tr>
+                      ) : (
+                        financialRecords.map((record: any, index) => {
+                          const netValue = Number(record.debit) - Number(record.credit);
+                          return (
+                            <React.Fragment key={record.id}>
+                              <tr className="hover:bg-gray-50">
+                                <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA]">
+                                #{(pagination.page - 1) * pagination.limit + index + 1}
+                              </td>
+                              <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA]">
+                                {new Date(record.date).toLocaleDateString()}
+                              </td>
+                              <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA]">
+                                {record.office?.Country || '-'}
+                              </td>
+                              <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA]">
+                                <button
+                                  className="text-[#1A4D4F] hover:text-[#164044] hover:underline"
+                                  onClick={() => handleOfficeClick(record.office?.id)}
+                                >
+                                  {record.office?.office || '-'}
+                                </button>
+                              </td>
+                              <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA]">
+                                <span className="font-bold text-[#1A4D4F] bg-[#1A4D4F]/10 px-3 py-1 rounded-full border border-[#1A4D4F]/20">{record.invoiceNumber}</span>
+                              </td>
+                              <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA]">
+                                <button 
+                                  onClick={() => setExpandedInvoice(prev => prev === record.invoiceNumber ? null : record.invoiceNumber)}
+                                  className="text-[#1A4D4F] hover:text-[#164044] bg-[#1A4D4F]/10 hover:bg-[#1A4D4F]/20 transition-colors px-3 py-1 rounded-full border border-[#1A4D4F]/20 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1A4D4F]"
+                                  title="عرض الحركات"
+                                >
+                                  {record.recordsCount} حركات
+                                </button>
+                              </td>
+                              <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA] whitespace-nowrap">
+                                {record.debit > 0 ? (
+                                  <div>
+                                    {renderDualCurrency(record.debit)}
+                                    {record.totalDebitSettled > 0 && (
+                                      <div className="text-xs mt-1 font-bold text-gray-500">
+                                        {(Number(record.debit) - record.totalDebitSettled) <= 0 ? (
+                                          <span className="text-green-600 bg-green-100 px-2 py-0.5 rounded-full">تم سداد الفاتورة بالكامل</span>
+                                        ) : (
+                                          <span className="text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">متبقي: ${ (Number(record.debit) - record.totalDebitSettled).toFixed(2) }</span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : '-'}
+                              </td>
+                              <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA] whitespace-nowrap">
+                                {record.credit > 0 ? (
+                                  <div>
+                                    {renderDualCurrency(record.credit)}
+                                    {record.totalCreditSettled > 0 && (
+                                      <div className="text-xs mt-1 font-bold text-gray-500">
+                                        {(Number(record.credit) - record.totalCreditSettled) <= 0 ? (
+                                          <span className="text-green-600 bg-green-100 px-2 py-0.5 rounded-full">تم خصم كامل المبلغ</span>
+                                        ) : (
+                                          <span className="text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">متبقي: ${ (Number(record.credit) - record.totalCreditSettled).toFixed(2) }</span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : '-'}
+                              </td>
+                              <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA]" dir="ltr">
+                                {(() => {
+                                  const remDebit = Math.max(0, Number(record.debit) - record.totalDebitSettled);
+                                  const remCredit = Math.max(0, Number(record.credit) - record.totalCreditSettled);
+                                  const remNet = remDebit - remCredit;
+                                  const totalSettled = Number(record.totalDebitSettled) + Number(record.totalCreditSettled);
+                                  const isFullySettled = (Number(record.debit) > 0 || Number(record.credit) > 0) && remDebit === 0 && remCredit === 0;
+
+                                  if (netValue === 0 && remNet === 0 && !isFullySettled) return '-';
+
+                                  return (
+                                    <div className="flex flex-col items-center justify-center">
+                                      {isFullySettled ? (
+                                        <>
+                                          <div className="line-through opacity-50">
+                                            {renderDualCurrency(Math.abs(netValue), netValue > 0 ? 'text-green-600' : 'text-red-600')}
+                                          </div>
+                                          <span className="text-green-600 bg-green-100 px-2 py-0.5 rounded-full text-[10px] font-bold mt-1 inline-block" dir="rtl">
+                                            تم تسوية الفاتورة تماماً
+                                          </span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <div className="font-bold">
+                                            {renderDualCurrency(Math.abs(remNet), remNet > 0 ? 'text-green-600' : 'text-orange-600')}
+                                          </div>
+                                          {totalSettled > 0 && (
+                                            <span className="text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full text-[10px] font-bold mt-1 inline-block" dir="rtl">
+                                              تم تسوية: ${totalSettled.toFixed(2)}
+                                            </span>
+                                          )}
+                                        </>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
+                              </td>
+                              <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA]">
+                                <button
+                                  className="bg-transparent border-none cursor-pointer p-1 rounded-md hover:bg-blue-100"
+                                  onClick={() => setSelectedInvoiceForHistory(record.invoiceNumber)}
+                                  title="عرض التفاصيل (التسويات)"
+                                >
+                                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                    <circle cx="12" cy="12" r="3" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                  </svg>
+                                </button>
+                              </td>
+                            </tr>
+                            {expandedInvoice === record.invoiceNumber && (
+                              <tr key={`${record.id}-expanded`}>
+                                <td colSpan={10} className="p-0 border-b border-[#E0E0E0] bg-white">
+                                  <div className="p-4 bg-gray-50 shadow-inner rounded-md m-2 border border-gray-200">
+                                    <h4 className="text-md font-bold text-[#1A4D4F] mb-3">حركات الفاتورة: {record.invoiceNumber}</h4>
+                                    <table className="w-full bg-white border border-gray-200 rounded-md">
+                                      <thead className="bg-gray-100">
+                                        <tr>
+                                          <th className="p-2 text-center text-sm font-bold text-gray-700">التاريخ</th>
+                                          <th className="p-2 text-center text-sm font-bold text-gray-700">اسم العميل</th>
+                                          <th className="p-2 text-center text-sm font-bold text-gray-700">رقم العقد</th>
+                                          <th className="p-2 text-center text-sm font-bold text-gray-700">البيان</th>
+                                          <th className="p-2 text-center text-sm font-bold text-gray-700">مدين</th>
+                                          <th className="p-2 text-center text-sm font-bold text-gray-700">دائن</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {record.records?.map((subRec: any) => (
+                                          <tr key={subRec.id} className="border-t border-gray-200">
+                                            <td className="p-2 text-center text-sm">{subRec.date ? new Date(subRec.date).toLocaleDateString() : '-'}</td>
+                                            <td className="p-2 text-center text-sm">{subRec.clientName || 'مصروف عام'}</td>
+                                            <td className="p-2 text-center text-sm">{subRec.internalMusanedContract || subRec.contractNumber || '-'}</td>
+                                            <td className="p-2 text-center text-sm">{subRec.description || '-'}</td>
+                                            <td className="p-2 text-center text-sm">{subRec.debit > 0 ? renderDualCurrency(subRec.debit) : '-'}</td>
+                                            <td className="p-2 text-center text-sm">{subRec.credit > 0 ? renderDualCurrency(subRec.credit) : '-'}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                        })
+                      )}
+                    </tbody>
+                    {financialRecords.length > 0 && (
+                      <tfoot className="sticky bottom-0 z-10">
+                        <tr className="bg-[#1A4D4F] text-white font-bold shadow-[0_-2px_4px_rgba(0,0,0,0.1)]">
+                          <td colSpan={6} className="p-4 text-center border-t-2 border-[#164044]">
+                            الإجمالي للصفحة الحالية
+                          </td>
+                          <td className="p-4 text-center border-t-2 border-[#164044]">
+                            {renderDualCurrency(pageTotals.debit, 'text-white', 'text-white/80')}
+                          </td>
+                          <td className="p-4 text-center border-t-2 border-[#164044]">
+                            {renderDualCurrency(pageTotals.credit, 'text-white', 'text-white/80')}
+                          </td>
+                          <td className="p-4 text-center border-t-2 border-[#164044]">
+                            -
+                          </td>
+                          <td className="p-4 text-center border-t-2 border-[#164044]">
+                          </td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                ) : (
                 <table className="w-full bg-white border-collapse">
                   <thead>
                     <tr>
@@ -1228,7 +1600,7 @@ export default function ForeignOfficesFinancial() {
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-md font-normal">اسم المكتب</th>
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-md font-normal">اسم العميل</th>
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-md font-normal">رقم العقد</th>
-                      <th className="bg-[#1A4D4F] text-white p-4 text-center text-md font-normal">تاريخ العقد</th>
+                      <th className="bg-[#1A4D4F] text-white p-4 text-center text-md font-normal">تاريخ العقد / الفاتورة</th>
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-md font-normal">البيان</th>
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-md font-normal">مدين</th>
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-md font-normal">دائن</th>
@@ -1281,29 +1653,68 @@ export default function ForeignOfficesFinancial() {
                               onClick={() => handleClientDetailsClick(record)}
                               title="عرض تفاصيل العميل والمرفقات"
                             >
-                              {record.clientName || '-'}
+                              {record.clientName || 'مصروف عام'}
                             </button>
                           </td>
                           <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA]">
                             {record.internalMusanedContract || '-'}
                           </td>
                           <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA]">
-                            {record.contractDate ? getDate(record.contractDate) : '-'}
+                            <div>{record.contractDate ? getDate(record.contractDate) : '-'}</div>
+                            {record.invoiceNumber && (
+                              <div className="text-xs text-blue-600 mt-1 font-bold" title="رقم الفاتورة المجمعة">{record.invoiceNumber}</div>
+                            )}
                           </td>
                           <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA]">
                             {record.description || '-'}
                           </td>
                            <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA] whitespace-nowrap">
-                            {record.debit > 0 ? renderDualCurrency(record.debit) : '-'}
+                            {record.debit > 0 ? (
+                              <div>
+                                {renderDualCurrency(record.debit)}
+                                {record.debitSettlements && record.debitSettlements.length > 0 && (
+                                  <div className="text-xs mt-1 font-bold text-gray-500">
+                                    {(Number(record.debit) - record.debitSettlements.reduce((sum: number, s: any) => sum + Number(s.settledAmount), 0)) <= 0 ? (
+                                      <span className="text-green-600 bg-green-100 px-2 py-0.5 rounded-full">تم خصم كامل المبلغ</span>
+                                    ) : (
+                                      <span className="text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">متبقي: ${ (Number(record.debit) - record.debitSettlements.reduce((sum: number, s: any) => sum + Number(s.settledAmount), 0)).toFixed(2) }</span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            ) : '-'}
                           </td>
                           <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA] whitespace-nowrap">
-                            {record.credit > 0 ? renderDualCurrency(record.credit) : '-'}
+                            {record.credit > 0 ? (
+                              <div>
+                                {renderDualCurrency(record.credit)}
+                                {record.creditSettlements && record.creditSettlements.length > 0 && (
+                                  <div className="text-xs mt-1 font-bold text-gray-500">
+                                    {(Number(record.credit) - record.creditSettlements.reduce((sum: number, s: any) => sum + Number(s.settledAmount), 0)) <= 0 ? (
+                                      <span className="text-green-600 bg-green-100 px-2 py-0.5 rounded-full">تم خصم كامل المبلغ</span>
+                                    ) : (
+                                      <span className="text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">متبقي: ${ (Number(record.credit) - record.creditSettlements.reduce((sum: number, s: any) => sum + Number(s.settledAmount), 0)).toFixed(2) }</span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            ) : '-'}
                           </td>
                           <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA] whitespace-nowrap">
                             {renderDualCurrency(record.balance)}
                           </td>
                           <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA]">
                             <div className="flex gap-2 justify-center">
+                              <button
+                                className="bg-transparent border-none cursor-pointer p-1 rounded-md hover:bg-blue-100"
+                                onClick={() => handleShowHistory(record.id)}
+                                title="عرض التفاصيل (التسويات)"
+                              >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                  <circle cx="12" cy="12" r="3" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              </button>
                               <button
                                 className="bg-transparent border-none cursor-pointer p-1 rounded-md hover:bg-[#1A4D4F]/10"
                                 onClick={() => handleEditClick(record)}
@@ -1333,7 +1744,10 @@ export default function ForeignOfficesFinancial() {
                   {financialRecords.length > 0 && (
                     <tfoot className="sticky bottom-0 z-10">
                       <tr className="bg-[#1A4D4F] text-white font-bold shadow-[0_-2px_4px_rgba(0,0,0,0.1)]">
-                        <td colSpan={8} className="p-4 text-right border-t border-[#E0E0E0] pr-8">الإجمالي</td>
+
+                        <td colSpan={filters.groupByInvoice ? 6 : 8} className="p-4 text-right border-t border-[#E0E0E0] pr-8">
+                          الإجمالي (المتبقي الفعلي بعد الخصم)
+                        </td>
                         <td className="p-4 text-center border-t border-[#E0E0E0] whitespace-nowrap">
                           {renderDualCurrency(pageTotals.debit, 'text-white', 'text-white/80')}
                         </td>
@@ -1348,6 +1762,7 @@ export default function ForeignOfficesFinancial() {
                     </tfoot>
                   )}
                 </table>
+                )}
               </div>
 
               {/* Pagination */}
@@ -1395,7 +1810,52 @@ export default function ForeignOfficesFinancial() {
       </Layout>
 
       {/* Add Record Modal */}
-      {showAddModal && (
+      {showSettlementModal && filters.officeId && (
+        <SettlementModal
+          officeId={Number(filters.officeId)}
+          officeName={offices.find(o => o.id === Number(filters.officeId))?.office || 'المكتب'}
+          onClose={() => setShowSettlementModal(false)}
+          onSuccess={() => {
+            setShowSettlementModal(false);
+            showAlert('تمت التسوية بنجاح!', 'success');
+            fetchFinancialRecords(pagination.page); // تحديث السجلات
+          }}
+        />
+      )}
+
+      {showAddModal && !useLegacyModal && (
+        <ModernAddRecordModal
+          offices={offices}
+          currentOfficeId={filters.officeId}
+          onClose={() => setShowAddModal(false)}
+          onSuccess={() => {
+            setShowAddModal(false);
+            fetchFinancialRecords(1);
+          }}
+          showAlert={showAlert}
+        />
+      )}
+
+      {/* Record Settlement History Modal */}
+      {showHistoryModal && selectedRecordForHistory !== null && (
+        <RecordSettlementHistoryModal
+          recordId={selectedRecordForHistory}
+          onClose={() => {
+            setShowHistoryModal(false);
+            setSelectedRecordForHistory(null);
+          }}
+        />
+      )}
+
+      {/* Invoice Settlement History Modal */}
+      {selectedInvoiceForHistory !== null && (
+        <InvoiceSettlementHistoryModal
+          invoiceNumber={selectedInvoiceForHistory}
+          onClose={() => setSelectedInvoiceForHistory(null)}
+        />
+      )}
+
+      {showAddModal && useLegacyModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" dir="rtl">
           <div className="bg-white rounded-lg p-8 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto relative">
             <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">
@@ -1425,8 +1885,29 @@ export default function ForeignOfficesFinancial() {
               >
                 إضافة سجل قديم
               </button>
+              <button
+                type="button"
+                className={`flex-1 py-2 text-center text-lg font-semibold border-b-2 transition-colors ${
+                  activeAddTab === 'bulk'
+                    ? 'border-[#1A4D4F] text-[#1A4D4F]'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+                onClick={() => setActiveAddTab('bulk')}
+              >
+                إضافة فاتورة مجمعة
+              </button>
             </div>
             
+            {activeAddTab === 'bulk' ? (
+              <BulkAddRecordTab 
+                offices={offices} 
+                onSuccess={() => {
+                  setShowAddModal(false);
+                  fetchFinancialRecords(pagination.page);
+                }} 
+                showAlert={showAlert} 
+              />
+            ) : (
             <form onSubmit={(e) => { e.preventDefault(); handleAddRecord(); }}>
               {/* Contract Search / Manual Input */}
               {activeAddTab === 'new' ? (
@@ -1652,6 +2133,18 @@ export default function ForeignOfficesFinancial() {
                 </div>
 
                 <div>
+                  <label className="block text-md font-bold mb-2 text-gray-700">رقم الفاتورة (اختياري)</label>
+                  <input
+                    type="text"
+                    name="invoiceNumber"
+                    value={newRecord.invoiceNumber}
+                    onChange={handleNewRecordChange}
+                    placeholder="مثال: INV-0258"
+                    className="w-full p-3 border border-gray-300 rounded-md bg-white text-md"
+                  />
+                </div>
+
+                <div>
                   <label className="block text-md font-bold mb-2 text-gray-700">رصيد الدائن</label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">$</span>
@@ -1757,6 +2250,7 @@ export default function ForeignOfficesFinancial() {
                       credit: '',
                       debit: '',
                       invoice: '',
+                      invoiceNumber: '',
                       balance: '0',
                       date: todayIso
                     });
@@ -1772,6 +2266,7 @@ export default function ForeignOfficesFinancial() {
                 </button>
               </div>
             </form>
+            )}
           </div>
         </div>
       )}

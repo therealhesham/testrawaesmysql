@@ -90,6 +90,11 @@ const routes: IRoute[] = [
     // exact: true,
   },
   {
+    path: "/admin/quick_clients",
+    icon: "HomeIcon",
+    name: "العملاء المحتملين",
+  },
+  {
     path: "/admin/employees",
     icon: "HomeIcon",
     name: "الموظفين",

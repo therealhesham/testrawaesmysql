@@ -22,7 +22,7 @@ Button,Table,TableBody,TableCell,TableContainer,TableFooter,TableHeader,TableRow
   Label,
   Textarea,
   Pagination} from '@roketid/windmill-react-ui'
-import { MessageFilled, SendOutlined ,StepForwardFilled} from '@ant-design/icons'
+import { MessageFilled, SendOutlined ,StepForwardFilled, PhoneFilled} from '@ant-design/icons'
 function Header() {
   const { mode, toggleMode } = useContext(WindmillContext)
   const { toggleSidebar } = useContext(SidebarContext)
@@ -399,6 +399,16 @@ return (
             >
             
             <StepForwardFilled style={{color:"#Ecc383"}} />
+            </button>
+          </li>
+          
+          <li className="flex">
+            <button
+              className="rounded-md focus:outline-none focus:shadow-outline-purple bg-green-50 p-2 border border-green-200"
+              onClick={() => window.dispatchEvent(new Event('openQuickClientModal'))}
+              title="تسجيل اتصال سريع (Alt+Z)"
+            >
+              <PhoneFilled style={{ color: "#1A4D4F", fontSize: "1.2rem" }} />
             </button>
           </li>
           

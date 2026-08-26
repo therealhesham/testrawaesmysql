@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { FaBars, FaTimes, FaChevronDown, FaChevronUp, FaBug } from 'react-icons/fa';
+import { FaBars, FaTimes, FaChevronDown, FaChevronUp, FaBug, FaPhone } from 'react-icons/fa';
 import { BellIcon } from '@heroicons/react/solid';
 import { jwtDecode } from 'jwt-decode';
 import DOMPurify from 'dompurify';
@@ -334,6 +334,16 @@ const DesktopNavbar = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Quick Client Registration - إضافة اتصال سريع */}
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new Event('openQuickClientModal'))}
+              title="تسجيل اتصال سريع (Alt+Z)"
+              className="p-2 rounded-lg text-teal-700 hover:bg-teal-50 hover:text-teal-800 transition-colors"
+              aria-label="تسجيل اتصال سريع"
+            >
+              <FaPhone className="w-5 h-5" />
+            </button>
             {/* Bug Report - جنب جرس الاشعارات */}
             <button
               type="button"
