@@ -16,9 +16,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
       
       return res.status(200).json(newClient);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating QuickClient:', error);
-      return res.status(500).json({ error: 'Failed to save client' });
+      return res.status(500).json({ 
+        error: 'Failed to save client',
+        details: error?.message || String(error),
+        name: error?.name
+      });
     }
   } else if (req.method === 'GET') {
     try {
