@@ -41,8 +41,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (refMatch) {
         const y = Number(refMatch[1]);
         const mIdx = Number(refMatch[2]) - 1;
-        dateFilter.gte = new Date(y, mIdx, 8, 0, 0, 0, 0);
-        dateFilter.lte = new Date(y, mIdx + 1, 6, 23, 59, 59, 999);
+        // 00:00:00 KSA = -3 hours UTC
+        dateFilter.gte = new Date(Date.UTC(y, mIdx, 8, -3, 0, 0, 0));
+        // 23:59:59 KSA = 20:59:59 UTC
+        dateFilter.lte = new Date(Date.UTC(y, mIdx + 1, 6, 20, 59, 59, 999));
       } else if (monthSelection === 'previous') {
         const { start, end } = getPreviousBookingQuotaWindow();
         dateFilter.gte = start;

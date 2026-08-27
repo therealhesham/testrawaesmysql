@@ -1,10 +1,12 @@
 import type { PrismaClient } from "@prisma/client";
 
-/** نافذة الحجز: من 8 الشهر الميلادي الحالي (حسب اليوم) إلى 6 الشهر التالي — انظر التعليق في getBookingQuotaWindow */
+/** نافذة الحجز: من 8 الشهر الميلادي الحالي (حسب اليوم) إلى 6 الشهر التالي — تعمل بدقة بتوقيت السعودية (UTC+3) */
 export function getBookingQuotaWindow(reference: Date = new Date()): { start: Date; end: Date } {
-  const y = reference.getFullYear();
-  const m = reference.getMonth();
-  const d = reference.getDate();
+  // تحويل الوقت المرجعي لتوقيت السعودية (إضافة 3 ساعات) لمعرفة اليوم الحالي بدقة
+  const ksaTime = new Date(reference.getTime() + 3 * 60 * 60 * 1000);
+  const y = ksaTime.getUTCFullYear();
+  const m = ksaTime.getUTCMonth();
+  const d = ksaTime.getUTCDate();
 
   let startYear = y;
   let startMonth = m;
@@ -16,11 +18,14 @@ export function getBookingQuotaWindow(reference: Date = new Date()): { start: Da
     }
   }
 
-  const start = new Date(startYear, startMonth, 8, 0, 0, 0, 0);
+  // إنشاء تواريخ UTC دقيقة تعادل بداية يوم 8 ونهاية يوم 6 بتوقيت السعودية (-3 ساعات للتعويض)
+  const start = new Date(Date.UTC(startYear, startMonth, 8, -3, 0, 0, 0));
+  
   const endMonth = startMonth + 1;
   const endYear = endMonth > 11 ? startYear + 1 : startYear;
   const endM = endMonth > 11 ? 0 : endMonth;
-  const end = new Date(endYear, endM, 6, 23, 59, 59, 999);
+  const end = new Date(Date.UTC(endYear, endM, 6, 20, 59, 59, 999)); // 23:59:59 KSA = 20:59:59 UTC
+
   return { start, end };
 }
 

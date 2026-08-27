@@ -58,9 +58,9 @@ export function resolveHomemaidOrderStatsDateRange(
   if (period === "month") {
     const refDate = parseReferenceMonth(referenceMonth);
     if (refDate) {
-      // أي شهر تختاره → نافذة 8→7 المنطلقة من ذلك الشهر
-      const start = new Date(refDate.getFullYear(), refDate.getMonth(), 8, 0, 0, 0, 0);
-      const end = new Date(refDate.getFullYear(), refDate.getMonth() + 1, 6, 23, 59, 59, 999);
+      // أي شهر تختاره → نافذة 8→7 المنطلقة من ذلك الشهر، معتمدة على توقيت السعودية
+      const start = new Date(Date.UTC(refDate.getFullYear(), refDate.getMonth(), 8, -3, 0, 0, 0));
+      const end = new Date(Date.UTC(refDate.getFullYear(), refDate.getMonth() + 1, 6, 20, 59, 59, 999));
       return { gte: start, lte: end };
     }
     if (monthSelection === "previous") {
