@@ -36,13 +36,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         })
       );
     } else if (period === 'month') {
-      // نافذة زمنية من 8 الشهر إلى 7 الشهر التالي (مثل حصص الحجز)، وليس شهراً ميلادياً كاملاً
+      // نافذة زمنية من 8 الشهر إلى 6 الشهر التالي (مثل حصص الحجز)، وليس شهراً ميلادياً كاملاً
       const refMatch = typeof referenceMonth === 'string' ? referenceMonth.match(/^(\d{4})-(\d{1,2})$/) : null;
       if (refMatch) {
         const y = Number(refMatch[1]);
         const mIdx = Number(refMatch[2]) - 1;
         dateFilter.gte = new Date(y, mIdx, 8, 0, 0, 0, 0);
-        dateFilter.lte = new Date(y, mIdx + 1, 7, 23, 59, 59, 999);
+        dateFilter.lte = new Date(y, mIdx + 1, 6, 23, 59, 59, 999);
       } else if (monthSelection === 'previous') {
         const { start, end } = getPreviousBookingQuotaWindow();
         dateFilter.gte = start;
