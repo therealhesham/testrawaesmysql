@@ -8,7 +8,7 @@ export function getBookingQuotaWindow(reference: Date = new Date()): { start: Da
 
   let startYear = y;
   let startMonth = m;
-  if (d < 7) {
+  if (d < 8) {
     startMonth = m - 1;
     if (startMonth < 0) {
       startMonth = 11;

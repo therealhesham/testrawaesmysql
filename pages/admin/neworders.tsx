@@ -70,40 +70,58 @@ export default function Dashboard({ hasPermission, initialData }: DashboardProps
     const endDate = new Date(data.window.end).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long' });
 
     return (
-      <div className={`p-2 rounded-lg shadow-sm border inline-flex flex-col items-center gap-2 w-32 ${isOverLimit ? 'border-red-200 bg-red-50' : 'border-teal-100 bg-teal-50'}`} dir="rtl">
-        <div className="text-center border-b border-teal-100 pb-2 w-full">
-          <h3 className="text-[10px] font-bold text-gray-800 leading-none mb-1">حصة العقود الرجالية</h3>
-          <p className="text-[8px] text-gray-400">
-             {startDate} - {endDate}
-          </p>
+      <div className={`px-4 py-2 rounded-lg shadow-sm border flex items-center gap-6 w-fit ${isOverLimit ? 'border-red-200 bg-red-50' : 'border-teal-100 bg-teal-50/50'}`} dir="rtl">
+        
+        {/* Title and Date */}
+        <div className="flex items-center gap-2 border-l border-teal-100/60 pl-4">
+          <h3 className="text-xs font-bold text-gray-800">حصة العقود الرجالية</h3>
+          <p className="text-[10px] text-gray-500 font-medium">({startDate} - {endDate})</p>
         </div>
 
-        <div className="flex flex-col gap-2 w-full">
-          <div className="flex justify-between items-center">
-            <span className="text-[9px] text-gray-500">إجمالي:</span>
-            <span className="text-xs font-bold text-gray-800">{data.total}</span>
+        {/* Stats */}
+        <div className="flex items-center gap-4 border-l border-teal-100/60 pl-4">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-gray-500">إجمالي:</span>
+            <span className="text-sm font-black text-gray-700">{data.total}</span>
           </div>
-          
-          <div className="flex justify-between items-center">
-            <span className="text-[9px] text-gray-500">رجال:</span>
-            <span className="text-xs font-bold text-gray-800">{data.maleCount}</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-gray-500">رجال:</span>
+            <span className="text-sm font-black text-gray-700">{data.maleCount}</span>
           </div>
+        </div>
 
-          <div className="flex flex-col items-center pt-2 border-t border-teal-100">
-            <div className={`text-lg font-black leading-none mb-1 ${isOverLimit ? 'text-red-600' : 'text-teal-700'}`}>
+        {/* Limit and Progress */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className={`text-lg font-black leading-none ${isOverLimit ? 'text-red-600' : 'text-teal-700'}`}>
               {data.malePercentage.toFixed(1)}%
             </div>
-            <div className="text-[8px] font-medium text-gray-400">
-              الحد: {data.limit !== null ? `${data.limit}%` : 'غير محدد'}
+            <div className="text-[9px] font-medium text-gray-500 bg-white/60 px-2 py-0.5 rounded-full border border-gray-100 shadow-sm">
+              الحد: <span className="font-bold text-gray-700">{data.limit !== null ? `${data.limit}%` : 'غير محدد'}</span>
             </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {isOverLimit ? (
+              <span className="bg-red-600 text-white px-2 py-1 rounded text-[10px] font-bold animate-pulse shadow-sm">
+                ⚠️ تجاوز الحد!
+              </span>
+            ) : (
+              data.allowedRemaining !== null && data.allowedRemaining !== -1 && (
+                <span className="text-[10px] font-bold text-teal-700 bg-teal-100 border border-teal-200 px-2 py-1 rounded shadow-sm">
+                  متبقي: {data.allowedRemaining} رجالي
+                </span>
+              )
+            )}
+            
+            {data.femalesNeededForNextMale !== null && data.femalesNeededForNextMale > 0 && (
+              <span className="text-[10px] text-gray-600 bg-gray-100 border border-gray-200 px-2 py-1 rounded shadow-sm">
+                تحتاج <span className="font-bold text-teal-700">{data.femalesNeededForNextMale}</span> نسائي لإضافة رجالي
+              </span>
+            )}
           </div>
         </div>
 
-        {isOverLimit && (
-          <div className="bg-red-600 text-white px-1 py-0.5 rounded text-[8px] font-bold animate-pulse w-full text-center" dir="rtl">
-            تجاوز الحد!
-          </div>
-        )}
       </div>
     );
   };
@@ -1055,8 +1073,8 @@ useEffect(() => {
 
 
       <div className="bg-white border border-gray-300 rounded p-6">
-        <div className="flex flex-col md:flex-row justify-between items-start mb-6 gap-4">
-          <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-col xl:flex-row justify-between items-center mb-6 gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4">
             <div className="flex items-center border-none rounded bg-gray-50 p-2 h-10">
               <input
                 type="text"

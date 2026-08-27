@@ -69,6 +69,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const limit = cfg?.malePercentage != null ? Number(cfg.malePercentage) : null;
 
+    let allowedRemaining = null;
+    let femalesNeededForNextMale = null;
+
+    if (limit !== null) {
+      if (limit >= 100) {
+        allowedRemaining = -1; // Unlimited
+        femalesNeededForNextMale = 0;
+      } else if (limit <= 0) {
+        allowedRemaining = 0;
+        femalesNeededForNextMale = -1; // Impossible
+      } else {
+        const p = limit / 100;
+        const x = (p * total - maleCount) / (1 - p);
+        allowedRemaining = Math.max(0, Math.floor(x));
+
+        // How many female orders needed to increase allowedRemaining by 1?
+        const A = allowedRemaining;
+        const needed = Math.ceil((maleCount + A + 1) / p - (total + A + 1));
+        femalesNeededForNextMale = Math.max(0, needed);
+      }
+    }
+
     return res.status(200).json({
       maleCount,
       femaleCount,
@@ -76,6 +98,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       total,
       malePercentage,
       limit,
+      allowedRemaining,
+      femalesNeededForNextMale,
       window: {
         start: start.toISOString(),
         end: end.toISOString(),
