@@ -66,11 +66,8 @@ export default function Dashboard({ hasPermission, initialData }: DashboardProps
     );
 
     const isOverLimit = data.limit !== null && data.malePercentage > data.limit;
-    // Extract the date part (YYYY-MM-DD) and parse as local time to avoid KSA (+3) pushing 23:59 to the next day
-    const startLocal = data.window.start.substring(0, 10) + 'T00:00:00';
-    const endLocal = data.window.end.substring(0, 10) + 'T00:00:00';
-    const startDate = new Date(startLocal).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long' });
-    const endDate = new Date(endLocal).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long' });
+    const startDate = new Date(data.window.start).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long' });
+    const endDate = new Date(data.window.end).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long' });
 
     return (
       <div className={`px-4 py-2 rounded-lg shadow-sm border flex items-center gap-6 w-fit ${isOverLimit ? 'border-red-200 bg-red-50' : 'border-teal-100 bg-teal-50/50'}`} dir="rtl">
