@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import type { NextApiRequest, NextApiResponse } from "next";
 import prisma from "./globalprisma";
+import { sendOrderNotifications } from "../../lib/notificationsHelper";
 
 
 
@@ -45,6 +46,19 @@ if (req.method === "GET") {
         clientphonenumber: ClientPhone,
       },
     });
+    
+    // إرسال الإشعارات
+    try {
+      sendOrderNotifications(
+        newOrder.id,
+        ClientName || "عميل خارجي",
+        "",
+        (res.socket as any)?.server?.io
+      ).catch((e: any) => console.error("Error in background notifications", e));
+    } catch (notifError) {
+      console.error("Error importing/sending notifications", notifError);
+    }
+
     return res.status(201).json(newOrder);
   } catch (error) {
     console.log(error);

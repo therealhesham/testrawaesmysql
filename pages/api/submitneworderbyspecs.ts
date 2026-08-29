@@ -6,6 +6,7 @@ import {
   parseConfirmGenderQuotaWarning,
   REQUIRES_GENDER_QUOTA_CONFIRMATION,
 } from "../../lib/bookingGenderQuota";
+import { sendOrderNotifications } from "../../lib/notificationsHelper";
 
 export default async function handler(
   req: NextApiRequest,
@@ -87,9 +88,11 @@ export default async function handler(
     }
 
     let userId = null;
+    let username = null;
     try {
       const token = jwtDecode(cookies.authToken) as any;
       userId = token.id;
+      username = token.username;
     } catch (error) {
       console.log('No valid token found, proceeding without user info');
     }
@@ -187,7 +190,7 @@ export default async function handler(
         data: {
           Status: "إنشاء طلب جديد حسب المواصفات",
           Details: `تم إنشاء طلب رقم ${result.id} للعميل ${ClientName}`,
-          userId: token?.username,
+          userId: username,
           homemaidId: homemaidId ? Number(homemaidId) : null,
           },
         });
@@ -196,6 +199,17 @@ export default async function handler(
       console.error("Error creating log:", error);
     }
   
+    // إرسال الإشعارات
+    try {
+      sendOrderNotifications(
+        result.id,
+        ClientName || "عميل خارجي",
+        homemaidId || "",
+        (res.socket as any)?.server?.io
+      ).catch((e: any) => console.error("Error in background notifications", e));
+    } catch (notifError) {
+      console.error("Error importing/sending notifications", notifError);
+    }
 
     res.status(200).json({
       success: true,

@@ -5,6 +5,7 @@ import { writeFile } from 'fs/promises';
 import path from 'path';
 import eventBus from 'lib/eventBus';
 import { jwtDecode } from 'jwt-decode';
+import { sendOrderNotifications } from '../../lib/notificationsHelper';
 
 const prisma = new PrismaClient();
 
@@ -191,6 +192,18 @@ await prisma.neworder.delete({where:{id:newOrder.id}})
         type: `إنشاء طلب إيجار جديد رقم ${newOrder.id} - العميل: ${formData.customerName}`,
         userId: userId,
       });
+    }
+    
+    // إرسال الإشعارات
+    try {
+      sendOrderNotifications(
+        newOrder.id,
+        formData.customerName || "عميل خارجي",
+        parseInt(formData.workerId) || "",
+        (res.socket as any)?.server?.io
+      ).catch((e: any) => console.error("Error in background notifications", e));
+    } catch (notifError) {
+      console.error("Error importing/sending notifications", notifError);
     }
 
     return res.status(200).json({ message: 'Form submitted successfully', orderId: newOrder.id });
