@@ -11,7 +11,7 @@ import {
   HomeIcon,
   LogoutIcon,
 } from "../../../components/icons";
-import { FaCog, FaChevronDown, FaHotel, FaFirstOrderAlt, FaPersonBooth, FaEnvelope, FaDailymotion, FaBuilding, FaEnvelopeOpen, FaExclamationTriangle, FaPlane } from "react-icons/fa";
+import { FaCog, FaChevronDown, FaHotel, FaFirstOrderAlt, FaPersonBooth, FaEnvelope, FaDailymotion, FaBuilding, FaEnvelopeOpen, FaExclamationTriangle, FaPlane, FaEye, FaGlobe, FaUserTie, FaFemale } from "react-icons/fa";
 import { jwtDecode } from "jwt-decode";
 import { useSidebar } from "utils/sidebarcontext";
 import { AlertOutlined, BellFilled, BellOutlined, DollarCircleFilled, FileWordOutlined, MessageOutlined, NotificationFilled, NotificationOutlined } from "@ant-design/icons";
@@ -73,7 +73,7 @@ const menuItems: MenuItem[] = [
   {
     id: 3,
     label: "العملاء",
-    icon: PeopleIcon,
+    icon: FaUserTie,
     subItems: [
       { id: 31, label: "العملاء", link: "/admin/clients" },
       { id: 32, label: "العملاء المحتملون", link: "/admin/quick_clients" },
@@ -82,7 +82,7 @@ const menuItems: MenuItem[] = [
   {
     id: 4,
     label: " العاملات",
-    icon: PeopleIcon,
+    icon: FaFemale,
     subItems: [
       { id: 41, label: "قائمة العاملات", link: "/admin/fulllist" },
       { id: 42, label: "العاملات المتاحات", link: "/admin/availablelist" },
@@ -105,26 +105,11 @@ const menuItems: MenuItem[] = [
   {
     id: 2002,
         label: "الوصول و المغادرة",
-    icon: FaBuilding,
+    icon: FaPlane,
     subItems: [
       { id: 512, label: "الوصول", link: "/admin/arrival-list" },
       { id: 522, label: "المغادرة", link: "/admin/deparatures" },
     ],
-  },
-  {
-    id: 2005,
-    label: "الرحلات والتذاكر",
-    icon: FaPlane,
-    link: "/admin/flights",
-  },
-  { id: 6, label: "الاشعارات", icon: Bell, link: "/admin/notifications" },
-  { id: 7, label: "التقارير", icon: ReportsIcon, link: "/admin/reportsconverted" },
-  { id: 8, label: "القوالب", icon: TemplateIcon, link: "/admin/templates" },
-  {
-    id: 12,
-    label: "التحكم في الموقع الخارجي",
-    icon: FaCog,
-    link: "/admin/external-website",
   },
   {
     id: 9,
@@ -163,8 +148,28 @@ const menuItems: MenuItem[] = [
 
     ],
   },
+  { id: 7, label: "التقارير", icon: ReportsIcon, link: "/admin/reportsconverted" },
+  { id: 8, label: "القوالب", icon: TemplateIcon, link: "/admin/templates" },
+  {
+    id: 12,
+    label: "التحكم في الموقع الخارجي",
+    icon: FaGlobe,
+    link: "/admin/external-website",
+  },
  
  {
+    id: 11,
+    label: "الشكاوى",
+    icon: FaExclamationTriangle,
+    link: "/admin/complaints",
+  },{
+    id: 15,
+    label: "مركز الرقابة",
+    icon: FaEye,
+    link: "/admin/control-center",
+  },
+  { id: 6, label: "الاشعارات", icon: Bell, link: "/admin/notifications" },
+  {
     id: 10,
     label: "الإعدادات",
     icon: FaCog,
@@ -177,11 +182,6 @@ const menuItems: MenuItem[] = [
       { id: 98, label: "الملف الشخصي", link: "/admin/personal_page" },
       { id: 99, label: "وضع الاختبار", link: "#" },
     ],
-  },{
-    id: 11,
-    label: "الشكاوى",
-    icon: FaExclamationTriangle,
-    link: "/admin/complaints",
   }
 ];
 
@@ -194,6 +194,8 @@ const Sidebar = (props: any) => {
   const [role, setRole] = useState();
   const [showSplash, setShowSplash] = useState(true);
   const [canResolveComplaints, setCanResolveComplaints] = useState(false);
+  const [canViewControlCenter, setCanViewControlCenter] = useState(false);
+  const [hoveredMenu, setHoveredMenu] = useState<{ id: number, top: number, label: string, subItems: any[] } | null>(null);
 
   const activeMenu = useMemo(
     () =>
@@ -292,6 +294,8 @@ const Sidebar = (props: any) => {
           // التحقق من صلاحية حل الشكاوى
           const canResolve = !!permissions?.["إدارة الشكاوى"]?.["حل"];
           setCanResolveComplaints(canResolve);
+          const canViewCC = !!permissions?.["مركز الرقابة"]?.["عرض"];
+          setCanViewControlCenter(canViewCC);
         }
       } catch (error) {
         console.error("Error fetching user permissions:", error);
@@ -379,6 +383,9 @@ const Sidebar = (props: any) => {
             if (menu.id === 11 && !canResolveComplaints) {
               return false;
             }
+            if (menu.id === 15 && !canViewControlCenter) {
+              return false;
+            }
             return true;
           })
           .map((menuItem) => {
@@ -387,7 +394,17 @@ const Sidebar = (props: any) => {
           const isOpen = openMenu === menuItem.id;
 
           return (
-            <div key={menu.id}>
+            <div 
+              key={menu.id} 
+              className="relative"
+              onMouseEnter={(e) => {
+                if (toggleCollapse) {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setHoveredMenu({ id: menu.id, top: rect.top, label: menu.label, subItems: subItems || [] });
+                }
+              }}
+              onMouseLeave={() => setHoveredMenu(null)}
+            >
               <div
                 className={classes}
                 onClick={() => subItems && toggleSubMenu(menu.id)}
@@ -496,6 +513,60 @@ const Sidebar = (props: any) => {
           );
         })}
       </nav>
+
+      {/* Flyout Portal Menu (outside overflow boundaries) */}
+      {hoveredMenu && toggleCollapse && (
+        <div 
+          className="fixed z-[9999] bg-[#1a4d4f] border border-teal-700 shadow-2xl rounded-l-lg rounded-br-lg w-auto min-w-[140px] py-2"
+          style={{ top: hoveredMenu.top, right: '80px' }}
+          onMouseEnter={() => setHoveredMenu(hoveredMenu)} // Keep it open when hovering into the menu
+          onMouseLeave={() => setHoveredMenu(null)}
+        >
+          <div className={`px-4 py-1 text-teal-300 font-bold text-sm ${Style["tajawal-bold"]} ${hoveredMenu.subItems.length > 0 ? 'border-b border-teal-700/50 mb-1' : ''}`}>
+            {hoveredMenu.label}
+          </div>
+          {hoveredMenu.subItems.length > 0 && hoveredMenu.subItems.map((subItem) => {
+            const isTestModeItem = subItem.id === 99;
+            const isTestMode = isTestModeItem && typeof window !== 'undefined' && window.location.hostname.includes('wasltester');
+            const isLocalhost = isTestModeItem && typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+            return (
+              <div key={subItem.id} className={`px-2 py-1 ${isLocalhost ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                {isTestModeItem ? (
+                  <a 
+                    href="#"
+                    className="block w-full px-4 py-2 text-white hover:bg-teal-700/50 rounded transition-colors text-sm"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (isLocalhost) return;
+                      const targetDomain = isTestMode ? 'https://wasl.rawaes.com' : 'https://wasltester.rawaes.com';
+                      const token = localStorage.getItem('token');
+                      const currentPath = router.pathname;
+                      if (token) {
+                        window.location.href = `${targetDomain}/api/sso?token=${encodeURIComponent(token)}&redirect=${encodeURIComponent(currentPath)}`;
+                      } else {
+                        window.location.href = targetDomain;
+                      }
+                    }}
+                    title={isLocalhost ? 'وضع الاختبار غير متاح محلياً' : ''}
+                    style={isTestMode ? { backgroundColor: 'rgba(74, 222, 128, 0.2)' } : {}}
+                  >
+                    <span className={`${Style["tajawal-medium"]} ${isTestMode ? 'text-green-300' : ''}`}>
+                      {isTestMode ? 'الخروج من وضع الاختبار' : subItem.label}
+                    </span>
+                  </a>
+                ) : (
+                  <Link href={subItem.link}>
+                    <a className={`block w-full px-4 py-2 text-white hover:bg-teal-700/50 rounded transition-colors text-sm ${Style["tajawal-medium"]}`}>
+                      {subItem.label}
+                    </a>
+                  </Link>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* زر تسجيل الخروج مثبت أسفل */}
       <div className="absolute bottom-0 left-0 w-full p-6 border-t border-teal-800 bg-[#1a4d4f] flex flex-col gap-3 items-end">

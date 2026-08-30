@@ -63,3 +63,6 @@ default_no_triggers.sql
 scratch/test_order_email.js
 scratch/test_web_notif.js
 database_updates_production.sql
+exported.csv
+.gitignore
+exported 4-5.xlsx

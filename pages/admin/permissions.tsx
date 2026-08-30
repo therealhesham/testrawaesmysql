@@ -196,6 +196,7 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
     'إدارة الصلاحيات',
     'إدارة الشكاوى',
     'إدارة الإشعارات',
+    'مركز الرقابة',
   ];
   
   // دالة لإرجاع الصلاحيات المناسبة لكل قسم
@@ -203,6 +204,10 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
     // قسم الشكاوى له صلاحيات مختلفة
     if (section === 'إدارة الشكاوى') {
       return [ 'حل'];
+    }
+    // مركز الرقابة يحتاج فقط لصلاحية العرض
+    if (section === 'مركز الرقابة') {
+      return ['عرض'];
     }
     // قسم الإشعارات له خيارات مختلفة
     if (section === 'إدارة الإشعارات') {
