@@ -41,17 +41,21 @@ function MyApp({ Component, pageProps }: AppProps) {
   useEffect(() => {}, []);
   // console.log(pageProps);
   
-  const isLoginPage = typeof window !== "undefined" && window.location.pathname === "/login";
+  const isLoginPage = router.pathname.includes('/login');
 
   return (
     <GlobalToastProvider>
-      <DeliveryNotificationWrapper />
+      {!isLoginPage && <DeliveryNotificationWrapper />}
       <SidebarProvider>
           <Component {...pageProps} />
           {/* </Windmill> */}
       </SidebarProvider>
-      <QuickClientRegistrationModal />
-      <ChangelogModal />
+      {!isLoginPage && (
+        <>
+          <QuickClientRegistrationModal />
+          <ChangelogModal />
+        </>
+      )}
     </GlobalToastProvider>
   );
 }
