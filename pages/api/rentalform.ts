@@ -194,17 +194,18 @@ await prisma.neworder.delete({where:{id:newOrder.id}})
       });
     }
     
-    // إرسال الإشعارات
-    try {
-      sendOrderNotifications(
-        newOrder.id,
-        formData.customerName || "عميل خارجي",
-        parseInt(formData.workerId) || "",
-        (res.socket as any)?.server?.io
-      ).catch((e: any) => console.error("Error in background notifications", e));
-    } catch (notifError) {
-      console.error("Error importing/sending notifications", notifError);
-    }
+    setImmediate(async () => {
+      try {
+        await sendOrderNotifications(
+          newOrder.id,
+          formData.customerName || "عميل خارجي",
+          parseInt(formData.workerId) || "",
+          (res.socket as any)?.server?.io
+        );
+      } catch (notifError) {
+        console.error("Error importing/sending notifications", notifError);
+      }
+    });
 
     return res.status(200).json({ message: 'Form submitted successfully', orderId: newOrder.id });
   } catch (error) {

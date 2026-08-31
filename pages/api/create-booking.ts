@@ -100,12 +100,18 @@ console.error('Error creating log:', error);
     // إرسال الإشعارات بناءً على الصلاحيات
     // هنا لا نمتلك معلومات العميل (اسم العميل) مسبقاً، لذا نجلبها:
     const client = await prisma.client.findUnique({ where: { id: parseInt(clientId) } });
-    sendOrderNotifications(
-      booking.id,
-      client?.fullname || 'عميل خارجي',
-      booking.HomemaidId || workerId,
-      (res.socket as any)?.server?.io
-    ).catch(e => console.error("Error in background notifications", e));
+    setImmediate(async () => {
+      try {
+        await sendOrderNotifications(
+          booking.id,
+          client?.fullname || 'عميل خارجي',
+          booking.HomemaidId || workerId,
+          (res.socket as any)?.server?.io
+        );
+      } catch (e) {
+        console.error("Error in background notifications", e);
+      }
+    });
 
     return res.status(201).json(booking);
   } catch (error) {

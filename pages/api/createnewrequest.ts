@@ -5,7 +5,7 @@ import { sendOrderNotifications } from "../../lib/notificationsHelper";
 
 
 
-export default async function handler(req,res){
+export default async function handler(req: NextApiRequest, res: NextApiResponse){
 
 
 if (req.method === "GET") {
@@ -48,16 +48,18 @@ if (req.method === "GET") {
     });
     
     // إرسال الإشعارات
-    try {
-      sendOrderNotifications(
-        newOrder.id,
-        ClientName || "عميل خارجي",
-        "",
-        (res.socket as any)?.server?.io
-      ).catch((e: any) => console.error("Error in background notifications", e));
-    } catch (notifError) {
-      console.error("Error importing/sending notifications", notifError);
-    }
+    setImmediate(async () => {
+      try {
+        await sendOrderNotifications(
+          newOrder.id,
+          (newOrder as any).ClientName || "عميل خارجي",
+          (newOrder as any).HomemaidId || "",
+          (res.socket as any)?.server?.io
+        ).catch((e) => console.error("Error in background notifications", e));
+      } catch (notifError) {
+        console.error("Error importing/sending notifications", notifError);
+      }
+    });
 
     return res.status(201).json(newOrder);
   } catch (error) {
