@@ -1,13 +1,12 @@
-import { FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons';
+import { FileExcelOutlined, FilePdfOutlined, IdcardOutlined, PhoneOutlined, MailOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import Style from "styles/Home.module.css";
 import Layout from 'example/containers/Layout';
-import { ArrowDown, Plus, Search, X, ChevronUp, ChevronDown, User } from 'lucide-react';
+import { ArrowDown, Plus, Search, X, ChevronUp, ChevronDown, User, Check, Edit, MessageSquare, MoreHorizontal } from 'lucide-react';
 import Head from 'next/head';
 import type { GetServerSideProps } from 'next';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Select from 'react-select';
-import { MoreHorizontal } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import ExcelJS from 'exceljs';
@@ -37,96 +36,128 @@ interface DashboardProps {
   initialData: InitialData;
 }
 
-export default function Dashboard({ hasPermission, initialData }: DashboardProps) {
-  const GenderQuotaCard = () => {
-    const [data, setData] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
+const GenderQuotaCard = () => {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-      const fetchData = async () => {
-        try {
-          const res = await axios.get('/api/reports/contract-gender-quota');
-          setData(res.data);
-        } catch (err) {
-          console.error(err);
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchData();
-      const interval = setInterval(fetchData, 30000); // Refresh every 30 seconds
-      return () => clearInterval(interval);
-    }, []);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await axios.get('/api/reports/contract-gender-quota');
+        setData(res.data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+    const interval = setInterval(fetchData, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
+  }, []);
 
-    if (loading) return <div className="bg-white p-2 rounded-lg shadow-sm border w-32 h-24 animate-pulse"></div>;
-    if (!data) return (
-      <div className="p-2 rounded-lg shadow-sm border bg-red-50 border-red-200 w-32 text-center" dir="rtl">
-        <p className="text-[10px] text-red-600 font-bold">خطأ: الإعدادات غير موجودة</p>
+  if (loading) return <div className="bg-white p-2 rounded-lg shadow-sm border w-32 h-24 animate-pulse"></div>;
+  if (!data) return (
+    <div className="p-2 rounded-lg shadow-sm border bg-red-50 border-red-200 w-32 text-center" dir="rtl">
+      <p className="text-[10px] text-red-600 font-bold">خطأ: الإعدادات غير موجودة</p>
+    </div>
+  );
+
+  const isOverLimit = data.limit !== null && data.malePercentage > data.limit;
+  const startDate = new Date(data.window.start).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long' });
+  const endDate = new Date(data.window.end).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long' });
+
+  return (
+    <div className={`px-4 py-2 rounded-lg shadow-sm border flex items-center gap-6 w-fit ${isOverLimit ? 'border-red-200 bg-red-50' : 'border-teal-100 bg-teal-50/50'}`} dir="rtl">
+      
+      {/* Title and Date */}
+      <div className="flex items-center gap-2 border-l border-teal-100/60 pl-4">
+        <h3 className="text-xs font-bold text-gray-800">حصة العقود الرجالية</h3>
+        <p className="text-[10px] text-gray-500 font-medium">({startDate} - {endDate})</p>
       </div>
-    );
 
-    const isOverLimit = data.limit !== null && data.malePercentage > data.limit;
-    const startDate = new Date(data.window.start).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long' });
-    const endDate = new Date(data.window.end).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long' });
+      {/* Stats */}
+      <div className="flex items-center gap-4 border-l border-teal-100/60 pl-4">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-gray-500">إجمالي:</span>
+          <span className="text-sm font-black text-gray-700">{data.total}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-gray-500">رجال:</span>
+          <span className="text-sm font-black text-gray-700">{data.maleCount}</span>
+        </div>
+      </div>
 
-    return (
-      <div className={`px-4 py-2 rounded-lg shadow-sm border flex items-center gap-6 w-fit ${isOverLimit ? 'border-red-200 bg-red-50' : 'border-teal-100 bg-teal-50/50'}`} dir="rtl">
+      {/* Limit and Progress */}
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <div className={`text-lg font-black leading-none ${isOverLimit ? 'text-red-600' : 'text-teal-700'}`}>
+            {data.malePercentage.toFixed(1)}%
+          </div>
+          <div className="text-[9px] font-medium text-gray-500 bg-white/60 px-2 py-0.5 rounded-full border border-gray-100 shadow-sm">
+            الحد: <span className="font-bold text-gray-700">{data.limit !== null ? `${data.limit}%` : 'غير محدد'}</span>
+          </div>
+        </div>
         
-        {/* Title and Date */}
-        <div className="flex items-center gap-2 border-l border-teal-100/60 pl-4">
-          <h3 className="text-xs font-bold text-gray-800">حصة العقود الرجالية</h3>
-          <p className="text-[10px] text-gray-500 font-medium">({startDate} - {endDate})</p>
-        </div>
-
-        {/* Stats */}
-        <div className="flex items-center gap-4 border-l border-teal-100/60 pl-4">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] text-gray-500">إجمالي:</span>
-            <span className="text-sm font-black text-gray-700">{data.total}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] text-gray-500">رجال:</span>
-            <span className="text-sm font-black text-gray-700">{data.maleCount}</span>
-          </div>
-        </div>
-
-        {/* Limit and Progress */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className={`text-lg font-black leading-none ${isOverLimit ? 'text-red-600' : 'text-teal-700'}`}>
-              {data.malePercentage.toFixed(1)}%
-            </div>
-            <div className="text-[9px] font-medium text-gray-500 bg-white/60 px-2 py-0.5 rounded-full border border-gray-100 shadow-sm">
-              الحد: <span className="font-bold text-gray-700">{data.limit !== null ? `${data.limit}%` : 'غير محدد'}</span>
-            </div>
-          </div>
+        <div className="flex items-center gap-2">
+          {isOverLimit ? (
+            <span className="bg-red-600 text-white px-2 py-1 rounded text-[10px] font-bold animate-pulse shadow-sm">
+              ⚠️ تجاوز الحد!
+            </span>
+          ) : (
+            data.allowedRemaining !== null && data.allowedRemaining !== -1 && (
+              <span className="text-[10px] font-bold text-teal-700 bg-teal-100 border border-teal-200 px-2 py-1 rounded shadow-sm">
+                متبقي: {data.allowedRemaining} رجالي
+              </span>
+            )
+          )}
           
-          <div className="flex items-center gap-2">
-            {isOverLimit ? (
-              <span className="bg-red-600 text-white px-2 py-1 rounded text-[10px] font-bold animate-pulse shadow-sm">
-                ⚠️ تجاوز الحد!
-              </span>
-            ) : (
-              data.allowedRemaining !== null && data.allowedRemaining !== -1 && (
-                <span className="text-[10px] font-bold text-teal-700 bg-teal-100 border border-teal-200 px-2 py-1 rounded shadow-sm">
-                  متبقي: {data.allowedRemaining} رجالي
-                </span>
-              )
-            )}
-            
-            {data.femalesNeededForNextMale !== null && data.femalesNeededForNextMale > 0 && (
-              <span className="text-[10px] text-gray-600 bg-gray-100 border border-gray-200 px-2 py-1 rounded shadow-sm">
-                تحتاج <span className="font-bold text-teal-700">{data.femalesNeededForNextMale}</span> نسائي لإضافة رجالي
-              </span>
-            )}
-          </div>
+          {data.femalesNeededForNextMale !== null && data.femalesNeededForNextMale > 0 && (
+            <span className="text-[10px] text-gray-600 bg-gray-100 border border-gray-200 px-2 py-1 rounded shadow-sm">
+              تحتاج <span className="font-bold text-teal-700">{data.femalesNeededForNextMale}</span> نسائي لإضافة رجالي
+            </span>
+          )}
         </div>
-
       </div>
-    );
-  };
 
+    </div>
+  );
+};
 
+const getTimeElapsedArabic = (dateString?: string) => {
+  if (!dateString) return 'غير متوفر';
+  const createdDate = new Date(dateString);
+  const now = new Date();
+  const diffInMs = now.getTime() - createdDate.getTime();
+  
+  if (diffInMs < 0) return 'الآن'; // Handle edge case for clock skew
+
+  const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+  const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+  const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+
+  if (diffInDays > 0) {
+    if (diffInDays === 1) return 'منذ يوم';
+    if (diffInDays === 2) return 'منذ يومين';
+    if (diffInDays <= 10) return `منذ ${diffInDays} أيام`;
+    return `منذ ${diffInDays} يوم`;
+  }
+  if (diffInHours > 0) {
+    if (diffInHours === 1) return 'منذ ساعة';
+    if (diffInHours === 2) return 'منذ ساعتين';
+    if (diffInHours <= 10) return `منذ ${diffInHours} ساعات`;
+    return `منذ ${diffInHours} ساعة`;
+  }
+  if (diffInMinutes > 0) {
+    if (diffInMinutes === 1) return 'منذ دقيقة';
+    if (diffInMinutes === 2) return 'منذ دقيقتين';
+    if (diffInMinutes <= 10) return `منذ ${diffInMinutes} دقائق`;
+    return `منذ ${diffInMinutes} دقيقة`;
+  }
+  return 'الآن';
+};
+
+export default function Dashboard({ hasPermission, initialData }: DashboardProps) {
   const [userName, setUserName] = useState('');
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -135,7 +166,17 @@ export default function Dashboard({ hasPermission, initialData }: DashboardProps
     setUserName(decoded.username || '');
   }, []);
   const [activePopup, setActivePopup] = useState<string | null>(null);
-  const [allOrders] = useState(initialData?.newOrders || []);
+
+  const noteInputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (activePopup === 'popup-add-note') {
+      setTimeout(() => {
+        noteInputRef.current?.focus();
+      }, 100);
+    }
+  }, [activePopup]);
+  const [allOrders, setAllOrders] = useState<any[]>(initialData?.newOrders || []);
   const [clients] = useState(initialData?.clients || []);
   const [homemaids] = useState(initialData?.homemaids || []);
   const [offices] = useState(initialData?.offices || []);
@@ -171,6 +212,10 @@ const [selectedClient, setSelectedClient] = useState<any>(null);
 const [clientSuggestions, setClientSuggestions] = useState<any[]>([]);
 const [showClientSuggestions, setShowClientSuggestions] = useState(false);
 const [clientSearchTerm, setClientSearchTerm] = useState('');
+const [communicationNotes, setCommunicationNotes] = useState<any[]>([]);
+const [newNoteText, setNewNoteText] = useState('');
+const [isLoadingNotes, setIsLoadingNotes] = useState(false);
+const [isSavingNote, setIsSavingNote] = useState(false);
 
 // Auto search functions for clients
 const searchClients = (searchTerm: string) => {
@@ -484,6 +529,56 @@ autoFocus
     setSelectedOrderId(null);
     setSelectedClientId(null);
     setRejectionReason('');
+    setNewNoteText('');
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closePopup();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const fetchCommunicationNotes = async (orderId: string) => {
+    setIsLoadingNotes(true);
+    setCommunicationNotes([]);
+    try {
+      const res = await axios.get(`/api/order-notes?orderId=${orderId}`);
+      if (res.data.success) {
+        setCommunicationNotes(res.data.notes || []);
+      }
+    } catch (err) {
+      console.error('Error fetching notes', err);
+    } finally {
+      setIsLoadingNotes(false);
+    }
+  };
+
+  const handleSaveCommunicationNote = async () => {
+    if (!newNoteText.trim() || !selectedOrderId) return;
+    setIsSavingNote(true);
+    try {
+      const res = await axios.post(`/api/order-notes?orderId=${selectedOrderId}`, {
+        text: newNoteText,
+        username: userName || 'Admin'
+      });
+      if (res.data.success) {
+        setCommunicationNotes(res.data.notes);
+        setAllOrders(prev => prev.map(order => 
+          order.id === selectedOrderId 
+            ? { ...order, communicationNotes: res.data.notes } 
+            : order
+        ));
+        setNewNoteText('');
+      }
+    } catch (err) {
+      console.error('Error saving note', err);
+    } finally {
+      setIsSavingNote(false);
+    }
   };
 
   const closeModal = () => {
@@ -1180,86 +1275,28 @@ useEffect(() => {
             <table className="w-full text-right text-sm" dir='ltr'>
               <thead className="bg-teal-900 text-white">
                 <tr>
-                  <th className="l pr-6 text-center">الإجراءات</th>
-                  <th className="p-4 text-center">عرض</th>
-                  <th className="p-4 cursor-pointer hover:bg-teal-800" onClick={() => handleSort('age')}>
-                    <div className="flex items-center gap-1 text-center">
-                      <span>العمر</span>
+                  <th className="p-4 text-center w-[10%]">الإجراءات</th>
+                  <th className="p-4 text-center w-[5%]">عرض</th>
+                  <th className="p-4 pr-8 text-right w-[18%]">أخر ملاحظة</th>
+                  <th className="p-4 pr-8 text-right w-[12%]">مدة الطلب</th>
+                  <th className="p-4 pr-8 cursor-pointer hover:bg-teal-800 text-right w-[25%]" onClick={() => handleSort('maidName')}>
+                    <div className="flex items-center justify-start gap-1" dir="rtl">
+                      <span>بيانات العاملة</span>
                       {sortField  && (
                         sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>  
                       )}
                     </div>
                   </th>
-                  <th className="p-4 cursor-pointer hover:bg-teal-800" onClick={() => handleSort('passport')}>
-                    <div className="flex items-center gap-1 text-center">
-                      <span>جواز السفر</span>
-                      {sortField  && (
-                        sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>  
-                      )}
-                    </div>
-                  </th>
-                  <th className="p-4 cursor-pointer hover:bg-teal-800" onClick={() => handleSort('nationality')}>
-                    <div className="flex items-center gap-1 text-center">
-                        <span>الجنسية</span>
-                      {sortField  && (
-                        sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>  
-                      )}
-                    </div>
-                  </th>
-
-
-
-
-
-
-                  <th className="p-4 cursor-pointer hover:bg-teal-800 " onClick={() => handleSort('maidName')}>
-                    <div className="flex items-center gap-1 text-center">
-                        <span>اسم العاملة</span>
-                      {sortField  && (
-                        sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>  
-                      )}
-                    </div>
-                  </th>
-
-
-
-
-
-
-                  <th className="p-4 cursor-pointer hover:bg-teal-800" onClick={() => handleSort('maidId')}>
-                    <div className="flex items-center gap-1 text-center">
-                      <span>رقم العاملة</span>
+                  <th className="p-4 pr-8 cursor-pointer hover:bg-teal-800 text-right w-[20%]" onClick={() => handleSort('clientName')}>
+                    <div className="flex items-center justify-start gap-1" dir="rtl">
+                      <span>بيانات العميل</span>
                       {sortField  && (
                         sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>
                       )}
                     </div>
                   </th>
-                  <th className="p-4 cursor-pointer hover:bg-teal-800" onClick={() => handleSort('clientId')}>
-                    <div className="flex items-center gap-1 text-center">
-                      <span>هوية العميل</span>
-                      {sortField  && (
-                        sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>  
-                      )}
-                    </div>
-                  </th>
-                  <th className="p-4 cursor-pointer hover:bg-teal-800" onClick={() => handleSort('clientPhone')}>
-                    <div className="flex items-center gap-1 text-center">
-                      <span>رقم العميل</span>
-                      {sortField  && (
-                        sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>
-                      )}
-                    </div>
-                  </th>
-                  <th className="p-4 cursor-pointer hover:bg-teal-800" onClick={() => handleSort('clientName')}>
-                    <div className="flex items-center gap-1 text-center">
-                      <span>اسم العميل</span>
-                      {sortField  && (
-                        sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>
-                      )}
-                    </div>
-                  </th>
-                  <th className="p-4 pl-6 cursor-pointer hover:bg-teal-800" onClick={() => handleSort('id')}>
-                    <div className="flex items-center gap-1 text-center">
+                  <th className="p-4 pr-6 cursor-pointer hover:bg-teal-800 text-right w-[10%]" onClick={() => handleSort('id')}>
+                    <div className="flex items-center justify-start gap-1" dir="rtl">
                       <span>رقم الطلب</span>
                       {sortField  && (
                         sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>
@@ -1272,75 +1309,145 @@ useEffect(() => {
 <tbody>
   {newOrders.map((row, index) => (
     <>
-      <tr key={index} className="bg-gray-50">
-        <td className="p-4 pr-6">
-          <button
-            className="p-1 cursor-pointer"
-            onClick={(e) => handleOpenMenu(e, index)}
-          >
-            <MoreHorizontal />
-          </button>
-          {menuPosition && menuPosition.row === index && (
-            <div
-              className="fixed w-40 bg-gray-100 border border-gray-200 rounded shadow-lg z-50 text-center"
-              style={{
-                top: menuPosition.y,
-                left: menuPosition.x,
+      <tr key={index} className="bg-gray-50 hover:bg-gray-100 transition-colors">
+        <td className="p-4 text-center">
+          <div className="flex flex-nowrap items-center justify-center gap-2 min-w-max" dir="rtl">
+
+            <button
+              title="قبول الطلب"
+              className="p-1.5 bg-transparent text-green-600 rounded hover:bg-green-50 transition-colors"
+              onClick={() => {
+                setSelectedOrderId(row?.id);
+                setSelectedClientId(null);
+                openPopup("popup-confirm-accept");
               }}
             >
-              <button
-                className="block w-full text-center px-4 py-2 hover:bg-gray-100"
-                onClick={() => {
-                  setSelectedOrderId(row?.id);
-                  setSelectedClientId(null);
-                  openPopup("popup-confirm-accept");
-                  setMenuPosition(null);
-                }}
-              >
-                قبول الطلب
-              </button>
-              <button
-                className="block w-full text-center px-4 py-2 hover:bg-gray-100"
-                onClick={() => {
-                  setSelectedOrderId(row?.id);
-                  setSelectedClientId(row?.clientID ? String(row.clientID) : null);
-                  openPopup("popup-confirm-reject");
-                  setMenuPosition(null);
-                }}
-              >
-                رفض الطلب
-              </button>
-              <button
-                className="block w-full text-center px-4 py-2 hover:bg-gray-100"
-                onClick={() => {
-                  const editPage = row.isAvailable ? 'add-available' : 'add-specs';
-                  router.push(`/admin/order-form?type=${editPage}&orderId=${row.id}`);
-                  setMenuPosition(null);
-                }}
-              >
-                تعديل
-              </button>
+              <Check size={22} strokeWidth={2.5} />
+            </button>
+            <button
+              title="تعديل"
+              className="p-1.5 bg-transparent text-blue-600 rounded hover:bg-blue-50 transition-colors"
+              onClick={() => {
+                const editPage = row.isAvailable ? 'add-available' : 'add-specs';
+                router.push(`/admin/order-form?type=${editPage}&orderId=${row.id}`);
+              }}
+            >
+              <Edit size={20} strokeWidth={2.5} />
+            </button>
+            <button
+              title="رفض الطلب"
+              className="p-1.5 bg-transparent text-red-600 rounded hover:bg-red-50 transition-colors"
+              onClick={() => {
+                setSelectedOrderId(row?.id);
+                setSelectedClientId(row?.clientID ? String(row.clientID) : null);
+                openPopup("popup-confirm-reject");
+              }}
+            >
+              <X size={22} strokeWidth={2.5} />
+            </button>
+          </div>
+        </td>
+        <td className={`p-4 text-center ${row.HomeMaid?.logs?.length > 0 ? 'cursor-pointer' : ''}`}>
+          <div className="flex justify-center">
+            <ChevronDown onClick={() =>  row.HomeMaid?.logs?.length > 0 ? toggleDetails(index) : null}  color={row.HomeMaid?.logs?.length > 0 ? 'black' : 'gray'} />
+          </div>
+        </td>
+        <td className="p-4 pr-8 text-right">
+          {(() => {
+            const notes = row.communicationNotes || [];
+            const hasNotes = Array.isArray(notes) && notes.length > 0;
+            const lastNote = hasNotes ? notes[notes.length - 1] : null;
+
+            return (
+              <div className="flex items-center justify-start" dir="rtl">
+                {hasNotes ? (
+                  <div 
+                    className="relative bg-white border border-gray-200 shadow-sm rounded-2xl rounded-tr-sm p-2 flex items-center gap-3 w-full max-w-[220px] cursor-pointer hover:shadow-md hover:border-teal-300 transition-all group"
+                    onClick={() => {
+                      setSelectedOrderId(row?.id);
+                      fetchCommunicationNotes(String(row?.id));
+                      openPopup("popup-view-notes");
+                    }}
+                    title="انقر لعرض الملاحظات السابقة"
+                  >
+                    <div className="flex-1 overflow-hidden flex flex-col gap-0.5">
+                      <span className="text-[10px] text-teal-600 font-bold truncate">{lastNote.user}</span>
+                      <span className="text-[11px] text-gray-800 truncate" title={lastNote.text}>{lastNote.text}</span>
+                    </div>
+                    <button
+                      className="p-1.5 bg-teal-50 text-teal-600 group-hover:bg-teal-600 group-hover:text-white rounded-full transition-colors flex-shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedOrderId(row?.id);
+                        fetchCommunicationNotes(String(row?.id));
+                        openPopup("popup-add-note");
+                      }}
+                      title="إضافة ملاحظة جديدة"
+                    >
+                      <Plus size={14} strokeWidth={3} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    title="إضافة ملاحظة"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 border border-dashed border-gray-300 rounded-full text-gray-500 hover:text-teal-600 hover:border-teal-400 hover:bg-teal-50 transition-colors"
+                    onClick={() => {
+                      setSelectedOrderId(row?.id);
+                      fetchCommunicationNotes(String(row?.id));
+                      openPopup("popup-add-note");
+                    }}
+                  >
+                    <Plus size={14} />
+                    <span className="text-xs">إضافة ملاحظة</span>
+                  </button>
+                )}
+              </div>
+            );
+          })()}
+        </td>
+        <td className="p-4 pr-8 text-right font-medium text-gray-700">
+          <span dir="rtl">{getTimeElapsedArabic(row.createdAt)}</span>
+        </td>
+        <td className="p-4 pr-8 text-right">
+          <div className="flex flex-col gap-2 items-start justify-center" dir="rtl">
+            <span 
+              className="font-medium text-gray-800 text-[15px] cursor-pointer hover:text-teal-700 transition-colors hover:underline flex items-center justify-start gap-1 flex-wrap"
+              onClick={() => row.HomeMaid?.id && router.push(`/admin/homemaidinfo?id=${row.HomeMaid.id}`)}
+            >
+              <span dir="ltr">{row.HomeMaid?.Name || 'غير متوفر'}</span>
+              <span className="text-xs text-gray-500 font-normal mr-1">
+                ({row.HomeMaid?.age || calculateAge(row.HomeMaid?.dateofbirth)} سنة)
+              </span>
+            </span>
+            <div className="flex items-center justify-start gap-2 text-sm text-gray-500">
+              <span className="flex items-center gap-1"><IdcardOutlined className="text-gray-400" /> {row.HomeMaid?.Passportnumber || row.HomeMaid?.passportNumber || row.Passportnumber || 'غير متوفر'}</span>
+              <span className="text-gray-300">|</span>
+              <span>{row.HomeMaid?.office?.Country || 'غير متوفر'}</span>
             </div>
-          )}
+          </div>
         </td>
-        <td className={`p-4 ${row.HomeMaid?.logs.length > 0 ? 'cursor-pointer' : ''}`}>
-          <ChevronDown onClick={() =>  row.HomeMaid?.logs.length > 0 ? toggleDetails(index) : null}  color={row.HomeMaid?.logs.length > 0 ? 'black' : 'gray'} />
+        <td className="p-4 pr-8 text-right">
+          <div className="flex flex-col gap-2 items-start justify-center" dir="rtl">
+            <span 
+              className="font-medium text-gray-800 text-[15px] cursor-pointer hover:text-teal-700 transition-colors hover:underline"
+              onClick={() => row.client?.id && router.push(`/admin/clientdetails?id=${row.client.id}`)}
+            >
+              {row.client?.fullname || 'غير متوفر'}
+            </span>
+            <div className="flex items-center justify-start gap-2 text-sm text-gray-500">
+              <span className="flex items-center gap-1 max-w-[160px] truncate" title={row.client?.email || 'غير متوفر'}><MailOutlined className="text-gray-400" /> <span dir="ltr">{row.client?.email || 'غير متوفر'}</span></span>
+              <span className="text-gray-300">|</span>
+              <span className="flex items-center gap-1"><PhoneOutlined className="text-gray-400" /> <span dir="ltr">{row.client?.phonenumber || 'غير متوفر'}</span></span>
+            </div>
+          </div>
         </td>
-        <td className="p-4 text-center">{row.HomeMaid?.age || calculateAge(row.HomeMaid?.dateofbirth)}</td>
-        <td className="p-4 text-center">{row.Passportnumber || 'غير متوفر'}</td>
-        <td className="p-4 text-center">{row.HomeMaid?.office?.Country || 'غير متوفر'}</td>
-        <td className="p-4 text-center">{row.HomeMaid?.Name || 'غير متوفر'}</td>
-        <td className="p-4 text-center">{row.HomeMaid?.id || 'غير متوفر'}</td>
-        <td className="p-4 text-center">{row.client?.nationalId || 'غير متوفر'}</td>
-        <td className="p-4 text-center">{row.client?.phonenumber || 'غير متوفر'}</td>
-        <td className="p-4 text-center">{row.client?.fullname || 'غير متوفر'}</td>
-        <td className="p-4 text-center cursor-pointer" onClick={() => handleOrderClick(row.id)}>
-          #{row.id}
+        <td className="p-4 pr-6 text-right font-medium cursor-pointer" onClick={() => handleOrderClick(row.id)}>
+          <span dir="rtl">#{row.id}</span>
         </td>
       </tr>
       {detailsRow === index && (
         <tr className="bg-white">
-          <td colSpan={11} className="p-0">
+          <td colSpan={5} className="p-0">
             <div className="p-4">
               <div className="border border-gray-300 rounded">
                 <div className="grid grid-cols-5 bg-gray-100 font-bold text-base p-3 border-b border-gray-300 ">
@@ -1494,6 +1601,99 @@ useEffect(() => {
                 <button className="bg-teal-900 text-white px-4 py-2 rounded w-full hover:bg-teal-800 transition duration-200">
                   عميل جديد
                 </button>
+              </div>
+            )}
+            {activePopup === 'popup-view-notes' && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg" dir="rtl">
+                  <h2 className="text-xl font-bold mb-4 text-gray-800">الملاحظات السابقة</h2>
+                  <div className="mb-4 max-h-80 overflow-y-auto border border-gray-200 rounded-lg p-2 bg-gray-50">
+                    {isLoadingNotes ? (
+                      <p className="text-center text-gray-500 py-4">جاري التحميل...</p>
+                    ) : communicationNotes.length > 0 ? (
+                      communicationNotes.map((note, index) => (
+                        <div key={index} className="bg-white p-3 rounded-md shadow-sm mb-2 border border-gray-100">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="font-semibold text-teal-700 text-sm">{note.user}</span>
+                            <span className="text-xs text-gray-400">
+                              {new Date(note.date).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}
+                            </span>
+                          </div>
+                          <p className="text-gray-700 text-sm whitespace-pre-wrap">{note.text}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-center text-gray-500 py-4">لا توجد ملاحظات لهذا الطلب بعد.</p>
+                    )}
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded"
+                      onClick={closePopup}
+                    >
+                      إغلاق
+                    </button>
+                    <button
+                      className="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded flex items-center gap-2"
+                      onClick={() => openPopup('popup-add-note')}
+                    >
+                      إضافة ملاحظة جديدة
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {activePopup === 'popup-add-note' && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg" dir="rtl">
+                  <h2 className="text-xl font-bold mb-4 text-gray-800">إضافة ملاحظة جديدة</h2>
+                  
+                  <div className="mb-4">
+                    <textarea
+                      ref={noteInputRef}
+                      className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none min-h-[120px]"
+                      placeholder="اكتب ملاحظتك هنا..."
+                      value={newNoteText}
+                      onChange={(e) => setNewNoteText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          if (!isSavingNote && newNoteText.trim()) {
+                            handleSaveCommunicationNote().then(() => {
+                              if (!isSavingNote) {
+                                closePopup();
+                              }
+                            });
+                          }
+                        }
+                      }}
+                    ></textarea>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded"
+                      onClick={closePopup}
+                    >
+                      إلغاء
+                    </button>
+                    <button
+                      className={`bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded flex items-center gap-2 ${isSavingNote || !newNoteText.trim() ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      onClick={() => {
+                        handleSaveCommunicationNote().then(() => {
+                           if (!isSavingNote) {
+                             closePopup();
+                           }
+                        });
+                      }}
+                      disabled={isSavingNote || !newNoteText.trim()}
+                    >
+                      {isSavingNote ? 'جاري الحفظ...' : 'حفظ الملاحظة'}
+                      {!isSavingNote && <Check className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
             {activePopup === 'popup-product-check' && (

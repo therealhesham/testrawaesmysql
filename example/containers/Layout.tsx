@@ -146,9 +146,9 @@ function isJwtExpired(token) {
       <MobileNavbar />
       
       {/* Desktop Layout */}
-      <div className="hidden lg:flex h-screen w-screen">
+      <div className="hidden lg:flex h-screen w-full overflow-hidden">
         <Sidebar />
-        <div className="flex flex-col flex-1 w-full h-full min-w-0">
+        <div className="flex flex-col flex-1 w-full h-full min-w-0 overflow-hidden">
           <DesktopNavbar />
           <Main>{children}</Main>
         </div>

@@ -428,6 +428,7 @@ transactios transactions[]
 ratings       Rating[]
   ReasonOfRejection  String?   @db.VarChar(255)
   ReasonOfCancellation String?   @db.VarChar(255)
+  communicationNotes Json?
   typeOfContract String?
   housed              housing[]
   income              income[]

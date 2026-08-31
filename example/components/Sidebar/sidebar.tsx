@@ -400,7 +400,17 @@ const Sidebar = (props: any) => {
               onMouseEnter={(e) => {
                 if (toggleCollapse) {
                   const rect = e.currentTarget.getBoundingClientRect();
-                  setHoveredMenu({ id: menu.id, top: rect.top, label: menu.label, subItems: subItems || [] });
+                  let top = rect.top;
+                  
+                  if (subItems && subItems.length > 0) {
+                    const estimatedHeight = subItems.length * 40 + 40; // ~40px per item + header height
+                    if (top + estimatedHeight > window.innerHeight) {
+                      top = window.innerHeight - estimatedHeight - 10;
+                    }
+                    if (top < 10) top = 10;
+                  }
+                  
+                  setHoveredMenu({ id: menu.id, top: top, label: menu.label, subItems: subItems || [] });
                 }
               }}
               onMouseLeave={() => setHoveredMenu(null)}

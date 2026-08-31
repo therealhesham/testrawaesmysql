@@ -16,6 +16,7 @@ import { SidebarProvider } from "utils/sidebarcontext";
 import { GlobalToastProvider } from "../components/GlobalToast";
 import { DeliveryNotificationWrapper } from "../components/DeliveryNotificationWrapper";
 import QuickClientRegistrationModal from "../components/QuickClientRegistrationModal";
+import ChangelogModal from "../components/ChangelogModal";
 // import { SidebarProvider } from "context/SidebarContext";
 function MyApp({ Component, pageProps }: AppProps) {
   const [user, setUser] = useState("ssssss");
@@ -50,6 +51,7 @@ function MyApp({ Component, pageProps }: AppProps) {
           {/* </Windmill> */}
       </SidebarProvider>
       <QuickClientRegistrationModal />
+      <ChangelogModal />
     </GlobalToastProvider>
   );
 }

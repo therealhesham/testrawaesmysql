@@ -795,8 +795,132 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
             )}
           </div>
         )}
+        {/* Complaint Modal */}
+        {isComplaintModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl w-11/12 md:w-2/3 lg:w-1/2 max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="bg-teal-700 p-6">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-2xl font-bold text-white">إرسال شكوى جديدة</h2>
+                  <button
+                    onClick={handleCloseComplaintModal}
+                    className="text-white hover:bg-teal-800 rounded-lg p-2 transition-colors"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+              </div>
+              <div className="overflow-y-auto flex-1">
 
-        </main>
+              <div className="p-6">
+                <div className="mb-5">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
+                    عنوان الشكوى <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={complaintForm.title}
+                    onChange={(e) => setComplaintForm({ ...complaintForm, title: e.target.value })}
+                    className="w-full border border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all"
+                    placeholder="مثال: مشكلة في تسجيل الدخول"
+                  />
+                </div>
+
+                <div className="mb-5">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
+                    وصف المشكلة <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={complaintForm.description}
+                    onChange={(e) => setComplaintForm({ ...complaintForm, description: e.target.value })}
+                    className="w-full border border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500 min-h-[120px] transition-all resize-none"
+                    placeholder="اشرح المشكلة بالتفصيل..."
+                  />
+                </div>
+
+                <div className="mb-5">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
+                    صورة توضيحية (اختياري)
+                  </label>
+                  {complaintForm.screenshot && (
+                    <div className="mb-3 relative">
+                      <img
+                        src={complaintForm.screenshot}
+                        alt="Screenshot"
+                        className="w-full max-h-64 object-contain rounded-xl border-2 border-gray-200"
+                      />
+                      <button
+                        onClick={() => setComplaintForm({ ...complaintForm, screenshot: '' })}
+                        className="absolute top-2 left-2 bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-red-700 transition-colors font-medium shadow-md flex items-center gap-1"
+                      >
+                        <X size={14} />
+                        إزالة
+                      </button>
+                    </div>
+                  )}
+                  <label
+                    htmlFor="screenshot-upload"
+                    className="block w-full px-4 py-4 border-2 border-dashed border-gray-300 rounded-xl text-center text-sm text-gray-700 cursor-pointer hover:bg-teal-50 hover:border-teal-400 transition-all"
+                  >
+                    {uploadingScreenshot ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-teal-600 border-t-transparent"></div>
+                        جاري الرفع...
+                      </span>
+                    ) : (
+                      <span className="flex items-center justify-center gap-2">
+                        <Plus size={16} />
+                        اضغط لرفع صورة
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    id="screenshot-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleScreenshotUpload}
+                    className="hidden"
+                    disabled={uploadingScreenshot}
+                  />
+                  <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                    <span className="w-1 h-1 rounded-full bg-gray-400"></span>
+                    يمكنك رفع صورة توضيحية للمشكلة (حد أقصى 10 ميجابايت)
+                  </p>
+                </div>
+              </div>
+              </div>
+              <div className="p-6 bg-teal-50 border-t border-teal-200 flex justify-end gap-3">
+                <button
+                  onClick={handleCloseComplaintModal}
+                  className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={handleSubmitComplaint}
+                  disabled={saving || !complaintForm.title.trim() || !complaintForm.description.trim()}
+                  className="px-6 py-2.5 bg-teal-700 text-white rounded-lg hover:bg-teal-800 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-semibold"
+                >
+                  {saving ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      جاري الإرسال...
+                    </>
+                  ) : (
+                    <>
+                      <Save size={18} />
+                      إرسال الشكوى
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   </Layout>
   );

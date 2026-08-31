@@ -57,7 +57,7 @@ const scrollToTop = () => {
   }
 };
   return (
-    <main className="h-full overflow-y-auto scrollbar-hide">
+    <main className="flex-1 overflow-y-auto scrollbar-hide">
       {/* <input></input> */}
 
       <div className="w-full min-w-0 px-6">{children}</div>
