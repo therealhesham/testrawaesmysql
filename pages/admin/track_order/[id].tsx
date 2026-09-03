@@ -9,7 +9,7 @@ saudiEmbassyApproval
 
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import InfoCard from 'components/InfoCard';
 import ContractElapsedBadge from 'components/ContractElapsedBadge';
 import VisaModal, { VisaData } from 'components/VisaModal';
@@ -406,7 +406,18 @@ export default function TrackOrder() {
   const [showCreateAccountingModal, setShowCreateAccountingModal] = useState(false);
   const [accountingModalTotal, setAccountingModalTotal] = useState('');
   const [accountingModalPaid, setAccountingModalPaid] = useState('');
+  const [accountingModalAmountWithoutTax, setAccountingModalAmountWithoutTax] = useState('');
+  const [accountingModalTaxAmount, setAccountingModalTaxAmount] = useState('');
+  const [accountingModalContract, setAccountingModalContract] = useState('');
+  const [accountingModalOrderDocument, setAccountingModalOrderDocument] = useState('');
   const [accountingModalPaymentMethod, setAccountingModalPaymentMethod] = useState<'cash' | 'two-installments' | 'three-installments' | 'custom'>('cash');
+  const [accountingModalErrors, setAccountingModalErrors] = useState<Record<string, string>>({});
+  const [isUploadingAccountingContract, setIsUploadingAccountingContract] = useState(false);
+  const [isExtractingAccountingContract, setIsExtractingAccountingContract] = useState(false);
+  const [isUploadingAccountingOrderDoc, setIsUploadingAccountingOrderDoc] = useState(false);
+  const [justExtractedAccountingContract, setJustExtractedAccountingContract] = useState(false);
+  const accountingContractInputRef = useRef<HTMLInputElement>(null);
+  const accountingOrderDocInputRef = useRef<HTMLInputElement>(null);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [isAccountingEditMode, setIsAccountingEditMode] = useState(false);
 
@@ -1520,52 +1531,135 @@ export default function TrackOrder() {
     setIsAccountingEditMode(false);
     setAccountingModalTotal('');
     setAccountingModalPaid('');
+    setAccountingModalAmountWithoutTax('');
+    setAccountingModalTaxAmount('');
     setAccountingModalPaymentMethod('cash');
+    setAccountingModalContract((orderData?.documentUpload as any)?.contract || (orderData as any)?.contract || '');
+    setAccountingModalOrderDocument((orderData?.documentUpload as any)?.orderDocument || (orderData as any)?.orderDocument || '');
+    setAccountingModalErrors({});
     setShowCreateAccountingModal(true);
   };
 
   const openEditAccountingModal = () => {
     setIsAccountingEditMode(true);
-    const total = orderData?.totalAmount != null ? String(orderData.totalAmount) : '';
-    const paid = orderData?.paidAmount != null ? String(orderData.paidAmount) : '';
+    const total = orderData?.totalAmount != null ? String(orderData.totalAmount) : ((orderData as any)?.Total != null ? String((orderData as any).Total) : '');
+    const paid = orderData?.paidAmount != null ? String(orderData.paidAmount) : ((orderData as any)?.paid != null ? String((orderData as any).paid) : '');
+    const withoutTax = (orderData as any)?.AmountWithoutTax != null ? String((orderData as any).AmountWithoutTax) : (total ? String(Math.round((Number(total) / 1.15) * 100) / 100) : '');
+    const tax = (orderData as any)?.TaxAmount != null ? String((orderData as any).TaxAmount) : (total && withoutTax ? String(Math.round((Number(total) - Number(withoutTax)) * 100) / 100) : '');
+
     setAccountingModalTotal(total);
     setAccountingModalPaid(paid);
-
-    const t = Number(total) || 0;
-    const p = Number(paid) || 0;
-    const rem = t - p;
-    if (t > 0 && p > 0 && rem > 0) {
-      setAccountingModalPaymentMethod('two-installments');
-    } else {
-      setAccountingModalPaymentMethod('cash');
-    }
+    setAccountingModalAmountWithoutTax(withoutTax);
+    setAccountingModalTaxAmount(tax);
+    setAccountingModalContract((orderData?.documentUpload as any)?.contract || (orderData as any)?.contract || '');
+    setAccountingModalOrderDocument((orderData?.documentUpload as any)?.orderDocument || (orderData as any)?.orderDocument || '');
+    setAccountingModalPaymentMethod((orderData as any)?.PaymentMethod || ((Number(total) > 0 && Number(paid) > 0 && Number(total) - Number(paid) > 0) ? 'two-installments' : 'cash'));
+    setAccountingModalErrors({});
     setShowCreateAccountingModal(true);
   };
 
-  const accountingModalRemaining =
-    (Number(accountingModalTotal) || 0) - (Number(accountingModalPaid) || 0);
+  const accountingModalRemaining = Math.max(
+    0,
+    (Number(accountingModalTotal) || 0) - (Number(accountingModalPaid) || 0)
+  );
 
-  const handleAccountingModalAmountChange = (field: 'Total' | 'Paid', value: string) => {
-    let nextTotal = accountingModalTotal;
-    let nextPaid = accountingModalPaid;
-    if (field === 'Total') {
-      nextTotal = value;
-      setAccountingModalTotal(value);
-    } else {
-      nextPaid = value;
-      setAccountingModalPaid(value);
+  const handleAccountingModalFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fileId: 'contract' | 'orderDocument') => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const file = files[0];
+
+    if (file.size > 10 * 1024 * 1024) {
+      setAccountingModalErrors((prev) => ({ ...prev, [fileId]: 'حجم الملف كبير جداً (الحد الأقصى 10 ميجابايت)' }));
+      return;
     }
 
-    const t = Number(nextTotal) || 0;
-    const p = Number(nextPaid) || 0;
-    const rem = t - p;
+    if (fileId === 'contract') setIsUploadingAccountingContract(true);
+    if (fileId === 'orderDocument') setIsUploadingAccountingOrderDoc(true);
 
-    if (t > 0 && p > 0 && rem > 0) {
-      if (accountingModalPaymentMethod === 'cash') {
-        setAccountingModalPaymentMethod('two-installments');
+    try {
+      const res = await fetch(`/api/upload-presigned-url/${fileId}`);
+      if (!res.ok) throw new Error('فشل في الحصول على رابط الرفع');
+      const { url, filePath } = await res.json();
+
+      const uploadRes = await fetch(url, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+          'x-amz-acl': 'public-read',
+        },
+      });
+
+      if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
+
+      if (fileId === 'contract') {
+        setAccountingModalContract(filePath);
+        setAccountingModalErrors((prev) => ({ ...prev, contract: '' }));
+
+        // AI Extraction
+        setIsExtractingAccountingContract(true);
+        try {
+          const formDataUpload = new FormData();
+          formDataUpload.append('image', file, file.name);
+
+          const response = await fetch('https://aidoc.rawaes.com/api/extractcontract', {
+            method: 'POST',
+            body: formDataUpload,
+          });
+
+          if (response.ok) {
+            const aiRes = await response.json();
+            if (aiRes) {
+              if (aiRes.amount_without_tax !== undefined && aiRes.tax_amount !== undefined) {
+                const withoutTax = Number(aiRes.amount_without_tax);
+                const tax = Number(aiRes.tax_amount);
+                if (!isNaN(withoutTax) && !isNaN(tax)) {
+                  const extractedAmount = withoutTax + tax;
+                  if (extractedAmount > 0) {
+                    setAccountingModalTotal(String(extractedAmount));
+                    setAccountingModalAmountWithoutTax(String(withoutTax));
+                    setAccountingModalTaxAmount(String(tax));
+                    if (accountingModalPaymentMethod === 'cash') {
+                      setAccountingModalPaid(String(extractedAmount));
+                    }
+                    setJustExtractedAccountingContract(true);
+                    setTimeout(() => setJustExtractedAccountingContract(false), 5000);
+                  }
+                }
+              } else if (aiRes.amount !== undefined) {
+                const extractedAmount = Number(aiRes.amount);
+                if (!isNaN(extractedAmount) && extractedAmount > 0) {
+                  setAccountingModalTotal(String(extractedAmount));
+                  const net = Math.round((extractedAmount / 1.15) * 100) / 100;
+                  const vat = Math.round((extractedAmount - net) * 100) / 100;
+                  setAccountingModalAmountWithoutTax(String(net));
+                  setAccountingModalTaxAmount(String(vat));
+                  if (accountingModalPaymentMethod === 'cash') {
+                    setAccountingModalPaid(String(extractedAmount));
+                  }
+                  setJustExtractedAccountingContract(true);
+                  setTimeout(() => setJustExtractedAccountingContract(false), 5000);
+                }
+              }
+            }
+          }
+        } catch (aiErr) {
+          console.error('Error extracting amount from contract:', aiErr);
+          setAccountingModalErrors(prev => ({ ...prev, contract: 'تعذر استخراج المبالغ بالذكاء الاصطناعي، يرجى إدخالها يدوياً' }));
+        } finally {
+          setIsExtractingAccountingContract(false);
+        }
+      } else {
+        setAccountingModalOrderDocument(filePath);
+        setAccountingModalErrors((prev) => ({ ...prev, orderDocument: '' }));
       }
-    } else {
-      setAccountingModalPaymentMethod('cash');
+    } catch (err: any) {
+      console.error('Upload error:', err);
+      setAccountingModalErrors((prev) => ({ ...prev, [fileId]: err.message || 'حدث خطأ أثناء رفع الملف' }));
+    } finally {
+      if (fileId === 'contract') setIsUploadingAccountingContract(false);
+      if (fileId === 'orderDocument') setIsUploadingAccountingOrderDoc(false);
+      if (e.target) e.target.value = '';
     }
   };
 
@@ -1588,6 +1682,15 @@ export default function TrackOrder() {
       });
       return;
     }
+
+    if (accountingModalPaymentMethod !== 'cash' && !accountingModalOrderDocument) {
+      setAccountingModalErrors(prev => ({ ...prev, orderDocument: 'ملف سند الأمر مطلوب لطرق الدفع المقسمة' }));
+      return;
+    }
+
+    const withoutTaxNum = accountingModalAmountWithoutTax.trim() ? Number(accountingModalAmountWithoutTax) : undefined;
+    const taxNum = accountingModalTaxAmount.trim() ? Number(accountingModalTaxAmount) : undefined;
+
     if (!id) return;
     setShowCreateAccountingModal(false);
     setUpdating(true);
@@ -1599,6 +1702,11 @@ export default function TrackOrder() {
           orderId: id,
           ...(totalNum != null && !Number.isNaN(totalNum) && { total: totalNum }),
           ...(paidNum != null && !Number.isNaN(paidNum) && { paid: paidNum }),
+          ...(withoutTaxNum != null && !Number.isNaN(withoutTaxNum) && { amountWithoutTax: withoutTaxNum }),
+          ...(taxNum != null && !Number.isNaN(taxNum) && { taxAmount: taxNum }),
+          ...(accountingModalContract && { contract: accountingModalContract }),
+          ...(accountingModalOrderDocument && { orderDocument: accountingModalOrderDocument }),
+          paymentMethod: accountingModalPaymentMethod,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -2741,17 +2849,17 @@ export default function TrackOrder() {
                       <Select
                         options={users.map((u) => ({ value: u.name, label: u.name }))}
                         value={
-                          users.map((u) => ({ value: u.name, label: u.name })).find((opt) => opt.value === (pendingDeliveryOfficer !== null ? pendingDeliveryOfficer : orderData.destinations?.deliveryOfficer)) || null
+                          users.map((u) => ({ value: u.name, label: u.name })).find((opt: any) => opt.value === (pendingDeliveryOfficer !== null ? pendingDeliveryOfficer : orderData.destinations?.deliveryOfficer)) || null
                         }
-                        onChange={(opt) => {
+                        onChange={(opt: any) => {
                           setPendingDeliveryOfficer(opt?.value || '');
                         }}
                         placeholder="اختر مسؤول التوصيل"
                         isClearable
                         menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
                         styles={{ 
-                          menuPortal: base => ({ ...base, zIndex: 9999 }),
-                          control: base => ({ ...base, textAlign: 'right', minHeight: '42px', borderColor: '#d1d5db' })
+                          menuPortal: (base: any) => ({ ...base, zIndex: 9999 }),
+                          control: (base: any) => ({ ...base, textAlign: 'right', minHeight: '42px', borderColor: '#d1d5db' })
                         }}
                         noOptionsMessage={() => "لا يوجد خيارات"}
                       />
@@ -4072,119 +4180,382 @@ export default function TrackOrder() {
           />
         )}
         {showCreateAccountingModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-            <style>{`
-              .force-english-nums {
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
-                font-feature-settings: "lnum" 1, "locl" 0 !important;
-                font-variant-numeric: lining-nums !important;
-                -webkit-locale: "en" !important;
-                direction: ltr !important;
-                text-align: right !important;
-              }
-            `}</style>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-6 overflow-y-auto" dir="rtl">
             <div
-              className="bg-white rounded-lg shadow-lg w-full max-w-7xl max-h-[90vh] overflow-y-auto p-6"
+              className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-5xl max-h-[92vh] overflow-y-auto p-5 sm:p-7 transition-all my-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-lg font-bold text-gray-900 mb-6 text-right">
-                {isAccountingEditMode ? 'تعديل السجلات المحاسبية' : 'انشاء سجلات محاسبية'}
-              </h3>
-
-              {/* المبلغ كامل / المبلغ المدفوع / المبلغ المتبقي - نفس منظر AddAvailableForm */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
-                <div className="flex flex-col gap-2">
-                  <label className="text-base text-right">المبلغ كامل</label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    pattern="[0-9]*"
-                    value={accountingModalTotal}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9.]/g, '');
-                      handleAccountingModalAmountChange('Total', val);
-                    }}
-                    placeholder="أدخل المبلغ الكامل"
-                    className="w-full p-3 border border-gray-300 rounded-md focus:border-teal-500 focus:ring-1 focus:ring-teal-500 text-right force-english-nums"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-base text-right">المبلغ المدفوع</label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      pattern="[0-9]*"
-                      value={accountingModalPaid}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/[^0-9.]/g, '');
-                        handleAccountingModalAmountChange('Paid', val);
-                      }}
-                      placeholder="أدخل المبلغ المدفوع"
-                      className="w-full p-3 pl-28 border border-gray-300 rounded-md focus:border-teal-500 focus:ring-1 focus:ring-teal-500 text-right force-english-nums"
-                    />
-                    {accountingModalTotal && (
-                      <button
-                        type="button"
-                        onClick={() => handleAccountingModalAmountChange('Paid', accountingModalTotal)}
-                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-teal-50 hover:bg-teal-100 text-teal-800 text-sm font-medium px-2.5 py-1.5 rounded border border-teal-200 transition-colors cursor-pointer select-none"
-                      >
-                        كامل المبلغ
-                      </button>
-                    )}
+              {/* Header */}
+              <div className="flex items-center justify-between pb-4 mb-6 border-b border-gray-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-teal-900 text-white flex items-center justify-center shadow-sm">
+                    <FaFileInvoiceDollar className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-900">
+                      {isAccountingEditMode ? 'تعديل السجلات المحاسبية' : 'انشاء سجلات محاسبية'}
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-0.5">طلب رقم #{id} - العميل: {orderData?.clientInfo?.name || '-'}</p>
                   </div>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-base text-right">المبلغ المتبقي</label>
-                  <input
-                    type="text"
-                    readOnly
-                    value={accountingModalRemaining.toString()}
-                    className="w-full p-3 border border-gray-300 rounded-md bg-gray-50 text-right force-english-nums"
-                  />
+                <button
+                  type="button"
+                  onClick={() => setShowCreateAccountingModal(false)}
+                  className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Smart Invoice Extraction Banner */}
+              <div className="mb-6 p-4 rounded-xl border border-teal-200 bg-teal-50/70">
+                <input
+                  type="file"
+                  ref={accountingContractInputRef}
+                  className="hidden"
+                  accept="application/pdf,image/jpeg,image/png"
+                  onChange={(e) => handleAccountingModalFileUpload(e, 'contract')}
+                />
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  {accountingModalContract ? (
+                    <>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-teal-700 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                          <CheckCircle className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-bold text-teal-950">ملف الفاتورة مرفوع</h4>
+                            {justExtractedAccountingContract && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-teal-100 text-teal-800 border border-teal-300 animate-pulse">
+                                ✓ تم استخراج المبالغ بنجاح
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-gray-600 text-xs mt-0.5">
+                            تم ربط ملف الفاتورة بالطلب واستخراج المبالغ المالية تلقائياً.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 w-full md:w-auto">
+                        <a
+                          href={accountingModalContract}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 border border-teal-300 bg-white text-teal-900 rounded-lg text-xs font-medium hover:bg-teal-50 transition shadow-2xs"
+                        >
+                          <svg className="w-3.5 h-3.5 text-teal-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                          <span>عرض ملف الفاتورة</span>
+                        </a>
+                        <button
+                          type="button"
+                          disabled={updating || isUploadingAccountingContract || isExtractingAccountingContract}
+                          onClick={() => accountingContractInputRef.current?.click()}
+                          className="flex items-center justify-center gap-1 px-3 py-2 border border-gray-300 bg-white text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-50 hover:text-gray-900 transition"
+                        >
+                          <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          <span>تغيير الملف</span>
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-teal-900 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-teal-950">استخراج ذكي لبيانات الفاتورة</h4>
+                          <p className="text-gray-500 text-xs mt-0.5">
+                            قم برفع ملف الفاتورة (PDF أو صورة) وسيقوم الذكاء الاصطناعي باستخراج المبالغ وتعبئة الفاتورة تلقائياً.
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="w-full md:w-auto flex-shrink-0">
+                        <button
+                          type="button"
+                          disabled={updating || isUploadingAccountingContract || isExtractingAccountingContract}
+                          className={`w-full md:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-xs sm:text-sm font-medium transition duration-200 ${
+                            isUploadingAccountingContract || isExtractingAccountingContract
+                              ? 'bg-gray-300 text-gray-500 cursor-wait'
+                              : 'bg-teal-900 text-white hover:bg-teal-800 shadow-sm'
+                          }`}
+                          onClick={() => accountingContractInputRef.current?.click()}
+                        >
+                          {isUploadingAccountingContract || isExtractingAccountingContract ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                              <span>جاري استخراج بيانات الفاتورة...</span>
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                              <span>رفع ملف الفاتورة</span>
+                            </>
+                          )}
+                        </button>
+                        {accountingModalErrors['contract'] && <p className="text-red-500 text-xs mt-1 text-center font-medium">{accountingModalErrors['contract']}</p>}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
-              {/* طريقة الدفع المختارة - تظهر تحت المبالغ وتظهر فقط في حال وجود متبقي وفي حال تم إدخال كلا القيمتين */}
-              {Number(accountingModalTotal) > 0 && Number(accountingModalPaid) > 0 && accountingModalRemaining > 0 && (
-                <div className="mb-10 animate-fade-in">
-                  <h2 className="text-base font-normal mb-2 text-right">طريقة الدفع المختارة</h2>
-                  <div className="flex gap-[56px] justify-center flex-nowrap">
-                    {[
-                      { option: 'دفعتين', value: 'two-installments' as const, imgSrc: <CreditCardIcon className="w-6 h-6" /> },
-                      { option: 'ثلاثة دفعات', value: 'three-installments' as const, imgSrc: <CurrencyDollarIcon className="w-6 h-6" /> },
-                      { option: 'مخصص', value: 'custom' as const, imgSrc: <CurrencyDollarIcon className="w-6 h-6" /> },
-                    ].map(({ option, value, imgSrc }) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => setAccountingModalPaymentMethod(value)}
-                        className={`payment-button flex items-center justify-center gap-[10px] p-[14px] border-2 rounded-[8px] bg-[#f7f8fa] cursor-pointer w-[245px] text-[#1a4d4f] text-[20px] transition-border-color duration-200 ${accountingModalPaymentMethod === value ? 'border-[#1a4d4f] bg-teal-800 text-white' : 'border-[#e0e0e0]'}`}
-                      >
-                        <span className="text-xl">{option}</span>
-                        {imgSrc}
-                      </button>
-                    ))}
+              {/* Invoice Layout */}
+              <div className="mb-6 bg-white border border-gray-200 rounded-xl shadow-2xs overflow-hidden">
+                <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
+                  <h3 className="text-sm sm:text-base font-bold text-gray-800 flex items-center gap-2">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    تفاصيل الفاتورة والدفع
+                  </h3>
+                </div>
+
+                <div className="p-4 sm:p-5">
+                  <div className="flex flex-col lg:flex-row gap-6">
+                    
+                    {/* Right Side: Payment Methods */}
+                    <div className="lg:w-1/3 flex flex-col gap-2.5">
+                      <h4 className="text-xs font-bold text-gray-500 uppercase">اختر طريقة الدفع</h4>
+                      {[
+                        { option: 'دفعة واحدة', value: 'cash' as const, imgSrc: <CashIcon className="w-5 h-5" /> },
+                        { option: 'دفعتين', value: 'two-installments' as const, imgSrc: <CreditCardIcon className="w-5 h-5" /> },
+                        { option: 'ثلاث دفعات', value: 'three-installments' as const, imgSrc: <CurrencyDollarIcon className="w-5 h-5" /> },
+                        { option: 'مخصص', value: 'custom' as const, imgSrc: <CurrencyDollarIcon className="w-5 h-5" /> },
+                      ].map(({ option, value, imgSrc }, index) => (
+                        <label key={index} className="payment-option block cursor-pointer">
+                          <input
+                            type="radio"
+                            name="accountingPaymentMethod"
+                            value={value}
+                            checked={accountingModalPaymentMethod === value}
+                            onChange={() => setAccountingModalPaymentMethod(value)}
+                            className="hidden"
+                          />
+                          <div className={`payment-button flex items-center justify-between p-3 border rounded-xl transition-all ${
+                            accountingModalPaymentMethod === value 
+                              ? 'border-teal-800 bg-teal-900 text-white shadow-sm' 
+                              : 'border-gray-200 bg-white text-gray-700 hover:border-teal-300 hover:bg-teal-50/30'
+                          }`}>
+                            <span className="text-sm font-semibold">{option}</span>
+                            <div className={`p-1 rounded ${accountingModalPaymentMethod === value ? 'text-white' : 'text-gray-500'}`}>
+                              {imgSrc}
+                            </div>
+                          </div>
+                        </label>
+                      ))}
+                      
+                      {/* Promissory Note Upload if not cash */}
+                      {accountingModalPaymentMethod !== 'cash' && (
+                        <div className="mt-2 p-3.5 bg-orange-50/80 border border-orange-200 rounded-xl">
+                          <label className="text-xs font-bold text-orange-900 flex items-center gap-1 mb-2">
+                            <span className="text-red-500">*</span>
+                            رفع ملف سند الأمر
+                          </label>
+                          <input
+                            type="file"
+                            ref={accountingOrderDocInputRef}
+                            className="hidden"
+                            accept="application/pdf,image/jpeg,image/png"
+                            onChange={(e) => handleAccountingModalFileUpload(e, 'orderDocument')}
+                          />
+                          <div className="flex flex-col gap-2">
+                            <button
+                              type="button"
+                              disabled={updating || isUploadingAccountingOrderDoc}
+                              className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition duration-200 ${
+                                isUploadingAccountingOrderDoc
+                                  ? 'bg-gray-300 text-gray-500 cursor-wait'
+                                  : 'bg-orange-600 text-white hover:bg-orange-700 shadow-xs'
+                              }`}
+                              onClick={() => accountingOrderDocInputRef.current?.click()}
+                            >
+                              {isUploadingAccountingOrderDoc ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white"></div>
+                                  <span>جاري الرفع...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                                  <span>{accountingModalOrderDocument ? 'تغيير ملف سند الأمر' : 'اختر ملف سند الأمر'}</span>
+                                </>
+                              )}
+                            </button>
+                            {accountingModalOrderDocument && (
+                              <div className="flex items-center justify-center gap-2 text-orange-800 text-xs font-medium mt-0.5">
+                                <span>✓ تم رفع السند بنجاح</span>
+                                <a href={accountingModalOrderDocument} target="_blank" rel="noopener noreferrer" className="underline text-orange-900 hover:text-orange-950 font-bold">معاينة</a>
+                              </div>
+                            )}
+                            {accountingModalErrors['orderDocument'] && (
+                              <p className="text-red-500 text-xs text-center font-medium">{accountingModalErrors['orderDocument']}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Left Side: Invoice Amounts */}
+                    <div className="lg:w-2/3 bg-gray-50/80 rounded-xl p-4 sm:p-5 border border-gray-200 flex flex-col justify-between">
+                      <div>
+                        <h4 className="text-xs font-bold text-gray-500 uppercase mb-4 pb-2 border-b border-gray-200">ملخص المبالغ</h4>
+                        
+                        <div className="flex flex-col gap-3.5">
+                          {/* Amount without Tax */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <label className="text-xs sm:text-sm font-medium text-gray-700 sm:w-2/5">المبلغ (بدون ضريبة)</label>
+                            <div className="sm:w-3/5">
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={accountingModalAmountWithoutTax}
+                                  onChange={(e) => {
+                                    const val = e.target.value.replace(/[^0-9.]/g, '');
+                                    const withoutTax = Number(val) || 0;
+                                    const tax = Number(accountingModalTaxAmount) || 0;
+                                    const total = withoutTax + tax;
+                                    setAccountingModalAmountWithoutTax(val);
+                                    setAccountingModalTotal(total > 0 ? String(total) : '');
+                                  }}
+                                  placeholder="0.00"
+                                  className="w-full p-2.5 pl-12 border border-gray-300 bg-white rounded-lg text-left text-sm text-gray-800 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors"
+                                  style={{ direction: 'ltr' }}
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-semibold">SAR</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* VAT Amount */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <label className="text-xs sm:text-sm font-medium text-gray-700 sm:w-2/5">قيمة الضريبة المضافة (VAT)</label>
+                            <div className="sm:w-3/5">
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={accountingModalTaxAmount}
+                                  onChange={(e) => {
+                                    const val = e.target.value.replace(/[^0-9.]/g, '');
+                                    const withoutTax = Number(accountingModalAmountWithoutTax) || 0;
+                                    const tax = Number(val) || 0;
+                                    const total = withoutTax + tax;
+                                    setAccountingModalTaxAmount(val);
+                                    setAccountingModalTotal(total > 0 ? String(total) : '');
+                                  }}
+                                  placeholder="0.00"
+                                  className="w-full p-2.5 pl-12 border border-gray-300 bg-white rounded-lg text-left text-sm text-gray-800 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors"
+                                  style={{ direction: 'ltr' }}
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-semibold">SAR</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Total Amount */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-3 border-t border-gray-200">
+                            <label className="text-xs sm:text-sm font-bold text-teal-900 sm:w-2/5">المبلغ كامل (شامل الضريبة)</label>
+                            <div className="sm:w-3/5">
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={accountingModalTotal}
+                                  onChange={(e) => {
+                                    const val = e.target.value.replace(/[^0-9.]/g, '');
+                                    setAccountingModalTotal(val);
+                                    const total = Number(val) || 0;
+                                    if (total > 0) {
+                                      const net = Math.round((total / 1.15) * 100) / 100;
+                                      const vat = Math.round((total - net) * 100) / 100;
+                                      setAccountingModalAmountWithoutTax(String(net));
+                                      setAccountingModalTaxAmount(String(vat));
+                                    }
+                                  }}
+                                  placeholder="0.00"
+                                  className="w-full p-2.5 pl-12 border border-teal-400 bg-teal-50/50 rounded-lg text-left text-sm font-bold text-teal-900 focus:border-teal-600 focus:ring-1 focus:ring-teal-600 transition-colors"
+                                  style={{ direction: 'ltr' }}
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-teal-800 text-xs font-bold">SAR</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Paid Amount */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <label className="text-xs sm:text-sm font-medium text-gray-700 sm:w-2/5">المبلغ المدفوع</label>
+                            <div className="sm:w-3/5">
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={accountingModalPaid}
+                                  onChange={(e) => {
+                                    const val = e.target.value.replace(/[^0-9.]/g, '');
+                                    setAccountingModalPaid(val);
+                                  }}
+                                  placeholder="0.00"
+                                  className="w-full p-2.5 pl-12 border border-gray-300 bg-white rounded-lg text-left text-sm text-gray-800 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors"
+                                  style={{ direction: 'ltr' }}
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-semibold">SAR</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Remaining Amount */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <label className="text-xs sm:text-sm font-medium text-gray-500 sm:w-2/5">المبلغ المتبقي</label>
+                            <div className="sm:w-3/5">
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={accountingModalRemaining.toFixed(2)}
+                                  readOnly
+                                  className="w-full p-2.5 pl-12 border border-gray-300 bg-gray-100 rounded-lg text-left text-sm text-gray-600 cursor-not-allowed font-medium"
+                                  style={{ direction: 'ltr' }}
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-semibold">SAR</span>
+                              </div>
+                            </div>
+                          </div>
+
+                        </div>
+                      </div>
+                    </div>
+                    
                   </div>
                 </div>
-              )}
+              </div>
 
-              <div className="flex justify-end gap-3">
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-2">
                 <button
                   type="button"
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                  className="px-6 py-2.5 border border-gray-300 text-gray-700 bg-white rounded-xl hover:bg-gray-100 transition text-sm font-semibold"
                   onClick={() => setShowCreateAccountingModal(false)}
                 >
                   إلغاء
                 </button>
                 <button
                   type="button"
-                  className="px-4 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900"
+                  disabled={updating}
+                  className="px-7 py-2.5 bg-teal-900 text-white rounded-xl hover:bg-teal-800 transition text-sm font-bold shadow-md hover:shadow-lg disabled:opacity-50"
                   onClick={handleCreateAccountingRecords}
                 >
-                  {isAccountingEditMode ? 'حفظ التعديلات' : 'إنشاء'}
+                  {updating ? 'جاري الحفظ...' : (isAccountingEditMode ? 'حفظ التعديلات' : 'حفظ')}
                 </button>
               </div>
+
             </div>
           </div>
         )}

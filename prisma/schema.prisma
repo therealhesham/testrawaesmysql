@@ -453,9 +453,11 @@ ratings       Rating[]
   updatedBy          String?
 PaymentMethod    String?
 Installments Int?
-Total   Float?
-paid    Float?
-payments Payment[]
+  Total   Float?
+  AmountWithoutTax Float?
+  TaxAmount        Float?
+  paid    Float?
+  payments Payment[]
   notes String?
   foreignLaborApproval Boolean? @default(false)
   travelPermit         String?
@@ -470,6 +472,9 @@ payments Payment[]
   visaId Int? // Foreign key to visa
   visa visa? @relation(fields: [visaId], references: [id])
   DeliveryDetails DeliveryDetails[]
+  isJournalPosted    Boolean?  @default(false)
+  daftraJournalId    String?   @db.VarChar(255)
+  journalPostedAt    DateTime?
 
   tickets_details tickets_details[]
 }
@@ -1337,8 +1342,8 @@ model OfficeSlaRule {
 
 model AccountSystemLogs  {
   id Int @id @default(autoincrement())
-  action String?
-  actionNotes String?
+  action String? @db.Text
+  actionNotes String? @db.Text
   actionType String?
   actionStatus String?
   actionAmount Decimal?

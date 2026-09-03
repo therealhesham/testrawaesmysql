@@ -6,6 +6,7 @@ import { FaSearch, FaRedo, FaFileExcel, FaFilePdf, FaArrowUp, FaArrowDown, FaGri
 import { ArrowLeftIcon } from "@heroicons/react/outline";
 import { PlusOutlined } from "@ant-design/icons";
 import { Trash2 } from "lucide-react";
+// @ts-ignore
 import Modal from "react-modal";
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -513,22 +514,45 @@ export default function FullList({ recruitmentData, rentalData, initialCounts, h
 
   const router = useRouter();
 
-  // قراءة رقم الصفحة والفلاتر و معاملات الترتيب من URL عند التحميل الأول فقط
+  // قراءة رقم الصفحة والفلاتر و معاملات الترتيب من URL أو من sessionStorage عند التحميل الأول
   useEffect(() => {
     if (router.isReady && isInitialMount.current) {
-      
-      // قراءة نوع العقد من URL أولاً
-      const typeFromUrl = router.query.type as string;
-      const finalType = (typeFromUrl === 'recruitment' || typeFromUrl === 'rental') ? typeFromUrl : 'recruitment';
+      // 1. محاولة قراءة الحالة المحفوظة مسبقاً من sessionStorage
+      let savedState: any = null;
+      try {
+        const raw = typeof window !== 'undefined' ? sessionStorage.getItem('fulllist_filters_state') : null;
+        if (raw) savedState = JSON.parse(raw);
+      } catch (e) {
+        console.warn('Failed to parse saved fulllist_filters_state:', e);
+      }
+
+      // هل يحتوي الرابط الحالي على فلاتر صريحة غير الافتراضية؟
+      const hasUrlExplicitFilters = Object.keys(router.query).some(k => 
+        ['Name', 'age', 'PassportNumber', 'phone', 'Country', 'office', 'maritalstatus', 'isReservedFilter', 'isApprovedFilter', 'professionGender', 'professionId'].includes(k)
+      );
+
+      // قراءة نوع العقد من URL أو من الحالة المحفوظة
+      let finalType = 'recruitment';
+      if (router.query.type === 'recruitment' || router.query.type === 'rental') {
+        finalType = router.query.type as string;
+      } else if (savedState?.contractType === 'recruitment' || savedState?.contractType === 'rental') {
+        finalType = savedState.contractType;
+      }
       setContractType(finalType);
       
-      const pageFromUrl = router.query.page ? parseInt(router.query.page as string) : 1;
+      // قراءة رقم الصفحة
+      let pageFromUrl = 1;
+      if (router.query.page) {
+        pageFromUrl = parseInt(router.query.page as string) || 1;
+      } else if (savedState?.currentPage) {
+        pageFromUrl = Number(savedState.currentPage) || 1;
+      }
       if (pageFromUrl >= 1) {
         setCurrentPage(pageFromUrl);
       }
       
-      // قراءة الفلاتر من URL
-      const urlFilters = {
+      // قراءة الفلاتر
+      let urlFilters = {
         Name: router.query.Name ? decodeURIComponent(router.query.Name as string) : '',
         age: router.query.age ? decodeURIComponent(router.query.age as string) : '',
         PassportNumber: router.query.PassportNumber ? decodeURIComponent(router.query.PassportNumber as string) : '',
@@ -537,41 +561,72 @@ export default function FullList({ recruitmentData, rentalData, initialCounts, h
         office: router.query.office ? decodeURIComponent(router.query.office as string) : '',
         maritalstatus: router.query.maritalstatus ? decodeURIComponent(router.query.maritalstatus as string) : '',
       };
-      
+
+      if (!hasUrlExplicitFilters && savedState?.filters) {
+        urlFilters = { ...urlFilters, ...savedState.filters };
+      }
       setFilters(urlFilters);
       
-      // قراءة فلتر حالة الحجز من URL
-      const reservedFromUrl = router.query.isReservedFilter as string;
-      const finalReservedFilter = (reservedFromUrl === 'reserved' || reservedFromUrl === 'available') ? reservedFromUrl : 'all';
+      // قراءة فلتر حالة الحجز
+      let finalReservedFilter: 'all' | 'reserved' | 'available' = 'all';
+      if (router.query.isReservedFilter === 'reserved' || router.query.isReservedFilter === 'available') {
+        finalReservedFilter = router.query.isReservedFilter as any;
+      } else if (savedState?.isReservedFilter === 'reserved' || savedState?.isReservedFilter === 'available') {
+        finalReservedFilter = savedState.isReservedFilter;
+      }
       setIsReservedFilter(finalReservedFilter);
 
-      const approvedFromUrl = router.query.isApprovedFilter as string;
-      const finalApprovedFilter = (approvedFromUrl === 'approved' || approvedFromUrl === 'not_approved') ? approvedFromUrl : 'all';
+      // قراءة فلتر حالة الاعتماد
+      let finalApprovedFilter: 'all' | 'approved' | 'not_approved' = 'all';
+      if (router.query.isApprovedFilter === 'approved' || router.query.isApprovedFilter === 'not_approved') {
+        finalApprovedFilter = router.query.isApprovedFilter as any;
+      } else if (savedState?.isApprovedFilter === 'approved' || savedState?.isApprovedFilter === 'not_approved') {
+        finalApprovedFilter = savedState.isApprovedFilter;
+      }
       setIsApprovedFilter(finalApprovedFilter);
       
-      // قراءة معاملات الترتيب من URL
+      // قراءة معاملات الترتيب
+      let finalSortBy = 'displayOrder';
       if (router.query.sortBy) {
-        setSortBy(router.query.sortBy as string);
+        finalSortBy = router.query.sortBy as string;
+      } else if (savedState?.sortBy) {
+        finalSortBy = savedState.sortBy;
       }
-      if (router.query.sortOrder && (router.query.sortOrder === 'asc' || router.query.sortOrder === 'desc')) {
-        setSortOrder(router.query.sortOrder as 'asc' | 'desc');
-      }
+      setSortBy(finalSortBy);
 
-      const pgFromUrl = router.query.professionGender as string;
-      const validPg =
-        pgFromUrl === 'male' || pgFromUrl === 'female' || pgFromUrl === 'other'
-          ? (pgFromUrl as 'male' | 'female' | 'other')
-          : '';
-      const pidFromUrl = router.query.professionId as string | undefined;
-      const validPid =
-        pidFromUrl === 'none' || (pidFromUrl && /^\d+$/.test(pidFromUrl)) ? pidFromUrl : '';
+      let finalSortOrder: 'asc' | 'desc' = 'desc';
+      if (router.query.sortOrder === 'asc' || router.query.sortOrder === 'desc') {
+        finalSortOrder = router.query.sortOrder as 'asc' | 'desc';
+      } else if (savedState?.sortOrder === 'asc' || savedState?.sortOrder === 'desc') {
+        finalSortOrder = savedState.sortOrder;
+      }
+      setSortOrder(finalSortOrder);
+
+      // قراءة فلاتر الإحصائيات
+      let validPg: '' | 'male' | 'female' | 'other' = '';
+      if (['male', 'female', 'other'].includes(router.query.professionGender as string)) {
+        validPg = router.query.professionGender as any;
+      } else if (['male', 'female', 'other'].includes(savedState?.statsProfessionGender)) {
+        validPg = savedState.statsProfessionGender;
+      }
       setStatsProfessionGender(validPg);
-      setStatsProfessionId(validPid || '');
+
+      let validPid = '';
+      if (router.query.professionId === 'none' || (router.query.professionId && /^\d+$/.test(router.query.professionId as string))) {
+        validPid = router.query.professionId as string;
+      } else if (savedState?.statsProfessionId) {
+        validPid = savedState.statsProfessionId;
+      }
+      setStatsProfessionId(validPid);
+
+      if (savedState?.viewMode === 'table' || savedState?.viewMode === 'grid') {
+        setViewMode(savedState.viewMode);
+      }
 
       // Mark as no longer initial mount
       isInitialMount.current = false;
 
-      // Fetch data with the contract type and reservation filter from URL (فلاتر الإحصائية من الـ URL)
+      // Fetch data with all restored parameters
       fetchData(pageFromUrl, finalType, false, finalReservedFilter, {
         professionGender: validPg,
         professionId: validPid || '',
@@ -579,10 +634,30 @@ export default function FullList({ recruitmentData, rentalData, initialCounts, h
     }
   }, [router.isReady, router.query]);
 
-  // تحديث URL عند تغيير الصفحة أو الفلاتر أو معاملات الترتيب أو نوع العقد
+  // تحديث URL وحفظ الحالة في sessionStorage عند تغيير الصفحة أو الفلاتر أو معاملات الترتيب أو نوع العقد
   useEffect(() => {
     if (!router.isReady || isInitialMount.current) return;
     
+    // حفظ الحالة في sessionStorage للحفاظ عليها عند الانتقال والرجوع
+    try {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('fulllist_filters_state', JSON.stringify({
+          filters,
+          isReservedFilter,
+          isApprovedFilter,
+          statsProfessionGender,
+          statsProfessionId,
+          sortBy,
+          sortOrder,
+          contractType,
+          currentPage,
+          viewMode,
+        }));
+      }
+    } catch (e) {
+      console.warn('Failed to save fulllist_filters_state:', e);
+    }
+
     const queryParams = new URLSearchParams();
     // إضافة رقم الصفحة دائماً للـ URL
     queryParams.set('page', currentPage.toString());
@@ -637,13 +712,18 @@ export default function FullList({ recruitmentData, rentalData, initialCounts, h
     if (router.asPath !== newUrl) {
       router.replace(newUrl, undefined, { shallow: true });
     }
-  }, [currentPage, filters, sortBy, sortOrder, contractType, isReservedFilter, isApprovedFilter, statsProfessionGender, statsProfessionId, router.isReady, router.pathname, router.asPath]);
+  }, [currentPage, filters, sortBy, sortOrder, contractType, isReservedFilter, isApprovedFilter, statsProfessionGender, statsProfessionId, viewMode, router.isReady, router.pathname, router.asPath]);
 
   const handleUpdate = (id: any) => {
     router.push("./neworder/" + id);
   };
 
   const resetFilters = () => {
+    try {
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('fulllist_filters_state');
+      }
+    } catch (e) {}
     isFetchingRef.current = false;
     setFilters({
       age: "",

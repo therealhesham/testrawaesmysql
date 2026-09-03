@@ -109,6 +109,7 @@ const menuItems: MenuItem[] = [
       { id: 95, label: "التسوية المالية", link: "/admin/settlement" },
       { id: 96, label: "قائمة الدخل", link: "/admin/incomestatments-updated" },
       { id: 97, label: "سجل النظام المحاسبي", link: "/admin/account-systemlogs" },
+      { id: 98, label: "مراجعة وترحيل القيود", link: "/admin/accounting-review" },
     ],
   },
   {
@@ -128,18 +129,36 @@ const MobileNavbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [openSubMenu, setOpenSubMenu] = useState<number | null>(null);
   const [userName, setUserName] = useState('');
+  const [canViewAccountingReview, setCanViewAccountingReview] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     try {
-      const token = localStorage.getItem('token');
       if (token) {
-        const decoded = jwtDecode(token);
+        const decoded = jwtDecode<any>(token);
         setUserName(decoded.username || '');
       }
     } catch (error) {
       console.error('Error decoding token:', error);
     }
+
+    const fetchPermissions = async () => {
+      try {
+        const headers: any = {};
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        const res = await fetch('/api/auth/me', { headers });
+        if (res.ok) {
+          const data = await res.json();
+          const permissions = data.user?.permissions || {};
+          const isOwner = String(data.user?.role || '').toLowerCase() === 'owner' || String(data.user?.role || '') === 'مالك';
+          setCanViewAccountingReview(isOwner || !!permissions?.['إدارة المحاسبة']?.['عرض صفحة المراجعة'] || !!permissions?.['إدارة المحاسبة']?.['عرض صفحة المراجعة ']);
+        }
+      } catch (err) {}
+    };
+    fetchPermissions();
   }, []);
 
   const toggleMenu = () => {
@@ -276,7 +295,12 @@ const MobileNavbar = () => {
                         {/* Submenu */}
                         {subItems && isSubMenuOpen && (
                           <div className="mt-1 space-y-1 pr-8">
-                            {subItems.map((subItem) => (
+                            {subItems
+                              .filter((subItem) => {
+                                if (subItem.link === '/admin/accounting-review' && !canViewAccountingReview) return false;
+                                return true;
+                              })
+                              .map((subItem) => (
                               <Link key={subItem.id} href={subItem.link}>
                                 <a
                                   className={`block px-3 py-2 rounded-lg text-sm transition-colors ${

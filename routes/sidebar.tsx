@@ -8,13 +8,7 @@ interface IRoute {
   path?: string;
   icon?: string;
   name: string;
-  routes?: IRoute[
-  {
-    path: '/admin/external-website',
-    icon: 'OutlineCogIcon',
-    name: 'التحكم في الموقع الخارجي',
-  },
-];
+  routes?: IRoute[];
   checkActive?(pathname: String, route: IRoute): boolean;
   exact?: boolean;
 }

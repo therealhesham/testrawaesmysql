@@ -10,7 +10,7 @@ import {
   parseConfirmGenderQuotaWarning,
   REQUIRES_GENDER_QUOTA_CONFIRMATION,
 } from "../../lib/bookingGenderQuota";
-import { sendOrderNotifications } from "lib/notificationsHelper";
+import { sendOrderNotifications, sendAccountingReviewNotification } from "lib/notificationsHelper";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -41,7 +41,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     Paid,
     Total,
     clientID,
-    visaId
+    visaId,
+    AmountWithoutTax,
+    TaxAmount
   } = req.body;
 
   try {
@@ -199,6 +201,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ages: age + "",
         paid: Paid == null ? undefined : Number(Paid),
         Total: Total == null ? undefined : Number(Total),
+        AmountWithoutTax: AmountWithoutTax == null ? undefined : Number(AmountWithoutTax),
+        TaxAmount: TaxAmount == null ? undefined : Number(TaxAmount),
         visa: {
           connect: {
             id: Number(visaId)
@@ -318,6 +322,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           result.id,
           result.ClientName || 'عميل',
           result.HomemaidId || '',
+          (res.socket as any)?.server?.io
+        );
+
+        // إرسال إشعار للمحاسبين لترحيل القيد المالي
+        await sendAccountingReviewNotification(
+          result.id,
           (res.socket as any)?.server?.io
         );
 

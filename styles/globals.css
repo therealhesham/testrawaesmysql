@@ -648,9 +648,7 @@ a {
   margin-left: 0.25rem;
 }
 
-/* Fix: react-select dual-caret / ghost lines bug in RTL.
-   - Wrapper div: hide its caret + remove borders
-   - Actual input: SHOW one caret + remove borders */
+/* Fix: react-select dual-caret / ghost lines / inner box bug in RTL. */
 .rs__input-container,
 div[class*="-Input"] {
   caret-color: transparent !important;
@@ -660,11 +658,17 @@ div[class*="-Input"] {
 }
 
 .rs__input-container input,
-div[class*="-Input"] input {
+div[class*="-Input"] input,
+div[class*="-control"] input,
+div[class*="-control"] input:focus,
+div[class*="-Input"] input:focus {
   caret-color: #115e59 !important;
   border: none !important;
   outline: none !important;
   box-shadow: none !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
+  --tw-ring-color: transparent !important;
 }
 
 /* Fix Chrome date input placeholder reversed text bug in RTL */

@@ -135,6 +135,7 @@ const menuItems: MenuItem[] = [
 
       { id: 92, label: "قائمة الدخل", link: "/admin/incomestatments-updated" },
       { id: 95, label: "سجل النظام المحاسبي", link: "/admin/account-systemlogs" },
+      { id: 96, label: "مراجعة وترحيل القيود", link: "/admin/accounting-review" },
 
     ],
   },{
@@ -195,6 +196,7 @@ const Sidebar = (props: any) => {
   const [showSplash, setShowSplash] = useState(true);
   const [canResolveComplaints, setCanResolveComplaints] = useState(false);
   const [canViewControlCenter, setCanViewControlCenter] = useState(false);
+  const [canViewAccountingReview, setCanViewAccountingReview] = useState(false);
   const [hoveredMenu, setHoveredMenu] = useState<{ id: number, top: number, label: string, subItems: any[] } | null>(null);
 
   const activeMenu = useMemo(
@@ -287,15 +289,24 @@ const Sidebar = (props: any) => {
     // جلب صلاحيات المستخدم
     const fetchUserPermissions = async () => {
       try {
-        const response = await fetch("/api/auth/me");
+        const token = localStorage.getItem("token");
+        const headers: any = {};
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+        const response = await fetch("/api/auth/me", { headers });
         if (response.ok) {
           const data = await response.json();
           const permissions = data.user?.permissions || {};
+          const isOwner = String(data.user?.role || '').toLowerCase() === 'owner' || String(data.user?.role || '') === 'مالك';
           // التحقق من صلاحية حل الشكاوى
-          const canResolve = !!permissions?.["إدارة الشكاوى"]?.["حل"];
+          const canResolve = isOwner || !!permissions?.["إدارة الشكاوى"]?.["حل"];
           setCanResolveComplaints(canResolve);
-          const canViewCC = !!permissions?.["مركز الرقابة"]?.["عرض"];
+          const canViewCC = isOwner || !!permissions?.["مركز الرقابة"]?.["عرض"];
           setCanViewControlCenter(canViewCC);
+          const canViewAccReview = isOwner || !!permissions?.["إدارة المحاسبة"]?.["عرض صفحة المراجعة"] || !!permissions?.["إدارة المحاسبة"]?.["عرض صفحة المراجعة "];
+          setCanViewAccountingReview(canViewAccReview);
+          console.log('Sidebar permissions loaded:', { role: data.user?.role, isOwner, canViewAccReview });
         }
       } catch (error) {
         console.error("Error fetching user permissions:", error);
@@ -390,6 +401,10 @@ const Sidebar = (props: any) => {
           })
           .map((menuItem) => {
           const { icon: Icon, subItems, ...menu } = menuItem;
+          const validSubItems = subItems?.filter((subItem) => {
+            if (subItem.link === '/admin/accounting-review' && !canViewAccountingReview) return false;
+            return true;
+          });
           const classes = getNavItemClasses(menuItem as MenuItem);
           const isOpen = openMenu === menuItem.id;
 
@@ -402,22 +417,22 @@ const Sidebar = (props: any) => {
                   const rect = e.currentTarget.getBoundingClientRect();
                   let top = rect.top;
                   
-                  if (subItems && subItems.length > 0) {
-                    const estimatedHeight = subItems.length * 40 + 40; // ~40px per item + header height
+                  if (validSubItems && validSubItems.length > 0) {
+                    const estimatedHeight = validSubItems.length * 40 + 40; // ~40px per item + header height
                     if (top + estimatedHeight > window.innerHeight) {
                       top = window.innerHeight - estimatedHeight - 10;
                     }
                     if (top < 10) top = 10;
                   }
                   
-                  setHoveredMenu({ id: menu.id, top: top, label: menu.label, subItems: subItems || [] });
+                  setHoveredMenu({ id: menu.id, top: top, label: menu.label, subItems: validSubItems || [] });
                 }
               }}
               onMouseLeave={() => setHoveredMenu(null)}
             >
               <div
                 className={classes}
-                onClick={() => subItems && toggleSubMenu(menu.id)}
+                onClick={() => validSubItems && toggleSubMenu(menu.id)}
               >
                 {menu.link ? (
                   <Link href={menu.link}>
@@ -428,7 +443,7 @@ const Sidebar = (props: any) => {
                           <span className={`text-md font-medium mr-4 ml-3 ${Style["tajawal-medium"]}`}>
                             {menu.label}
                           </span>
-                          {subItems && (
+                          {validSubItems && validSubItems.length > 0 && (
                             <FaChevronDown
                               className={classNames(
                                 "w-4 h-4 transition-transform duration-500 text-white mr-2",
@@ -450,7 +465,7 @@ const Sidebar = (props: any) => {
                         <span className={`text-md font-medium mr-4 ml-3 ${Style["tajawal-medium"]}`}>
                           {menu.label}
                         </span>
-                        {subItems && (
+                        {validSubItems && validSubItems.length > 0 && (
                           <FaChevronDown
                             className={classNames(
                               "w-4 h-4 transition-transform duration-500 text-teal-200 mr-2",
@@ -467,14 +482,14 @@ const Sidebar = (props: any) => {
               </div>
 
               {/* Submenu Items */}
-              {!toggleCollapse && subItems && isOpen && (
+              {!toggleCollapse && validSubItems && validSubItems.length > 0 && isOpen && (
                 <div
                   className="overflow-hidden transition-all duration-500 ease-in-out"
                   style={{
-                    maxHeight: isOpen ? `${subItems.length * 48}px` : "0px",
+                    maxHeight: isOpen ? `${validSubItems.length * 60}px` : "0px",
                   }}
                 >
-                  {subItems.map((subItem) => {
+                  {validSubItems.map((subItem) => {
                     const isTestModeItem = subItem.id === 99;
                     const isTestMode = isTestModeItem && typeof window !== 'undefined' && window.location.hostname.includes('wasltester');
                     const isLocalhost = isTestModeItem && typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');

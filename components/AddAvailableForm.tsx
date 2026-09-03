@@ -50,9 +50,11 @@ interface FormData {
   Nationalitycopy: string;
   Religion: string;
   PaymentMethod: string;
-  Total: number;
-  Paid: number;
-  Remaining: number;
+  Total: number | string;
+  Paid: number | string;
+  Remaining: number | string;
+  AmountWithoutTax?: number | string;
+  TaxAmount?: number | string;
   orderDocument: string;
   contract: string;
   visaId: string; // Added visa ID
@@ -110,6 +112,8 @@ const [isUploading, setIsUploading] = useState<Record<string, boolean>>({
   orderDocument: false,
   contract: false,
 });
+const [isExtractingAmount, setIsExtractingAmount] = useState(false);
+const [justExtracted, setJustExtracted] = useState(false);
   // Auto search states for clients
   const [clientSuggestions, setClientSuggestions] = useState<any[]>([]);
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
@@ -578,10 +582,77 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, fileId: 
     setFormData((prev) => ({ ...prev, [fileId]: filePath }));
     setErrors((prev) => ({ ...prev, [fileId]: '' }));
     setFileUploaded((prev) => ({ ...prev, [fileId]: true }));
+    setUploadedFileNames((prev) => ({ ...prev, [fileId]: file.name }));
 
     const ref = fileInputRefs[fileId as keyof typeof fileInputRefs];
     if (ref && ref.current) {
       ref.current.value = '';
+    }
+
+    if (fileId === 'contract') {
+      setIsExtractingAmount(true);
+      try {
+        const formDataUpload = new FormData();
+        formDataUpload.append('image', file, file.name);
+
+        const response = await fetch('https://aidoc.rawaes.com/api/extractcontract', {
+          method: 'POST',
+          body: formDataUpload,
+        });
+
+        if (!response.ok) {
+           throw new Error('فشل الاستخراج من الذكاء الاصطناعي');
+        }
+
+        const aiRes = await response.json();
+         console.log("AI Extraction Result:", aiRes);
+         
+         if (aiRes) {
+           if (aiRes.amount_without_tax !== undefined && aiRes.tax_amount !== undefined) {
+             const withoutTax = Number(aiRes.amount_without_tax);
+             const tax = Number(aiRes.tax_amount);
+             
+             if (!isNaN(withoutTax) && !isNaN(tax)) {
+               const extractedAmount = withoutTax + tax;
+               if (extractedAmount > 0) {
+                 setFormData(prev => {
+                    const newData = { ...prev, Total: extractedAmount, AmountWithoutTax: withoutTax, TaxAmount: tax };
+                    if (prev.PaymentMethod === 'cash') {
+                      newData.Paid = extractedAmount;
+                      newData.Remaining = 0;
+                    } else {
+                      newData.Remaining = extractedAmount - (Number(prev.Paid) || 0);
+                    }
+                    return newData;
+                 });
+                 setJustExtracted(true);
+                 setTimeout(() => setJustExtracted(false), 5000);
+               }
+             }
+           } else if (aiRes.amount !== undefined) {
+             const extractedAmount = Number(aiRes.amount);
+             if (!isNaN(extractedAmount) && extractedAmount > 0) {
+               setFormData(prev => {
+                  const newData = { ...prev, Total: extractedAmount };
+                  if (prev.PaymentMethod === 'cash') {
+                    newData.Paid = extractedAmount;
+                    newData.Remaining = 0;
+                  } else {
+                    newData.Remaining = extractedAmount - (Number(prev.Paid) || 0);
+                  }
+                  return newData;
+               });
+               setJustExtracted(true);
+               setTimeout(() => setJustExtracted(false), 5000);
+             }
+           }
+         }
+      } catch (err) {
+         console.error('Error extracting amount from contract:', err);
+         setErrors(prev => ({ ...prev, contract: 'تعذر استخراج المبالغ بالذكاء الاصطناعي، يرجى إدخالها يدوياً' }));
+      } finally {
+         setIsExtractingAmount(false);
+      }
     }
   } catch (error: any) {
     console.error('Error uploading file:', error);
@@ -1212,143 +1283,353 @@ const arabicRegionMap: { [key: string]: string } = {
             <p className="text-yellow-700">يرجى اختيار العميل والعاملة أولاً لعرض التأشيرات المتاحة</p>
           </div>
         )}
-     <div className="mb-10">
-          <h2 className="text-base font-normal mb-2">طريقة الدفع المختارة</h2>
-          <div className="flex gap-[56px] justify-center flex-wrap">
-            {[
-              { option: 'كاش', value: 'cash', imgSrc: <CashIcon className="w-6 h-6" /> },
-              { option: 'دفعتين', value: 'two-installments', imgSrc: <CreditCardIcon className="w-6 h-6" /> },
-              { option: 'ثلاثة دفعات', value: 'three-installments', imgSrc: <CurrencyDollarIcon className="w-6 h-6" /> },
-              { option: 'مخصص', value: 'custom', imgSrc: <CurrencyDollarIcon className="w-6 h-6" /> },
+      {/* Upload Contract Section Above Invoice */}
+      <div className={`mb-6 border rounded-xl p-4 shadow-sm transition-all duration-500 ${
+        justExtracted 
+          ? 'bg-emerald-50 border-emerald-400 ring-2 ring-emerald-300 ring-offset-1 shadow-md scale-[1.005]' 
+          : formData.contract 
+            ? 'bg-gradient-to-l from-emerald-50/90 via-teal-50/70 to-white border-teal-300' 
+            : 'bg-gradient-to-l from-teal-50/80 to-white border-teal-200'
+      }`}>
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <input
+            type="file"
+            id="contract"
+            ref={fileInputRefs['contract']}
+            className="hidden"
+            accept="application/pdf,image/jpeg,image/png"
+            onChange={(e) => handleFileChange(e, 'contract')}
+          />
 
-            ].map(({ option, value, imgSrc }, index) => (
-              <label key={index} className="payment-option">
-                <input
-                  type="radio"
-                  name="PaymentMethod"
-                  value={value}
-                  checked={formData.PaymentMethod === value}
-                  onChange={handleFormChange}
-                  className="hidden"
-                />
-                <div className={`payment-button flex items-center justify-center gap-[10px] p-[14px] border-2 rounded-[8px] bg-[#f7f8fa] cursor-pointer w-[245px] text-[#1a4d4f] text-[20px] transition-border-color duration-200 ${formData.PaymentMethod === value ? 'border-[#1a4d4f] bg-teal-800 text-white' : 'border-[#e0e0e0]'}`}>
-                  <span className="text-xl">{option}</span>
-{imgSrc}
-                </div>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {/* Payment Amount Fields */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
-          <div className="flex flex-col gap-2">
-            <label className="text-base">المبلغ كامل</label>
-            <input
-              type="number"
-              name="Total"
-              value={formData.Total}
-              onChange={handleFormChange}
-              placeholder="أدخل المبلغ الكامل"
-              min="0"
-              step="0.01"
-              className={`w-full p-3 border ${
-                errors.Total ? 'border-red-500' : 'border-gray-300'
-              } rounded-md text-right focus:border-teal-500 focus:ring-1 focus:ring-teal-500`}
-            />
-            {errors.Total && <p className="text-red-500 text-xs mt-1">{errors.Total}</p>}
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-base">المبلغ المدفوع</label>
-            <input
-              type="number"
-              name="Paid"
-              value={formData.Paid}
-              onChange={handleFormChange}
-              placeholder="أدخل المبلغ المدفوع"
-              min="0"
-              step="0.01"
-              className={`w-full p-3 border ${
-                errors.Paid ? 'border-red-500' : 'border-gray-300'
-              } rounded-md text-right focus:border-teal-500 focus:ring-1 focus:ring-teal-500`}
-            />
-            {errors.Paid && <p className="text-red-500 text-xs mt-1">{errors.Paid}</p>}
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-base">المبلغ المتبقي</label>
-            <input
-              type="number"
-              name="Remaining"
-              value={formData.Remaining}
-              readOnly
-              className="w-full p-3 border border-gray-300 rounded-md text-right bg-gray-50"
-            />
-          </div>
-        </div>
-
-<div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-  {[
-    { id: 'orderDocument', label: 'ملف سند الأمر', show: formData.PaymentMethod !== 'cash' },
-    { id: 'contract', label: 'ملف العقد', show: true },
-  ].filter((file) => file.show).map((file) => (
-    <div key={file.id} className="flex flex-col gap-2">
-      <label htmlFor={file.id} className="text-base">
-        {file.label}
-        {file.id === 'orderDocument' && <span className="text-red-500 mr-1">*</span>}
-      </label>
-      <div className={`file-upload-display border ${
-        errors[file.id] ? 'border-red-500' : 'border-gray-300'
-      } rounded p-2 flex justify-between items-center`}>
-        <span className="text-gray-500 text-sm pr-2 flex items-center gap-2">
-          {isUploading[file.id as keyof typeof isUploading] ? (
+          {formData.contract ? (
+            /* Uploaded State: Professional File & AI Extraction Card */
             <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-teal-600"></div>
-              <span>جاري الرفع...</span>
+              <div className="flex items-center gap-3.5 flex-1 min-w-0">
+                {/* Large PDF/Doc Icon */}
+                <div className={`w-12 h-12 rounded-xl bg-red-50 border border-red-200 flex flex-col items-center justify-center flex-shrink-0 shadow-sm text-red-600 transition-transform duration-300 ${justExtracted ? 'scale-110 ring-2 ring-emerald-400' : ''}`}>
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span className="text-[9px] font-bold uppercase tracking-wider -mt-0.5">PDF</span>
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-sm font-bold text-gray-900 truncate" title={uploadedFileNames['contract'] || 'ملف الفاتورة'}>
+                      {uploadedFileNames['contract'] || 'ملف الفاتورة.pdf'}
+                    </h3>
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border transition-colors duration-300 ${
+                      justExtracted 
+                        ? 'bg-emerald-200 text-emerald-900 border-emerald-400 shadow-sm' 
+                        : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                    }`}>
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
+                      </span>
+                      {justExtracted ? '✨ تم استخراج مبالغ الفاتورة بنجاح' : 'تم استخراج الفاتورة وحفظ الملف'}
+                    </span>
+                  </div>
+                  <p className="text-gray-500 text-xs mt-1 flex items-center gap-1.5">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-teal-600"></span>
+                    تم استخراج مبالغ الفاتورة وتعبئة الحقول المالية وحفظ ملف الفاتورة في النظام.
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Buttons on Left Side */}
+              <div className="flex items-center gap-2.5 flex-shrink-0 w-full md:w-auto justify-end">
+                <a
+                  href={formData.contract}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white border border-teal-700 text-teal-900 rounded-lg text-xs font-bold hover:bg-teal-50 transition shadow-sm"
+                >
+                  <svg className="w-4 h-4 text-teal-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  عرض ملف الفاتورة
+                </a>
+                <button
+                  type="button"
+                  disabled={isSubmitting || isUploading['contract'] || isExtractingAmount}
+                  onClick={() => handleButtonClick('contract')}
+                  className="flex items-center justify-center gap-1 px-3 py-2 border border-gray-300 bg-white text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-50 hover:text-gray-900 transition"
+                >
+                  <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  تغيير الملف
+                </button>
+              </div>
             </>
-          ) : fileUploaded[file.id as keyof typeof fileUploaded] ? (
-            // **التغيير الجديد: عرض اسم الملف بدلاً من "ملف مرفق"**
-            <div className="flex flex-col">
-              <span className="font-medium text-teal-800 text-sm mb-1">
-                {uploadedFileNames[file.id as keyof typeof uploadedFileNames] || 'ملف مرفق'}
-              </span>
-              <a
-                href={formData[file.id as keyof FormData] as string}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-teal-600 hover:underline text-xs"
-              >
-                فتح الملف
-              </a>
-            </div>
           ) : (
-            'إرفاق ملف'
+            /* Initial State */
+            <>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-teal-800 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-teal-950">استخراج ذكي لبيانات الفاتورة</h2>
+                  <p className="text-gray-500 text-xs mt-0.5">
+                    قم برفع ملف الفاتورة (PDF أو صورة) وسيقوم الذكاء الاصطناعي باستخراج المبالغ وتعبئة الفاتورة تلقائياً.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="w-full md:w-auto flex-shrink-0">
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  className={`w-full md:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-xs sm:text-sm font-medium transition duration-200 ${
+                    isUploading['contract'] || isExtractingAmount
+                      ? 'bg-gray-300 text-gray-500 cursor-wait'
+                      : 'bg-teal-800 text-white hover:bg-teal-900 shadow-sm'
+                  }`}
+                  onClick={() => handleButtonClick('contract')}
+                >
+                  {isUploading['contract'] || isExtractingAmount ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                      <span>جاري استخراج بيانات الفاتورة...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                      <span>رفع ملف الفاتورة</span>
+                    </>
+                  )}
+                </button>
+                {errors['contract'] && <p className="text-red-500 text-xs mt-1 text-center font-medium">{errors['contract']}</p>}
+              </div>
+            </>
           )}
-        </span>
-        <input
-          type="file"
-          id={file.id}
-          ref={fileInputRefs[file.id as keyof typeof fileInputRefs]}
-          className="hidden"
-          accept="application/pdf,image/jpeg,image/png"
-          onChange={(e) => handleFileChange(e, file.id)}
-        />
-        <button
-          type="button"
-          disabled={isSubmitting}
-          className={`px-3 py-1 rounded text-sm transition duration-200 ${
-            isSubmitting 
-              ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
-              : 'bg-teal-900 text-white hover:bg-teal-800'
-          }`}
-          onClick={() => handleButtonClick(file.id)}
-        >
-          اختيار ملف
-        </button>
+        </div>
       </div>
-      {errors[file.id as keyof typeof errors] && <p className="text-red-500 text-xs mt-1">{errors[file.id as keyof typeof errors]}</p>}
-    </div>
-  ))}
-</div>
+
+      {/* Invoice Layout */}
+      <div className="mb-8 bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-gray-50 border-b border-gray-200 px-4 py-2.5">
+          <h2 className="text-sm sm:text-base font-semibold text-gray-800 flex items-center gap-2">
+            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+            تفاصيل الفاتورة والدفع
+          </h2>
+        </div>
+
+        <div className="p-4">
+          <div className="flex flex-col lg:flex-row gap-5">
+            
+            {/* Right Side: Payment Methods (Stacked) */}
+            <div className="lg:w-1/3 flex flex-col gap-2.5">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase">اختر طريقة الدفع</h3>
+              {[
+                { option: 'دفعة واحدة', value: 'cash', imgSrc: <CashIcon className="w-5 h-5" /> },
+                { option: 'دفعتين', value: 'two-installments', imgSrc: <CreditCardIcon className="w-5 h-5" /> },
+                { option: 'ثلاث دفعات', value: 'three-installments', imgSrc: <CurrencyDollarIcon className="w-5 h-5" /> },
+                { option: 'مخصص', value: 'custom', imgSrc: <CurrencyDollarIcon className="w-5 h-5" /> },
+              ].map(({ option, value, imgSrc }, index) => (
+                <label key={index} className="payment-option block cursor-pointer">
+                  <input
+                    type="radio"
+                    name="PaymentMethod"
+                    value={value}
+                    checked={formData.PaymentMethod === value}
+                    onChange={handleFormChange}
+                    className="hidden"
+                  />
+                  <div className={`payment-button flex items-center justify-between p-2.5 border rounded-lg transition-colors ${
+                    formData.PaymentMethod === value 
+                      ? 'border-teal-700 bg-teal-800 text-white shadow-sm' 
+                      : 'border-gray-300 bg-white text-gray-700 hover:border-teal-400 hover:bg-teal-50/50'
+                  }`}>
+                    <span className="text-sm font-medium">{option}</span>
+                    <div className={`p-1 rounded ${formData.PaymentMethod === value ? 'text-white' : 'text-gray-500'}`}>
+                      {imgSrc}
+                    </div>
+                  </div>
+                </label>
+              ))}
+              
+              {/* Conditional Promissory Note Upload */}
+              {formData.PaymentMethod !== 'cash' && (
+                <div className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                  <label htmlFor="orderDocument" className="text-xs font-semibold text-orange-800 flex items-center gap-1 mb-2">
+                    <span className="text-red-500">*</span>
+                    رفع ملف سند الأمر
+                  </label>
+                  <div className="flex flex-col gap-2">
+                    <input
+                      type="file"
+                      id="orderDocument"
+                      ref={fileInputRefs['orderDocument']}
+                      className="hidden"
+                      accept="application/pdf,image/jpeg,image/png"
+                      onChange={(e) => handleFileChange(e, 'orderDocument')}
+                    />
+                    <button
+                      type="button"
+                      disabled={isSubmitting}
+                      className={`w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded text-xs font-medium transition duration-200 ${
+                        isUploading['orderDocument']
+                          ? 'bg-gray-300 text-gray-500 cursor-wait'
+                          : 'bg-orange-600 text-white hover:bg-orange-700 shadow-sm'
+                      }`}
+                      onClick={() => handleButtonClick('orderDocument')}
+                    >
+                      {isUploading['orderDocument'] ? (
+                        <>
+                          <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white"></div>
+                          <span>جاري الرفع...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                          <span>اختر ملف سند الأمر</span>
+                        </>
+                      )}
+                    </button>
+                    {fileUploaded['orderDocument'] && (
+                       <p className="text-orange-700 text-xs text-center font-medium">✓ تم رفع السند بنجاح</p>
+                    )}
+                    {errors['orderDocument'] && <p className="text-red-500 text-xs text-center font-medium">{errors['orderDocument']}</p>}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Left Side: Invoice Amounts */}
+            <div className="lg:w-2/3 bg-gray-50/80 rounded-lg p-4 border border-gray-200">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase mb-3 pb-2 border-b border-gray-200">ملخص المبالغ</h3>
+              
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <label className="text-xs sm:text-sm font-medium text-gray-700 sm:w-2/5">المبلغ (بدون ضريبة)</label>
+                  <div className="sm:w-3/5">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        name="AmountWithoutTax"
+                        value={formData.AmountWithoutTax || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const withoutTax = Number(val) || 0;
+                          const tax = Number(formData.TaxAmount) || 0;
+                          const total = withoutTax + tax;
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            AmountWithoutTax: val, 
+                            Total: total > 0 ? total : ''
+                          }));
+                        }}
+                        placeholder="0.00"
+                        className="w-full p-2.5 pl-12 border border-gray-300 bg-white rounded-md text-left text-sm text-gray-800 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors"
+                        style={{direction: 'ltr'}}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-semibold">SAR</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <label className="text-xs sm:text-sm font-medium text-gray-700 sm:w-2/5">قيمة الضريبة المضافة (VAT)</label>
+                  <div className="sm:w-3/5">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        name="TaxAmount"
+                        value={formData.TaxAmount || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const withoutTax = Number(formData.AmountWithoutTax) || 0;
+                          const tax = Number(val) || 0;
+                          const total = withoutTax + tax;
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            TaxAmount: val, 
+                            Total: total > 0 ? total : ''
+                          }));
+                        }}
+                        placeholder="0.00"
+                        className="w-full p-2.5 pl-12 border border-gray-300 bg-white rounded-md text-left text-sm text-gray-800 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors"
+                        style={{direction: 'ltr'}}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-semibold">SAR</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-gray-200">
+                  <label className="text-xs sm:text-sm font-bold text-teal-900 sm:w-2/5">المبلغ كامل (شامل الضريبة)</label>
+                  <div className="sm:w-3/5">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        name="Total"
+                        value={formData.Total}
+                        onChange={handleFormChange}
+                        placeholder="0.00"
+                        className={`w-full p-2.5 pl-12 border ${
+                          errors.Total ? 'border-red-400 bg-red-50' : 'border-teal-400 bg-teal-50/50'
+                        } rounded-md text-left text-sm font-bold text-teal-900 focus:border-teal-600 focus:ring-1 focus:ring-teal-600 transition-colors`}
+                        style={{direction: 'ltr'}}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-teal-800 text-xs font-bold">SAR</span>
+                    </div>
+                    {errors.Total && <p className="text-red-500 text-xs mt-1 font-medium">{errors.Total}</p>}
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <label className="text-xs sm:text-sm font-medium text-gray-700 sm:w-2/5">المبلغ المدفوع</label>
+                  <div className="sm:w-3/5">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        name="Paid"
+                        value={formData.Paid}
+                        onChange={handleFormChange}
+                        placeholder="0.00"
+                        className={`w-full p-2.5 pl-12 border ${
+                          errors.Paid ? 'border-red-400 bg-red-50' : 'border-gray-300 bg-white'
+                        } rounded-md text-left text-sm text-gray-800 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors`}
+                        style={{direction: 'ltr'}}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-semibold">SAR</span>
+                    </div>
+                    {errors.Paid && <p className="text-red-500 text-xs mt-1 font-medium">{errors.Paid}</p>}
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <label className="text-xs sm:text-sm font-medium text-gray-500 sm:w-2/5">المبلغ المتبقي</label>
+                  <div className="sm:w-3/5">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        name="Remaining"
+                        value={formData.Remaining}
+                        readOnly
+                        className="w-full p-2.5 pl-12 border border-gray-300 bg-gray-100 rounded-md text-left text-sm text-gray-600 cursor-not-allowed"
+                        style={{direction: 'ltr'}}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-semibold">SAR</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+            
+          </div>
+        </div>
+      </div>
         <div className="flex gap-6 flex-col sm:flex-row">
           <button 
             type="submit" 

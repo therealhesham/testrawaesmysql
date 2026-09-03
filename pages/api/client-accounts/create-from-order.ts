@@ -4,6 +4,7 @@ import { jwtDecode } from 'jwt-decode';
 import cookie from 'cookie';
 import { logAccountingActionFromRequest, getUserFromCookies } from 'lib/accountingLogger';
 import eventBus from 'lib/eventBus';
+import { sendAccountingReviewNotification } from 'lib/notificationsHelper';
 
 // Helper function to recalculate totals from entries
 async function recalculateStatementTotals(statementId: number) {
@@ -55,7 +56,16 @@ async function recalculateBalancesAfterDate(statementId: number, fromDate: Date)
  */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
-    const { orderId, total: bodyTotal, paid: bodyPaid } = req.body;
+    const { 
+      orderId, 
+      total: bodyTotal, 
+      paid: bodyPaid, 
+      amountWithoutTax: bodyAmountWithoutTax, 
+      taxAmount: bodyTaxAmount, 
+      contract: bodyContract, 
+      orderDocument: bodyOrderDocument, 
+      paymentMethod: bodyPaymentMethod 
+    } = req.body;
     if (!orderId) {
       return res.status(400).json({ message: 'رقم الطلب مطلوب' });
     }
@@ -97,12 +107,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const isFullPayment = paidAmount > 0 && paidAmount === newTotal;
         const description = isFullPayment ? 'سداد كامل' : 'دفعة أولى';
 
-        // 1. تحديث قيم الطلب في قاعدة البيانات
-        await prisma.neworder.update({
+        // 1. تحديث قيم الطلب في قاعدة البيانات مع احتساب الضريبة
+        const netCalc = bodyAmountWithoutTax != null ? Number(bodyAmountWithoutTax) : Math.round((newTotal / 1.15) * 100) / 100;
+        const taxCalc = bodyTaxAmount != null ? Number(bodyTaxAmount) : Math.round((newTotal - netCalc) * 100) / 100;
+        await (prisma as any).neworder.update({
           where: { id: Number(orderId) },
           data: {
             Total: newTotal,
             paid: paidAmount,
+            AmountWithoutTax: netCalc,
+            TaxAmount: taxCalc,
+            ...(bodyContract ? { contract: bodyContract } : {}),
+            ...(bodyOrderDocument ? { orderDocument: bodyOrderDocument } : {}),
+            ...(bodyPaymentMethod ? { PaymentMethod: bodyPaymentMethod } : {}),
           },
         });
 
@@ -215,6 +232,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           console.error("Error creating logs in POST accounting initialization:", err);
         }
 
+        // إرسال تنبيه للمحاسبين لترحيل القيد لدفترة
+        try {
+          await sendAccountingReviewNotification(Number(orderId), (res.socket as any)?.server?.io);
+        } catch (notifErr) {
+          console.error("Error sending accounting notification:", notifErr);
+        }
+
         return res.status(200).json({
           message: 'تم إنشاء السجلات المحاسبية بنجاح',
           statementId: existingStatement.id,
@@ -239,13 +263,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             ? order.paid
             : Number(order.paid) || 0;
 
-      // تحديث المبلغ المطلوب والمدفوع في الطلب إن وُجد في الجسم
+      // تحديث المبلغ المطلوب والمدفوع والضريبة في الطلب إن وُجد في الجسم
       if (bodyTotal != null && !Number.isNaN(Number(bodyTotal))) {
-        await prisma.neworder.update({
+        const totalNum = Number(bodyTotal);
+        const netCalc = bodyAmountWithoutTax != null ? Number(bodyAmountWithoutTax) : Math.round((totalNum / 1.15) * 100) / 100;
+        const taxCalc = bodyTaxAmount != null ? Number(bodyTaxAmount) : Math.round((totalNum - netCalc) * 100) / 100;
+        await (prisma as any).neworder.update({
           where: { id: Number(orderId) },
           data: {
-            Total: Number(bodyTotal),
+            Total: totalNum,
             paid: Number(paidAmount),
+            AmountWithoutTax: netCalc,
+            TaxAmount: taxCalc,
+            ...(bodyContract ? { contract: bodyContract } : {}),
+            ...(bodyOrderDocument ? { orderDocument: bodyOrderDocument } : {}),
+            ...(bodyPaymentMethod ? { PaymentMethod: bodyPaymentMethod } : {}),
           },
         });
       }
@@ -329,6 +361,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }
 
+      // إرسال تنبيه للمحاسبين لترحيل القيد لدفترة
+      try {
+        await sendAccountingReviewNotification(Number(orderId), (res.socket as any)?.server?.io);
+      } catch (notifErr) {
+        console.error("Error sending accounting notification:", notifErr);
+      }
+
       return res.status(200).json({
         message: 'تم إنشاء السجلات المحاسبية بنجاح',
         statementId: statement.id,
@@ -341,7 +380,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
   } else if (req.method === 'PUT') {
-    const { orderId, total: bodyTotal, paid: bodyPaid } = req.body;
+    const { 
+      orderId, 
+      total: bodyTotal, 
+      paid: bodyPaid, 
+      amountWithoutTax: bodyAmountWithoutTax, 
+      taxAmount: bodyTaxAmount, 
+      contract: bodyContract, 
+      orderDocument: bodyOrderDocument, 
+      paymentMethod: bodyPaymentMethod 
+    } = req.body;
     if (!orderId) {
       return res.status(400).json({ message: 'رقم الطلب مطلوب' });
     }
@@ -388,11 +436,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const description = isFullPayment ? 'سداد كامل' : 'دفعة أولى';
 
       // 2. تحديث قيم الطلب في قاعدة البيانات
-      await prisma.neworder.update({
+      const netCalc = bodyAmountWithoutTax != null ? Number(bodyAmountWithoutTax) : Math.round((newTotal / 1.15) * 100) / 100;
+      const taxCalc = bodyTaxAmount != null ? Number(bodyTaxAmount) : Math.round((newTotal - netCalc) * 100) / 100;
+      await (prisma as any).neworder.update({
         where: { id: Number(orderId) },
         data: {
           Total: newTotal,
           paid: newPaid,
+          AmountWithoutTax: netCalc,
+          TaxAmount: taxCalc,
+          ...(bodyContract ? { contract: bodyContract } : {}),
+          ...(bodyOrderDocument ? { orderDocument: bodyOrderDocument } : {}),
+          ...(bodyPaymentMethod ? { PaymentMethod: bodyPaymentMethod } : {}),
         },
       });
 

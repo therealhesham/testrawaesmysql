@@ -1,6 +1,6 @@
 {
   "name": "windmill-dashboard-nextjs-typescript",
-  "version": "1.1.1",
+  "version": "1.2.1",
   "private": true,
   "scripts": {
     "dev": "set NODE_OPTIONS=--openssl-legacy-provider && next dev",
@@ -85,7 +85,7 @@
     "react-phone-number-input": "^3.4.14",
     "react-query": "^3.39.3",
     "react-quill": "^2.0.0",
-    "react-select": "^5.3.0",
+    "react-select": "^5.10.2",
     "react-simple-maps": "^3.0.0",
     "react-spinners": "^0.13.8",
     "react-to-pdf": "^1.0.1",

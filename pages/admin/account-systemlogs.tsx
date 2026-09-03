@@ -31,6 +31,11 @@ const translateActionType = (actionType: string): string => {
     'delete_client_entry': 'حذف قيد محاسبي',
     'entry': 'إضافة قيد محاسبي',
     
+    // عمليات دفترة ERP
+    'daftra_journal_entry': 'ترحيل قيد لدفترة',
+    'daftra_cost_center': 'إنشاء مركز تكلفة في دفترة',
+    'daftra_client_account': 'إنشاء حساب عميل في دفترة',
+    
     // حسابات الموظفين
     'add_employee_cash': 'إضافة عهدة موظف',
     'update_employee_cash': 'تعديل عهدة موظف',
@@ -53,21 +58,21 @@ const translateActionType = (actionType: string): string => {
 };
 
 export default function AccountSystemLogs() {
-  const [logs, setLogs] = useState([]);
+  const [logs, setLogs] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState('');
-  const [exportedData, setExportedData] = useState([]);
+  const [exportedData, setExportedData] = useState<any[]>([]);
   const [userName, setUserName] = useState('');
   
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      const decoded = jwtDecode(token);
-      const userName = decoded.username;
+      const decoded = jwtDecode<any>(token);
+      const userName = decoded?.username || '';
       setUserName(userName);
     }
   }, []);
@@ -88,7 +93,7 @@ export default function AccountSystemLogs() {
       setLogs(logsData);
       setTotalCount(Array.isArray(response.data) ? response.data.length : response.data.totalCount || logsData.length);
       setCurrentPage(page);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching logs:', error.response?.data || error.message);
       setLogs([]);
     } finally {
@@ -106,7 +111,7 @@ export default function AccountSystemLogs() {
       });
       const logsData = Array.isArray(response.data) ? response.data : response.data.logs || [];
       setExportedData(logsData);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching logs for export:', error.response?.data || error.message);
       setExportedData([]);
     }
@@ -193,22 +198,18 @@ export default function AccountSystemLogs() {
       },
       margin: { top: 42, right: 10, left: 10 },
 
-      // ✅ هنا بنضيف اللوجو والبيانات في كل صفحة
-      didDrawPage: (data) => {
+      didDrawPage: (data: any) => {
         const pageHeight = doc.internal.pageSize.height;
         const pageWidth = doc.internal.pageSize.width;
 
-        // 🔷 إضافة اللوجو أعلى الصفحة (في كل صفحة)
         doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
 
-        // 🔹 كتابة العنوان في أول صفحة فقط (اختياري)
         if (doc.getCurrentPageInfo().pageNumber === 1) {
           doc.setFontSize(12);
           doc.setFont('Amiri', 'normal');
           doc.text('سجل النظام المحاسبي', pageWidth / 2, 20, { align: 'right' });
         }
 
-        // 🔸 الفوتر
         doc.setFontSize(10);
         doc.setFont('Amiri', 'normal');
 
@@ -232,7 +233,7 @@ export default function AccountSystemLogs() {
         doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
       },
 
-      didParseCell: (data) => {
+      didParseCell: (data: any) => {
         data.cell.styles.halign = 'right';
       },
     });
@@ -243,7 +244,7 @@ export default function AccountSystemLogs() {
   // Export to Excel
   const exportToExcel = () => {
     const worksheetData = Array.isArray(exportedData)
-      ? exportedData.map(row => ({
+      ? exportedData.map((row: any) => ({
           'رقم السجل': row.id || 'غير متوفر',
           'الإجراء': row.action || 'غير متوفر',
           'نوع الإجراء': translateActionType(row.actionType || ''),
@@ -259,8 +260,10 @@ export default function AccountSystemLogs() {
 
     const worksheet = XLSX.utils.json_to_sheet(worksheetData, {
       header: ['رقم السجل', 'الإجراء', 'نوع الإجراء', 'ملاحظات', 'الحالة', 'المبلغ', 'اسم العميل', 'اسم المستخدم', 'تاريخ الإنشاء', 'تاريخ التحديث'],
-      rtl: true,
     });
+    if (!worksheet['!views']) worksheet['!views'] = [];
+    worksheet['!views'].push({ RTL: true });
+
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'سجل النظام المحاسبي');
     XLSX.writeFile(workbook, 'account_system_logs.xlsx', { compression: true });
@@ -287,6 +290,10 @@ export default function AccountSystemLogs() {
     { value: 'add_client_entry', label: 'إضافة قيد محاسبي' },
     { value: 'update_client_entry', label: 'تعديل قيد محاسبي' },
     { value: 'delete_client_entry', label: 'حذف قيد محاسبي' },
+    // عمليات دفترة ERP
+    { value: 'daftra_journal_entry', label: 'ترحيل قيد لدفترة' },
+    { value: 'daftra_cost_center', label: 'إنشاء مركز تكلفة في دفترة' },
+    { value: 'daftra_client_account', label: 'إنشاء حساب عميل في دفترة' },
     // حسابات الموظفين
     { value: 'add_employee_cash', label: 'إضافة عهدة موظف' },
     { value: 'update_employee_cash', label: 'تعديل عهدة موظف' },
@@ -304,13 +311,13 @@ export default function AccountSystemLogs() {
   ];
 
   // Handle search input change
-  const handleSearchChange = (e) => {
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
     setCurrentPage(1);
   };
 
   // Handle action filter change
-  const handleActionFilterChange = (selectedOption) => {
+  const handleActionFilterChange = (selectedOption: any) => {
     setActionFilter(selectedOption ? selectedOption.value : '');
     setCurrentPage(1);
   };
@@ -320,7 +327,7 @@ export default function AccountSystemLogs() {
   const startRecord = (currentPage - 1) * pageSize + 1;
   const endRecord = Math.min(currentPage * pageSize, totalCount);
 
-  const handlePageChange = (page) => {
+  const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
     }
@@ -338,56 +345,42 @@ export default function AccountSystemLogs() {
 
     for (let i = startPage; i <= endPage; i++) {
       pages.push(
-        <a
+        <button
           key={i}
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            handlePageChange(i);
-          }}
-          className={`px-2 py-1 border rounded text-sm ${
-            i === currentPage
-              ? 'border-teal-800 bg-teal-900 text-white'
-              : 'border-gray-300 bg-gray-50'
+          className={`px-3 py-1 rounded mx-1 ${
+            currentPage === i
+              ? 'bg-teal-900 text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
+          onClick={() => handlePageChange(i)}
         >
           {i}
-        </a>
+        </button>
       );
     }
 
     return (
-      <div className="flex justify-between items-center mt-6">
-        <span className="text-base">
-          عرض {startRecord}-{endRecord} من {totalCount} نتيجة
-        </span>
-        <nav className="flex gap-1">
-          <a
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              handlePageChange(currentPage - 1);
-            }}
-            className={`px-2 py-1 border border-gray-300 rounded bg-gray-50 text-sm ${
-              currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
+      <div className="flex justify-between items-center mt-4">
+        <div className="text-sm text-gray-700">
+          عرض {startRecord} إلى {endRecord} من {totalCount} سجلات
+        </div>
+        <div className="flex">
+          <button
+            className="px-3 py-1 rounded mx-1 bg-gray-100 text-gray-700 hover:bg-gray-200"
+            disabled={currentPage === 1}
+            onClick={() => handlePageChange(currentPage - 1)}
           >
             السابق
-          </a>
+          </button>
           {pages}
-          <a
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              handlePageChange(currentPage + 1);
-            }}
-            className={`px-2 py-1 border border-gray-300 rounded bg-gray-50 text-sm ${
-              currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
+          <button
+            className="px-3 py-1 rounded mx-1 bg-gray-100 text-gray-700 hover:bg-gray-200"
+            disabled={currentPage === totalPages}
+            onClick={() => handlePageChange(currentPage + 1)}
           >
             التالي
-          </a>
-        </nav>
+          </button>
+        </div>
       </div>
     );
   };
@@ -396,40 +389,39 @@ export default function AccountSystemLogs() {
     <Layout>
       <Head>
         <title>سجل النظام المحاسبي</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </Head>
-      <div className={`text-gray-800 ${Style['tajawal-regular']}`} dir="rtl">
-        <div className="p-6 min-h-screen">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-normal">سجل النظام المحاسبي</h1>
-          </div>
-          <div className="bg-white border border-gray-300 rounded p-6">
-            <div className="flex flex-col md:flex-row justify-between mb-6 gap-4">
-              <div className="flex flex-col sm:flex-row gap-4 h-8">
-                <div className="flex items-center border-none rounded bg-gray-50 p-2">
+      <div className={Style.maincontnet}>
+        <div className="p-4">
+          <div className="rounded-lg shadow bg-white p-4">
+            <h1 className="text-xl font-bold mb-4 text-right">سجل النظام المحاسبي</h1>
+            <div className="flex justify-between items-center mb-4 flex-wrap gap-4">
+              <div className="flex gap-2">
+                <div className="relative">
                   <input
                     type="text"
-                    placeholder="بحث"
+                    placeholder="بحث في السجلات..."
                     value={searchTerm}
                     onChange={handleSearchChange}
-                    className="bg-transparent border-none w-48 text-right"
+                    className="border border-gray-300 rounded px-4 py-2 pr-10 text-right w-64 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700"
                   />
-                  <Search />
+                  <Search className="absolute right-3 top-2.5 text-gray-400" size={20} />
                 </div>
-                <div className="flex items-center border-none rounded bg-none">
+                <div>
                   <Select
+                    isRtl={true}
+                    value={actionOptions.find((option) => option.value === actionFilter)}
                     options={actionOptions}
                     onChange={handleActionFilterChange}
                     placeholder="كل الإجراءات"
                     className="w-40 text-right"
                     styles={{
-                      control: (base) => ({
+                      control: (base: any) => ({
                         ...base,
                         backgroundColor: '#F9FAFB',
                         borderColor: '#D1D5DB',
                         textAlign: 'right',
                       }),
-                      menu: (base) => ({
+                      menu: (base: any) => ({
                         ...base,
                         textAlign: 'right',
                       }),
@@ -437,7 +429,7 @@ export default function AccountSystemLogs() {
                   />
                 </div>
                 <button
-                  className="bg-teal-900 text-white px-2 rounded hover:bg-teal-800 transition duration-200"
+                  className="bg-teal-900 text-white px-4 rounded hover:bg-teal-800 transition duration-200"
                   onClick={() => {
                     setSearchTerm('');
                     setActionFilter('');
@@ -447,7 +439,7 @@ export default function AccountSystemLogs() {
                   إعادة ضبط
                 </button>
               </div>
-              <div className="flex gap-4 justify-end">
+              <div className="flex gap-4">
                 <button
                   className="flex items-center gap-1 bg-teal-900 text-white px-3 py-1 rounded text-sm hover:bg-teal-800 transition duration-200"
                   onClick={exportToPDF}
@@ -490,7 +482,7 @@ export default function AccountSystemLogs() {
                         </td>
                       </tr>
                     ) : (
-                      logs.map((log, index) => (
+                      logs.map((log: any, index: number) => (
                         <tr key={index} className="bg-gray-50">
                           <td className="p-4">{log.id || 'غير متوفر'}</td>
                           <td className="p-4">{log.action || 'غير متوفر'}</td>

@@ -1,6 +1,5 @@
-/* @ts-ignore */
-
 import React, { useEffect, useState } from "react";
+import packageInfo from "../../package.json";
 import {
   Avatar,
   Badge,
@@ -107,8 +106,7 @@ const scrollToTop = () => {
                 &copy; {new Date().getFullYear()} جميع الحقوق محفوظة
               </span>
               <span className="flex items-center gap-2 font-medium text-teal-600 dark:text-teal-400">
-               
-                الإصدار {process.env.NEXT_PUBLIC_VERSION || '0.1.0'}
+                الإصدار {packageInfo.version || process.env.NEXT_PUBLIC_VERSION || '1.1.1'}
               </span>
             </div>
           </div>

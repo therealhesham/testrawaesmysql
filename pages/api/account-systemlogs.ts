@@ -57,7 +57,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             actionClient: true,
           },
           orderBy: {
-            createdAt: 'desc',
+            id: 'desc',
           },
         }),
         prisma.accountSystemLogs.count({ where }),

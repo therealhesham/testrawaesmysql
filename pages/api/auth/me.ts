@@ -8,7 +8,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // Get token from cookies
+    // Get token from Authorization header or cookies
+    const authHeader = req.headers.authorization;
+    let rawToken = '';
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      rawToken = authHeader.substring(7).trim();
+    }
+
     const cookieHeader = req.headers.cookie;
     let cookies: { [key: string]: string } = {};
     if (cookieHeader) {
@@ -18,13 +24,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    if (!cookies.authToken) {
+    if (!rawToken) {
+      rawToken = cookies.authToken || cookies.token || '';
+    }
+
+    if (!rawToken) {
       return res.status(401).json({ error: 'No auth token' });
     }
 
     // Decode the token
     try {
-      const token = jwtDecode(cookies.authToken) as any;
+      const token = jwtDecode(rawToken) as any;
       
       // Check if token has expired
       const currentTime = Math.floor(Date.now() / 1000);
@@ -42,15 +52,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(404).json({ error: 'User not found' });
       }
 
-      const rolePermissions = user.role?.permissions as any;
+      let rolePermissions = user.role?.permissions as any;
+      if (typeof rolePermissions === 'string') {
+        try {
+          rolePermissions = JSON.parse(rolePermissions);
+        } catch (e) {
+          rolePermissions = {};
+        }
+      }
+
+      const roleName = user.role?.name || (typeof token.role === 'string' && isNaN(Number(token.role)) ? token.role : '');
 
       // Return user info with permissions
       return res.status(200).json({ 
         user: {
-          id: token.id,
-          username: token.username || 'مستخدم',
-          role: token.role,
-          picture: token.picture,
+          id: user.id,
+          username: user.username || token.username || 'مستخدم',
+          role: roleName,
+          roleId: user.roleId,
+          picture: user.pictureurl || token.picture,
           permissions: rolePermissions || {}
         }
       });

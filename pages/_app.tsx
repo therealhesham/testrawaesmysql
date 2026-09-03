@@ -37,11 +37,37 @@ function MyApp({ Component, pageProps }: AppProps) {
   // suppress useLayoutEffect warnings when running outside a browser
   if (!process.browser) React.useLayoutEffect = React.useEffect;
   // console.log(session)
-  const queryClient = new QueryClient();
-  useEffect(() => {}, []);
-  // console.log(pageProps);
-  
   const isLoginPage = router.pathname.includes('/login');
+
+  useEffect(() => {
+    if (isLoginPage) return;
+    // Background prefetch for Daftra accounts & cost centers to ensure instant load on accounting pages
+    const prefetchDaftra = async () => {
+      try {
+        const [accRes, ccRes] = await Promise.all([
+          fetch('/api/daftra/accounts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) }),
+          fetch('/api/daftra/cost-centers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) }),
+        ]);
+        if (accRes.ok) {
+          const accData = await accRes.json();
+          if (accData?.data) {
+            localStorage.setItem('daftra_accounts_cache', JSON.stringify(accData.data));
+          }
+        }
+        if (ccRes.ok) {
+          const ccData = await ccRes.json();
+          if (ccData?.data) {
+            localStorage.setItem('daftra_cost_centers_cache', JSON.stringify(ccData.data));
+          }
+        }
+      } catch (e) {
+        // silent fail in background
+      }
+    };
+    // Run prefetch shortly after initial load
+    const timer = setTimeout(prefetchDaftra, 1000);
+    return () => clearTimeout(timer);
+  }, [isLoginPage]);
 
   return (
     <GlobalToastProvider>
