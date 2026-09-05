@@ -23,7 +23,7 @@ if (!(eventBus as any).__loggersInitialized) {
           BeneficiaryId: data.BeneficiaryId,
           actionType: data.actionType,
           action: actionText,
-          details: pageTitle || null, // حفظ اسم الصفحة في details
+          details: pageTitle || data.details || actionText || 'غير محدد', // حفظ اسم الصفحة أو تفاصيل الإجراء في details لتجنب خطأ null
           userId: data.userId,
         } as any, // cast لتجاوز اختلاف التايب الناتج عن التغيير الجديد
       });

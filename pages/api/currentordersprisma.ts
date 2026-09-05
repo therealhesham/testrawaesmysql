@@ -122,6 +122,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           select: {
             id: true,
             bookingstatus: true,
+            orderDocument: true,
+            contract: true,
+            PaymentMethod: true,
+            Installments: true,
+            Total: true,
+            paid: true,
+            clientAccountStatement: {
+              select: {
+                id: true,
+                totalRevenue: true,
+                totalExpenses: true,
+                netAmount: true,
+                attachment: true,
+                entries: {
+                  select: {
+                    id: true,
+                    debit: true,
+                    credit: true,
+                    balance: true,
+                    description: true,
+                  },
+                },
+              },
+            },
             arrivals: { select: { InternalmusanedContract: true, DateOfApplication: true } },
             client: {
               select: {

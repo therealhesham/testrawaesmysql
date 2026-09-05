@@ -80,7 +80,7 @@ export default function EmployeeCashDetail() {
   const [alertType, setAlertType] = useState<'success' | 'error'>('success');
   const [alertMessage, setAlertMessage] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [transactionToDelete, setTransactionToDelete] = useState<number | null>(null);
+  const [transactionToDelete, setTransactionToDelete] = useState<{ id: number; type: 'cash' | 'detail' } | null>(null);
   const [editingTransaction, setEditingTransaction] = useState<EmployeeTransaction | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
@@ -319,14 +319,16 @@ export default function EmployeeCashDetail() {
 
     const form = event.target as HTMLFormElement;
     const formData = new FormData(form);
+    const txType = editingTransaction.type || 'detail';
 
     try {
-      const response = await fetch(`/api/employee-cash/${editingTransaction.id}`, {
+      const response = await fetch(`/api/employee-cash/${editingTransaction.id}?type=${txType}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          type: txType,
           transactionDate: formData.get('transactionDate'),
           client: formData.get('client'),
           mainAccount: formData.get('mainAccount'),
@@ -384,27 +386,24 @@ export default function EmployeeCashDetail() {
     return '';
   };
 
-  const handleEditRecord = (transactionId: number) => {
-    const transaction = data?.transactions.find(t => t.id === transactionId);
-    if (transaction) {
-      setEditingTransaction(transaction);
-      setEditAttachmentUrl('');
-      setEditAttachmentFileName('');
-      setEditAttachmentError('');
-      if (fileEditRecordRef.current) fileEditRecordRef.current.value = '';
-      setShowEditModal(true);
-    }
+  const handleEditRecord = (transaction: EmployeeTransaction) => {
+    setEditingTransaction(transaction);
+    setEditAttachmentUrl('');
+    setEditAttachmentFileName('');
+    setEditAttachmentError('');
+    if (fileEditRecordRef.current) fileEditRecordRef.current.value = '';
+    setShowEditModal(true);
   };
 
-  const handleDeleteRecord = (transactionId: number) => {
-    setTransactionToDelete(transactionId);
+  const handleDeleteRecord = (transaction: EmployeeTransaction) => {
+    setTransactionToDelete({ id: transaction.id, type: transaction.type || 'detail' });
     setShowDeleteConfirm(true);
   };
 
   const confirmDelete = async () => {
     if (transactionToDelete) {
       try {
-        const response = await fetch(`/api/employee-cash/${transactionToDelete}`, {
+        const response = await fetch(`/api/employee-cash/${transactionToDelete.id}?type=${transactionToDelete.type}`, {
           method: 'DELETE',
         });
 
@@ -947,7 +946,7 @@ export default function EmployeeCashDetail() {
                     <td className="p-4 text-center text-sm bg-gray-100">
                       <div className="flex justify-center gap-2">
                         <button
-                          onClick={() => handleEditRecord(transaction.id)}
+                          onClick={() => handleEditRecord(transaction)}
                           className="bg-none border-none cursor-pointer p-1 rounded hover:bg-teal-100"
                         >
 
@@ -955,7 +954,7 @@ export default function EmployeeCashDetail() {
 <PencilAltIcon className='h-4 w-44'/>
                         </button>
                         <button
-                          onClick={() => handleDeleteRecord(transaction.id)}
+                          onClick={() => handleDeleteRecord(transaction)}
                           className="bg-none border-none cursor-pointer p-1 rounded hover:bg-red-100"
                         >
 
@@ -1127,7 +1126,17 @@ export default function EmployeeCashDetail() {
                   />
                 </div>
 
-                <input name="debit" type="hidden" defaultValue={editingTransaction.debit || 0} />
+                <div className="flex flex-col items-end">
+                  <label className="text-sm text-gray-500 mb-2">رصيد المدين</label>
+                  <input 
+                    name="debit"
+                    type="number" 
+                    className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" 
+                    min="0" 
+                    step="any" 
+                    defaultValue={editingTransaction.debit}
+                  />
+                </div>
                 <div className="flex flex-col items-end">
                   <label className="text-sm text-gray-500 mb-2">رصيد الدائن</label>
                   <input 

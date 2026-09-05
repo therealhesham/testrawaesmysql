@@ -1,6 +1,6 @@
 {
   "name": "windmill-dashboard-nextjs-typescript",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "private": true,
   "scripts": {
     "dev": "set NODE_OPTIONS=--openssl-legacy-provider && next dev",

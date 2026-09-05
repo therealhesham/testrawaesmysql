@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'; // أضف useCallback
 import { useRouter } from 'next/router';
 import { DocumentDownloadIcon, TableIcon } from '@heroicons/react/outline';
-import { Search, ChevronDown, X, Columns, Hash, Phone, CreditCard, Book } from 'lucide-react';
+import { Search, ChevronDown, X, Columns, Hash, Phone, CreditCard, Book, FileText } from 'lucide-react';
 import Layout from 'example/containers/Layout';
 import Style from "styles/Home.module.css";
 import { jwtDecode } from 'jwt-decode';
@@ -59,7 +59,156 @@ function contractDateIsoFromBooking(booking: any): string | null {
   return d.toISOString().split('T')[0];
 }
 
-const ORDER_TABLE_COLUMNS_STORAGE = 'currentorderstest_table_columns_v1';
+export interface OrderFinancialStatusInfo {
+  code: 'paid_full_single' | 'paid_full_two' | 'two_installments_with_sanad' | 'two_installments_no_sanad' | 'unpaid' | 'no_statement';
+  label: string;
+  badgeBg: string;
+  badgeText: string;
+  badgeBorder: string;
+  tooltip: string;
+  icon: string;
+  total: number;
+  paid: number;
+  remaining: number;
+  hasSanad: boolean;
+  sanadUrl: string | null;
+}
+
+export function getOrderFinancialStatus(order: any): OrderFinancialStatusInfo {
+  const statement = order?.clientAccountStatement?.[0] || (Array.isArray(order?.clientAccountStatement) ? order?.clientAccountStatement[0] : null);
+
+  if (!statement) {
+    const rawTotal = Number(order?.Total || 0);
+    const rawPaid = Number(order?.paid || 0);
+    const sanadUrl = order?.orderDocument || null;
+    const hasSanad = Boolean(sanadUrl && sanadUrl.trim() !== '' && sanadUrl !== 'عرض' && sanadUrl !== 'غير متوفر');
+    return {
+      code: 'no_statement',
+      label: 'لا يوجد سجل مالي',
+      badgeBg: 'bg-slate-100',
+      badgeText: 'text-slate-700',
+      badgeBorder: 'border-slate-300',
+      tooltip: 'لم يتم إنشاء كشف حساب أو سجل مالي لهذا الطلب بعد في النظام.',
+      icon: '📋',
+      total: rawTotal,
+      paid: rawPaid,
+      remaining: Math.max(0, rawTotal - rawPaid),
+      hasSanad,
+      sanadUrl,
+    };
+  }
+
+  let totalDebit = 0;
+  let totalCredit = 0;
+  let remainingBalance = 0;
+
+  if (statement.entries && statement.entries.length > 0) {
+    totalDebit = statement.entries.reduce((sum: number, entry: any) => sum + Number(entry.debit || 0), 0);
+    totalCredit = statement.entries.reduce((sum: number, entry: any) => sum + Number(entry.credit || 0), 0);
+    remainingBalance = totalDebit - totalCredit;
+  } else {
+    totalDebit = Number(statement.totalRevenue ?? order?.Total ?? 0);
+    totalCredit = Number(statement.totalExpenses ?? order?.paid ?? 0);
+    remainingBalance = Number(statement.netAmount ?? (totalDebit - totalCredit));
+  }
+
+  const sanadUrl = order?.orderDocument || statement?.attachment || null;
+  const hasSanad = Boolean(sanadUrl && sanadUrl.trim() !== '' && sanadUrl !== 'عرض' && sanadUrl !== 'غير متوفر');
+
+  const isTwoInstallments =
+    order?.Installments === 2 ||
+    order?.PaymentMethod === 'two-installments' ||
+    order?.PaymentMethod === 'دفعتين' ||
+    Boolean(statement.entries && statement.entries.some((e: any) => e.description?.includes('دفعة أولى') || e.description?.includes('دفعة ثانية')));
+
+  // Case A: Fully Paid (Remaining <= 0)
+  if (remainingBalance <= 0 && (totalCredit > 0 || totalDebit === 0)) {
+    if (isTwoInstallments) {
+      return {
+        code: 'paid_full_two',
+        label: 'مسدد بالكامل (اكتملت الدفعتين)',
+        badgeBg: 'bg-teal-100',
+        badgeText: 'text-teal-800',
+        badgeBorder: 'border-teal-300',
+        tooltip: 'كان الطلب مجدولاً على دفعتين، وتم سداد كامل المستحقات واكتمال الدفعتين بنجاح.',
+        icon: '🔵',
+        total: totalDebit,
+        paid: totalCredit,
+        remaining: 0,
+        hasSanad,
+        sanadUrl,
+      };
+    } else {
+      return {
+        code: 'paid_full_single',
+        label: 'مسدد بالكامل (دفعة واحدة)',
+        badgeBg: 'bg-emerald-100',
+        badgeText: 'text-emerald-800',
+        badgeBorder: 'border-emerald-300',
+        tooltip: 'تم سداد كامل قيمة العقد دفعة واحدة بنجاح، ولا توجد أي مستحقات متبقية على العميل.',
+        icon: '🟢',
+        total: totalDebit,
+        paid: totalCredit,
+        remaining: 0,
+        hasSanad,
+        sanadUrl,
+      };
+    }
+  }
+
+  // Case B: No payment made yet (Unpaid / pending)
+  if (totalCredit <= 0) {
+    return {
+      code: 'unpaid',
+      label: 'معلق (لم يُسدد أي مبلغ)',
+      badgeBg: 'bg-red-100',
+      badgeText: 'text-red-900',
+      badgeBorder: 'border-red-300',
+      tooltip: 'يوجد سجل محاسبي مسجل للطلب ولكن لم يتم استلام أو سداد أي دفعة حتى الآن (المبلغ معلق بالكامل).',
+      icon: '🔴',
+      total: totalDebit,
+      paid: 0,
+      remaining: remainingBalance,
+      hasSanad,
+      sanadUrl,
+    };
+  }
+
+  // Case C: Partial Payment (Remaining > 0)
+  if (hasSanad) {
+    return {
+      code: 'two_installments_with_sanad',
+      label: 'دفعتين — متبقي دفعة (سند لأمر موثق)',
+      badgeBg: 'bg-amber-100',
+      badgeText: 'text-amber-900',
+      badgeBorder: 'border-amber-400',
+      tooltip: 'العقد بنظام دفعتين، تم سداد الدفعة الأولى ومتبقي الدفعة الثانية مع وجود سند لأمر موثق ومرفوع نظامياً.',
+      icon: '🟠',
+      total: totalDebit,
+      paid: totalCredit,
+      remaining: remainingBalance,
+      hasSanad: true,
+      sanadUrl,
+    };
+  } else {
+    return {
+      code: 'two_installments_no_sanad',
+      label: 'دفعتين — متبقي دفعة (بدون سند لأمر ⚠️)',
+      badgeBg: 'bg-purple-100',
+      badgeText: 'text-purple-900',
+      badgeBorder: 'border-purple-400',
+      tooltip: 'تنبيه هام: العقد بنظام دفعتين ومتبقي دفعة ثانية ولكن ملف سند لأمر غير مرفوع في النظام! يتطلب اتخاذ إجراء.',
+      icon: '🟣',
+      total: totalDebit,
+      paid: totalCredit,
+      remaining: remainingBalance,
+      hasSanad: false,
+      sanadUrl: null,
+    };
+  }
+}
+
+const ORDER_TABLE_COLUMNS_STORAGE = 'currentorderstest_table_columns_v2';
 
 type OrderTableColKey =
   | 'orderId'
@@ -67,6 +216,7 @@ type OrderTableColKey =
   | 'maidName'
   | 'musanedContract'
   | 'externalOffice'
+  | 'financialStatus'
   | 'status';
 
 const ORDER_TABLE_COLUMNS: { key: OrderTableColKey; label: string; locked?: boolean }[] = [
@@ -75,6 +225,7 @@ const ORDER_TABLE_COLUMNS: { key: OrderTableColKey; label: string; locked?: bool
   { key: 'maidName', label: 'بيانات العاملة' },
   { key: 'musanedContract', label: 'بيانات العقد' },
   { key: 'externalOffice', label: 'اسم المكتب الخارجي' },
+  { key: 'financialStatus', label: 'حالة السجل المالي' },
   { key: 'status', label: 'حالة الطلب' },
 ];
 
@@ -520,6 +671,7 @@ const exportedData = async ()=>{
 
     const tableColumn = [
       'حالة الطلب',
+      'حالة السجل المالي',
       'اسم المكتب الخارجي',
       'رقم عقد مساند',
       'مضى منذ تاريخ العقد',
@@ -536,8 +688,10 @@ const exportedData = async ()=>{
       ? dataToExport.map((row) => {
           const elapsed = formatElapsedSinceContractDate(contractDateIsoFromBooking(row));
           const elapsedCell = elapsed ? `مضى ${elapsed}` : '—';
+          const finStatus = getOrderFinancialStatus(row);
           return [
             truncateToTwoWords(translateBookingStatus(row.bookingstatus, row) || 'غير متوفر'),
+            truncateToTwoWords(finStatus.label),
             truncateToTwoWords(row.HomeMaid?.office?.office || 'غير متوفر'),
             truncateToTwoWords(row.arrivals?.[0]?.InternalmusanedContract || row.arrivals?.InternalmusanedContract || 'غير متوفر'),
             elapsedCell,
@@ -570,7 +724,7 @@ const exportedData = async ()=>{
         halign: 'right',
       },
       columnStyles: Object.fromEntries(
-        Array.from({ length: 12 }, (_, i) => [i, { cellWidth: 'auto' as const, overflow: 'hidden' as const }])
+        Array.from({ length: 13 }, (_, i) => [i, { cellWidth: 'auto' as const, overflow: 'hidden' as const }])
       ),
       margin: { top: 40, right: 10, left: 10 },
       didDrawPage: (data: any) => {
@@ -639,12 +793,14 @@ const exportedData = async ()=>{
       { header: 'رقم عقد مساند', key: 'contract', width: 20 },
       { header: 'مضى منذ تاريخ العقد', key: 'elapsedSinceContract', width: 28 },
       { header: 'اسم المكتب الخارجي', key: 'office', width: 15 },
-      { header: 'حالة الطلب', key: 'status', width: 10 }
+      { header: 'حالة السجل المالي', key: 'financialStatus', width: 25 },
+      { header: 'حالة الطلب', key: 'status', width: 15 }
     ];
 
     Array.isArray(dataToExport) &&
       dataToExport.forEach((row) => {
         const elapsed = formatElapsedSinceContractDate(contractDateIsoFromBooking(row));
+        const finStatus = getOrderFinancialStatus(row);
         worksheet
           .addRow({
             id: row.id || 'غير متوفر',
@@ -658,6 +814,7 @@ const exportedData = async ()=>{
             contract: row.arrivals?.[0]?.InternalmusanedContract || row.arrivals?.InternalmusanedContract || 'غير متوفر',
             elapsedSinceContract: elapsed ? `مضى ${elapsed}` : '—',
             office: row.HomeMaid?.office?.office || 'غير متوفر',
+            financialStatus: finStatus.label,
             status: translateBookingStatus(row.bookingstatus, row) || 'غير متوفر',
           })
           .alignment = { horizontal: 'right' };
@@ -1043,7 +1200,7 @@ const exportedData = async ()=>{
                   </div>
                 </div>
               </div>
-              <div className="overflow-x-auto" dir="rtl">
+              <div className="overflow-x-auto min-h-[360px] pb-16" dir="rtl">
                 {isLoading ? (
                   <div className="flex justify-center items-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-900"></div>
@@ -1065,10 +1222,11 @@ const exportedData = async ()=>{
                     </thead>
                     <tbody>
                       {data.length > 0 ? (
-                        data.map((booking) => {
+                        data.map((booking, rowIndex) => {
                           const contractIso = contractDateIsoFromBooking(booking);
+                          const isBottomRows = data.length >= 4 && rowIndex >= data.length - 2;
                           return (
-                            <tr key={booking.id} className="bg-gray-50 border-b border-gray-300 last:border-b-0">
+                            <tr key={booking.id} className="bg-gray-50 border-b border-gray-300 last:border-b-0 hover:bg-gray-100/70 transition-colors">
                               {visibleOrderTableColumns.map((col) => {
                                 switch (col.key) {
                                   case 'orderId':
@@ -1133,6 +1291,107 @@ const exportedData = async ()=>{
                                     return (
                                       <td key={col.key} className="p-4 text-md text-gray-800 text-right">
                                         {booking.HomeMaid?.office?.office || 'غير متوفر'}
+                                      </td>
+                                    );
+                                  case 'financialStatus':
+                                    const finStatus = getOrderFinancialStatus(booking);
+                                    return (
+                                      <td key={col.key} className="p-4 text-md text-gray-800 text-right relative">
+                                        <div className="relative inline-block group text-right">
+                                          {/* شارة الحالة المالية */}
+                                          <div
+                                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border cursor-help shadow-sm transition-all duration-150 hover:shadow ${finStatus.badgeBg} ${finStatus.badgeText} ${finStatus.badgeBorder}`}
+                                          >
+                                            <span className="text-sm leading-none">{finStatus.icon}</span>
+                                            <span className="whitespace-nowrap">{finStatus.label}</span>
+                                          </div>
+
+                                          {/* سطر فرعي للمتبقي والسند إن وجد */}
+                                          {finStatus.remaining > 0 && finStatus.code !== 'no_statement' && (
+                                            <div className="text-xs text-gray-500 mt-1 flex items-center gap-1.5 whitespace-nowrap">
+                                              <span>متبقي:</span>
+                                              <span className="font-semibold text-rose-700">{finStatus.remaining.toLocaleString()} ر.س</span>
+                                              {finStatus.hasSanad && finStatus.sanadUrl && (
+                                                <a
+                                                  href={finStatus.sanadUrl}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  onClick={(e) => e.stopPropagation()}
+                                                  className="inline-flex items-center gap-0.5 text-blue-600 hover:text-blue-800 text-[11px] underline font-medium"
+                                                  title="عرض ملف السند لأمر"
+                                                >
+                                                  <FileText className="w-3 h-3" />
+                                                  سند لأمر
+                                                </a>
+                                              )}
+                                            </div>
+                                          )}
+
+                                          {/* بطاقة الشرح عند التمرير (Tooltip) */}
+                                          <div
+                                            className={`invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-200 absolute z-50 ${
+                                              isBottomRows ? 'bottom-full mb-2' : 'top-full mt-2'
+                                            } right-0 w-72 p-3.5 bg-gray-900 text-white text-xs rounded-xl shadow-2xl pointer-events-auto border border-gray-700`}
+                                            dir="rtl"
+                                          >
+                                            <div className="flex items-center gap-2 pb-2 mb-2 border-b border-gray-700 font-bold text-sm">
+                                              <span className="text-base">{finStatus.icon}</span>
+                                              <span className="text-white">{finStatus.label}</span>
+                                            </div>
+
+                                            <p className="text-gray-300 text-xs leading-relaxed mb-3">
+                                              {finStatus.tooltip}
+                                            </p>
+
+                                            <div className="bg-gray-800/90 rounded-lg p-2.5 space-y-1.5 text-xs">
+                                              <div className="flex justify-between items-center text-gray-300">
+                                                <span>إجمالي العقد:</span>
+                                                <span className="font-semibold text-white">{finStatus.total > 0 ? `${finStatus.total.toLocaleString()} ر.س` : 'غير محدد'}</span>
+                                              </div>
+                                              <div className="flex justify-between items-center text-gray-300">
+                                                <span>المسدد:</span>
+                                                <span className="font-semibold text-emerald-400">{finStatus.paid.toLocaleString()} ر.س</span>
+                                              </div>
+                                              <div className="flex justify-between items-center text-gray-300 border-t border-gray-700 pt-1">
+                                                <span>المتبقي:</span>
+                                                <span className={`font-bold ${finStatus.remaining > 0 ? 'text-rose-400' : 'text-gray-300'}`}>
+                                                  {finStatus.remaining.toLocaleString()} ر.س
+                                                </span>
+                                              </div>
+                                            </div>
+
+                                            {finStatus.sanadUrl && finStatus.hasSanad && (
+                                              <div className="mt-2.5 pt-2 border-t border-gray-700 flex justify-between items-center">
+                                                <span className="text-emerald-400 font-medium flex items-center gap-1 text-[11px]">
+                                                  ✓ سند لأمر مرفوع وموثق
+                                                </span>
+                                                <a
+                                                  href={finStatus.sanadUrl}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  onClick={(e) => e.stopPropagation()}
+                                                  className="bg-teal-700 hover:bg-teal-600 text-white px-2 py-0.5 rounded text-[11px] font-medium inline-flex items-center gap-1 transition-colors"
+                                                >
+                                                  <FileText className="w-3 h-3" />
+                                                  معاينة السند
+                                                </a>
+                                              </div>
+                                            )}
+
+                                            {!finStatus.hasSanad && (finStatus.code === 'two_installments_no_sanad') && (
+                                              <div className="mt-2.5 pt-2 border-t border-gray-700 text-amber-300 text-[11px]">
+                                                ⚠️ تنبيه: ملف السند لأمر غير مرفوع في النظام
+                                              </div>
+                                            )}
+
+                                            {/* سهم التوجيه */}
+                                            {isBottomRows ? (
+                                              <div className="absolute top-full right-6 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+                                            ) : (
+                                              <div className="absolute bottom-full right-6 -mb-1 border-4 border-transparent border-b-gray-900"></div>
+                                            )}
+                                          </div>
+                                        </div>
                                       </td>
                                     );
                                   case 'status':
@@ -1338,10 +1597,28 @@ const exportedData = async ()=>{
   );
 }
 
-/** Next.js يتطلب JSON فقط في getStaticProps — تحويل حقول Date من Prisma إلى نصوص */
+/** Next.js يتطلب JSON فقط في getStaticProps — تحويل حقول Date و Decimal من Prisma إلى أرقام ونصوص */
 function serializeOrdersForStaticProps(orders: any[]) {
   return orders.map((order) => ({
     ...order,
+    Total: order?.Total != null ? Number(order.Total) : null,
+    paid: order?.paid != null ? Number(order.paid) : null,
+    clientAccountStatement: Array.isArray(order.clientAccountStatement)
+      ? order.clientAccountStatement.map((stmt: any) => ({
+          ...stmt,
+          totalRevenue: stmt?.totalRevenue != null ? Number(stmt.totalRevenue) : null,
+          totalExpenses: stmt?.totalExpenses != null ? Number(stmt.totalExpenses) : null,
+          netAmount: stmt?.netAmount != null ? Number(stmt.netAmount) : null,
+          entries: Array.isArray(stmt.entries)
+            ? stmt.entries.map((entry: any) => ({
+                ...entry,
+                debit: entry?.debit != null ? Number(entry.debit) : null,
+                credit: entry?.credit != null ? Number(entry.credit) : null,
+                balance: entry?.balance != null ? Number(entry.balance) : null,
+              }))
+            : [],
+        }))
+      : [],
     arrivals: Array.isArray(order.arrivals)
       ? order.arrivals.map((a: any) => ({
           ...a,
@@ -1370,6 +1647,30 @@ export async function getStaticProps() {
         id: true,
         bookingstatus: true,
         typeOfContract: true,
+        orderDocument: true,
+        contract: true,
+        PaymentMethod: true,
+        Installments: true,
+        Total: true,
+        paid: true,
+        clientAccountStatement: {
+          select: {
+            id: true,
+            totalRevenue: true,
+            totalExpenses: true,
+            netAmount: true,
+            attachment: true,
+            entries: {
+              select: {
+                id: true,
+                debit: true,
+                credit: true,
+                balance: true,
+                description: true,
+              },
+            },
+          },
+        },
         arrivals: { select: { InternalmusanedContract: true, DateOfApplication: true } },
         client: {
           select: {
@@ -1420,6 +1721,30 @@ export async function getStaticProps() {
         id: true,
         bookingstatus: true,
         typeOfContract: true,
+        orderDocument: true,
+        contract: true,
+        PaymentMethod: true,
+        Installments: true,
+        Total: true,
+        paid: true,
+        clientAccountStatement: {
+          select: {
+            id: true,
+            totalRevenue: true,
+            totalExpenses: true,
+            netAmount: true,
+            attachment: true,
+            entries: {
+              select: {
+                id: true,
+                debit: true,
+                credit: true,
+                balance: true,
+                description: true,
+              },
+            },
+          },
+        },
         arrivals: { select: { InternalmusanedContract: true, DateOfApplication: true } },
         client: {
           select: {

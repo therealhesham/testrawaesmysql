@@ -40,6 +40,9 @@ const translateActionType = (actionType: string): string => {
     'add_employee_cash': 'إضافة عهدة موظف',
     'update_employee_cash': 'تعديل عهدة موظف',
     'delete_employee_cash': 'حذف عهدة موظف',
+    'add_employee_cash_detail': 'إضافة حركة عهدة',
+    'update_employee_cash_detail': 'تعديل حركة عهدة',
+    'delete_employee_cash_detail': 'حذف حركة عهدة',
     
     // التصدير
     'export_report': 'تصدير تقرير',
@@ -298,6 +301,9 @@ export default function AccountSystemLogs() {
     { value: 'add_employee_cash', label: 'إضافة عهدة موظف' },
     { value: 'update_employee_cash', label: 'تعديل عهدة موظف' },
     { value: 'delete_employee_cash', label: 'حذف عهدة موظف' },
+    { value: 'add_employee_cash_detail', label: 'إضافة حركة عهدة' },
+    { value: 'update_employee_cash_detail', label: 'تعديل حركة عهدة' },
+    { value: 'delete_employee_cash_detail', label: 'حذف حركة عهدة' },
     // التصدير
     { value: 'export_report', label: 'تصدير تقرير' },
     // إجراءات عامة

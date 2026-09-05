@@ -2,8 +2,28 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 import eventBus from 'lib/eventBus';
 import { jwtDecode } from 'jwt-decode';
+import { logAccountingActionFromRequest } from 'lib/accountingLogger';
 
 const prisma = new PrismaClient();
+
+const getUserIdFromCookie = (req: NextApiRequest): number | null => {
+  const cookieHeader = req.headers.cookie;
+  if (!cookieHeader) return null;
+  try {
+    const cookies: { [key: string]: string } = {};
+    cookieHeader.split(";").forEach((cookie) => {
+      const [key, value] = cookie.trim().split("=");
+      cookies[key] = decodeURIComponent(value);
+    });
+    if (cookies.authToken) {
+      const token = jwtDecode(cookies.authToken) as any;
+      return Number(token.id) || null;
+    }
+  } catch {
+    // Ignore token decode errors
+  }
+  return null;
+};
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { id } = req.query;
@@ -92,13 +112,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         sortDate: new Date(record.date).getTime(),
         date: record.date.toLocaleDateString('en-GB'),
         month: record.month || record.date.toLocaleDateString('ar-SA', { month: 'long' }),
-        mainAccount: record.mainAccount ,
-        subAccount: record.subAccount ,
-        client: record.client || employeeInfo?.name ,
+        mainAccount: record.mainAccount,
+        subAccount: record.subAccount,
+        client: record.client || employeeInfo?.name,
         debit: Number(record.debit),
         credit: Number(record.credit),
         balance: Number(record.balance),
-        description: record.description ,
+        description: record.description,
         attachment: record.attachment || 'عرض',
         createdAt: new Date(record.createdAt).getTime(),
         type: 'detail' as const
@@ -235,6 +255,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       });
 
+      const empName = newRecord.employee?.name || `موظف #${id}`;
+      await logAccountingActionFromRequest(req, {
+        action: `إضافة حركة تفاصيل عهدة - الموظف: ${empName}`,
+        actionType: 'add_employee_cash_detail',
+        actionStatus: 'success',
+        actionAmount: debitAmount || creditAmount,
+        actionNotes: `إضافة حركة عهدة جديدة للموظف (${empName}) - العميل: ${client || '—'} - البيان: "${description || ''}" - مدين: ${debitAmount}، دائن: ${creditAmount}`,
+      });
+
+      const userId = getUserIdFromCookie(req);
+      if (userId) {
+        eventBus.emit('ACTION', {
+          type: `إضافة حركة عهدة للموظف ${empName}`,
+          actionType: 'create',
+          pageRoute: '/admin/employee_cash',
+          userId: userId,
+        });
+      }
+
       res.status(201).json({
         message: 'تم إضافة السجل بنجاح',
         record: newRecord
@@ -256,7 +295,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         debit,
         credit,
         attachment,
-        description
+        description,
+        type
       } = req.body;
 
       // Basic validation
@@ -268,18 +308,82 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const creditAmount = Number(credit || 0);
       const balance = debitAmount - creditAmount;
       const transactionId = Number(id);
+      const targetType = type || (req.query.type as string);
+      const userId = getUserIdFromCookie(req);
 
-      // First, check if the record exists in EmployeeCashDetail
-      const detailRecord = await prisma.employeeCashDetail.findUnique({
-        where: { id: transactionId }
-      });
+      // If explicitly marked as 'cash' record
+      if (targetType === 'cash') {
+        const cashRecord = await prisma.employeeCash.findUnique({
+          where: { id: transactionId },
+          include: {
+            employee: { select: { id: true, name: true } }
+          }
+        });
 
-      if (detailRecord) {
-        // Update EmployeeCashDetail record
-        const updatedRecord = await prisma.employeeCashDetail.update({
-          where: {
-            id: transactionId
+        if (!cashRecord) {
+          return res.status(404).json({ error: 'سجل العهدة النقدية غير موجود' });
+        }
+
+        const oldDesc = cashRecord.description || '';
+        const newDesc = typeof description === 'string' ? description : oldDesc;
+
+        const updatedRecord = await prisma.employeeCash.update({
+          where: { id: transactionId },
+          data: {
+            transactionDate: new Date(transactionDate),
+            receivedAmount: debitAmount,
+            expenseAmount: creditAmount,
+            remainingBalance: balance,
+            description: newDesc,
+            attachment: typeof attachment === 'string' ? attachment : (cashRecord.attachment || '')
           },
+          include: {
+            employee: { select: { id: true, name: true } }
+          }
+        });
+
+        const empName = updatedRecord.employee?.name || cashRecord.employee?.name || 'الموظف';
+        await logAccountingActionFromRequest(req, {
+          action: `تعديل سجل عهدة موظف - الموظف: ${empName}`,
+          actionType: 'update_employee_cash',
+          actionStatus: 'success',
+          actionAmount: debitAmount || creditAmount,
+          actionNotes: `تعديل عهدة نقدية #${transactionId} للموظف (${empName}) - البيان السابق: "${oldDesc}" -> البيان الجديد: "${newDesc}" - المبلغ المستلم (مدين): ${debitAmount}، المصروف (دائن): ${creditAmount}`,
+        });
+
+        if (userId) {
+          eventBus.emit('ACTION', {
+            type: `تعديل سجل عهدة نقدية #${transactionId} - ${empName}`,
+            actionType: 'update',
+            pageRoute: '/admin/employee_cash',
+            userId: userId,
+          });
+        }
+
+        return res.status(200).json({
+          message: 'تم تحديث السجل بنجاح',
+          record: updatedRecord
+        });
+      }
+
+      // If explicitly marked as 'detail' record
+      if (targetType === 'detail') {
+        const detailRecord = await prisma.employeeCashDetail.findUnique({
+          where: { id: transactionId },
+          include: {
+            employee: { select: { id: true, name: true } }
+          }
+        });
+
+        if (!detailRecord) {
+          return res.status(404).json({ error: 'سجل تفاصيل العهدة غير موجود' });
+        }
+
+        const oldDesc = detailRecord.description || '';
+        const newDesc = typeof description === 'string' ? description : oldDesc;
+
+        const updatedRecord = await prisma.employeeCashDetail.update({
+          where: { id: transactionId },
           data: {
             date: new Date(transactionDate),
             month: new Date(transactionDate).toLocaleDateString('ar-SA', { month: 'long' }),
@@ -289,9 +393,72 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             debit: debitAmount,
             credit: creditAmount,
             balance: balance,
-            description: typeof description === 'string' ? description : detailRecord.description,
+            description: newDesc,
             attachment: typeof attachment === 'string' ? attachment : ''
+          },
+          include: {
+            employee: { select: { id: true, name: true } }
           }
+        });
+
+        const empName = updatedRecord.employee?.name || detailRecord.employee?.name || 'الموظف';
+        await logAccountingActionFromRequest(req, {
+          action: `تعديل حركة تفاصيل عهدة - الموظف: ${empName}`,
+          actionType: 'update_employee_cash_detail',
+          actionStatus: 'success',
+          actionAmount: debitAmount || creditAmount,
+          actionNotes: `تعديل حركة عهدة #${transactionId} للموظف (${empName}) - العميل: ${client || '—'} - البيان السابق: "${oldDesc}" -> البيان الجديد: "${newDesc}" - مدين: ${debitAmount}، دائن: ${creditAmount}`,
+        });
+
+        if (userId) {
+          eventBus.emit('ACTION', {
+            type: `تعديل حركة تفاصيل عهدة #${transactionId} - ${empName}`,
+            actionType: 'update',
+            pageRoute: '/admin/employee_cash',
+            userId: userId,
+          });
+        }
+
+        return res.status(200).json({
+          message: 'تم تحديث السجل بنجاح',
+          record: updatedRecord
+        });
+      }
+
+      // Fallback if targetType wasn't specified: try detailRecord first, then cashRecord
+      const detailRecord = await prisma.employeeCashDetail.findUnique({
+        where: { id: transactionId },
+        include: { employee: { select: { id: true, name: true } } }
+      });
+
+      if (detailRecord) {
+        const oldDesc = detailRecord.description || '';
+        const newDesc = typeof description === 'string' ? description : oldDesc;
+
+        const updatedRecord = await prisma.employeeCashDetail.update({
+          where: { id: transactionId },
+          data: {
+            date: new Date(transactionDate),
+            month: new Date(transactionDate).toLocaleDateString('ar-SA', { month: 'long' }),
+            mainAccount: mainAccount || '',
+            subAccount: subAccount || '',
+            client: client || '',
+            debit: debitAmount,
+            credit: creditAmount,
+            balance: balance,
+            description: newDesc,
+            attachment: typeof attachment === 'string' ? attachment : ''
+          },
+          include: { employee: { select: { id: true, name: true } } }
+        });
+
+        const empName = updatedRecord.employee?.name || detailRecord.employee?.name || 'الموظف';
+        await logAccountingActionFromRequest(req, {
+          action: `تعديل حركة تفاصيل عهدة - الموظف: ${empName}`,
+          actionType: 'update_employee_cash_detail',
+          actionStatus: 'success',
+          actionAmount: debitAmount || creditAmount,
+          actionNotes: `تعديل حركة عهدة #${transactionId} للموظف (${empName}) - العميل: ${client || '—'} - البيان السابق: "${oldDesc}" -> البيان الجديد: "${newDesc}" - مدين: ${debitAmount}، دائن: ${creditAmount}`,
         });
 
         return res.status(200).json({
@@ -300,29 +467,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       }
 
-      // If not found in EmployeeCashDetail, check EmployeeCash
       const cashRecord = await prisma.employeeCash.findUnique({
-        where: { id: transactionId }
+        where: { id: transactionId },
+        include: { employee: { select: { id: true, name: true } } }
       });
 
       if (cashRecord) {
-        // Update EmployeeCash record
-        // For cash records, debit maps to receivedAmount and credit maps to expenseAmount
+        const oldDesc = cashRecord.description || '';
+        const newDesc = typeof description === 'string' ? description : oldDesc;
+
         const updatedRecord = await prisma.employeeCash.update({
-          where: {
-            id: transactionId
-          },
+          where: { id: transactionId },
           data: {
             transactionDate: new Date(transactionDate),
             receivedAmount: debitAmount,
             expenseAmount: creditAmount,
             remainingBalance: balance,
-            description:
-              typeof description === 'string'
-                ? description
-                : cashRecord.description || '',
-            attachment: typeof attachment === 'string' ? attachment : cashRecord.attachment || ''
-          }
+            description: newDesc,
+            attachment: typeof attachment === 'string' ? attachment : (cashRecord.attachment || '')
+          },
+          include: { employee: { select: { id: true, name: true } } }
+        });
+
+        const empName = updatedRecord.employee?.name || cashRecord.employee?.name || 'الموظف';
+        await logAccountingActionFromRequest(req, {
+          action: `تعديل سجل عهدة موظف - الموظف: ${empName}`,
+          actionType: 'update_employee_cash',
+          actionStatus: 'success',
+          actionAmount: debitAmount || creditAmount,
+          actionNotes: `تعديل عهدة نقدية #${transactionId} للموظف (${empName}) - البيان السابق: "${oldDesc}" -> البيان الجديد: "${newDesc}" - المبلغ المستلم: ${debitAmount}، المصروف: ${creditAmount}`,
         });
 
         return res.status(200).json({
@@ -331,59 +504,129 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       }
 
-      // If record not found in either table
-      return res.status(404).json({ error: 'record to update not found' });
+      return res.status(404).json({ error: 'السجل المراد تعديله غير موجود' });
 
     } catch (error) {
       console.error('Error updating employee cash detail:', error);
       if (error instanceof Error && error.message.includes('Record to update not found')) {
-        return res.status(404).json({ error: 'record to update not found' });
+        return res.status(404).json({ error: 'السجل المراد تعديله غير موجود' });
       }
-      res.status(500).json({ error: 'Failed to update employee cash detail' });
+      res.status(500).json({ error: 'فشل في تحديث السجل' });
     } finally {
       await prisma.$disconnect();
     }
   } else if (req.method === 'DELETE') {
     try {
       const transactionId = Number(id);
+      const targetType = (req.query.type as string) || (req.body?.type as string);
+      const userId = getUserIdFromCookie(req);
 
-      // Get user info for logging
-      const cookieHeader = req.headers.cookie;
-      let userId: number | null = null;
-      if (cookieHeader) {
-        try {
-          const cookies: { [key: string]: string } = {};
-          cookieHeader.split(";").forEach((cookie) => {
-            const [key, value] = cookie.trim().split("=");
-            cookies[key] = decodeURIComponent(value);
-          });
-          if (cookies.authToken) {
-            const token = jwtDecode(cookies.authToken) as any;
-            userId = Number(token.id);
-          }
-        } catch (e) {
-          // Ignore token errors
+      // If explicitly marked as 'cash'
+      if (targetType === 'cash') {
+        const cashRecord = await prisma.employeeCash.findUnique({
+          where: { id: transactionId },
+          include: { employee: { select: { id: true, name: true } } }
+        });
+
+        if (!cashRecord) {
+          return res.status(404).json({ error: 'سجل العهدة النقدية غير موجود' });
         }
+
+        const empName = cashRecord.employee?.name || 'الموظف';
+        const amount = Number(cashRecord.receivedAmount) || Number(cashRecord.expenseAmount) || 0;
+        const desc = cashRecord.description || '';
+
+        await prisma.employeeCash.delete({
+          where: { id: transactionId }
+        });
+
+        await logAccountingActionFromRequest(req, {
+          action: `حذف سجل عهدة موظف - الموظف: ${empName}`,
+          actionType: 'delete_employee_cash',
+          actionStatus: 'success',
+          actionAmount: amount,
+          actionNotes: `حذف سجل عهدة نقدية #${transactionId} للموظف (${empName}) - البيان: "${desc}" - المستلم: ${cashRecord.receivedAmount}، المصروف: ${cashRecord.expenseAmount}`,
+        });
+
+        if (userId) {
+          eventBus.emit('ACTION', {
+            type: `حذف سجل عهدة نقدية #${transactionId} - ${empName}`,
+            actionType: 'delete',
+            pageRoute: '/admin/employee_cash',
+            userId: userId,
+          });
+        }
+
+        return res.status(200).json({ message: 'تم حذف السجل بنجاح' });
       }
 
-      // First, check if the record exists in EmployeeCashDetail
+      // If explicitly marked as 'detail'
+      if (targetType === 'detail') {
+        const detailRecord = await prisma.employeeCashDetail.findUnique({
+          where: { id: transactionId },
+          include: { employee: { select: { id: true, name: true } } }
+        });
+
+        if (!detailRecord) {
+          return res.status(404).json({ error: 'سجل تفاصيل العهدة غير موجود' });
+        }
+
+        const empName = detailRecord.employee?.name || 'الموظف';
+        const amount = Number(detailRecord.debit) || Number(detailRecord.credit) || 0;
+        const desc = detailRecord.description || '';
+
+        await prisma.employeeCashDetail.delete({
+          where: { id: transactionId }
+        });
+
+        await logAccountingActionFromRequest(req, {
+          action: `حذف حركة تفاصيل عهدة - الموظف: ${empName}`,
+          actionType: 'delete_employee_cash_detail',
+          actionStatus: 'success',
+          actionAmount: amount,
+          actionNotes: `حذف حركة تفاصيل عهدة #${transactionId} للموظف (${empName}) - العميل: ${detailRecord.client || '—'} - البيان: "${desc}" - مدين: ${detailRecord.debit}، دائن: ${detailRecord.credit}`,
+        });
+
+        if (userId) {
+          eventBus.emit('ACTION', {
+            type: `حذف حركة تفاصيل عهدة #${transactionId} - ${empName}`,
+            actionType: 'delete',
+            pageRoute: '/admin/employee_cash',
+            userId: userId,
+          });
+        }
+
+        return res.status(200).json({ message: 'تم حذف السجل بنجاح' });
+      }
+
+      // Fallback if targetType is not provided: check detailRecord first, then cashRecord
       const detailRecord = await prisma.employeeCashDetail.findUnique({
-        where: { id: transactionId }
+        where: { id: transactionId },
+        include: { employee: { select: { id: true, name: true } } }
       });
 
       if (detailRecord) {
-        // Delete from EmployeeCashDetail
+        const empName = detailRecord.employee?.name || 'الموظف';
+        const amount = Number(detailRecord.debit) || Number(detailRecord.credit) || 0;
+        const desc = detailRecord.description || '';
+
         await prisma.employeeCashDetail.delete({
-          where: {
-            id: transactionId
-          }
+          where: { id: transactionId }
         });
 
-        // تسجيل الحدث
+        await logAccountingActionFromRequest(req, {
+          action: `حذف حركة تفاصيل عهدة - الموظف: ${empName}`,
+          actionType: 'delete_employee_cash_detail',
+          actionStatus: 'success',
+          actionAmount: amount,
+          actionNotes: `حذف حركة تفاصيل عهدة #${transactionId} للموظف (${empName}) - العميل: ${detailRecord.client || '—'} - البيان: "${desc}" - مدين: ${detailRecord.debit}، دائن: ${detailRecord.credit}`,
+        });
+
         if (userId) {
           eventBus.emit('ACTION', {
-            type: `حذف سجل عهدة موظف #${transactionId} - ${detailRecord.client || 'غير محدد'}`,
+            type: `حذف حركة تفاصيل عهدة #${transactionId} - ${empName}`,
             actionType: 'delete',
+            pageRoute: '/admin/employee_cash',
             userId: userId,
           });
         }
@@ -391,24 +634,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(200).json({ message: 'تم حذف السجل بنجاح' });
       }
 
-      // If not found in EmployeeCashDetail, check EmployeeCash
       const cashRecord = await prisma.employeeCash.findUnique({
-        where: { id: transactionId }
+        where: { id: transactionId },
+        include: { employee: { select: { id: true, name: true } } }
       });
 
       if (cashRecord) {
-        // Delete from EmployeeCash
+        const empName = cashRecord.employee?.name || 'الموظف';
+        const amount = Number(cashRecord.receivedAmount) || Number(cashRecord.expenseAmount) || 0;
+        const desc = cashRecord.description || '';
+
         await prisma.employeeCash.delete({
-          where: {
-            id: transactionId
-          }
+          where: { id: transactionId }
         });
 
-        // تسجيل الحدث
+        await logAccountingActionFromRequest(req, {
+          action: `حذف سجل عهدة موظف - الموظف: ${empName}`,
+          actionType: 'delete_employee_cash',
+          actionStatus: 'success',
+          actionAmount: amount,
+          actionNotes: `حذف سجل عهدة نقدية #${transactionId} للموظف (${empName}) - البيان: "${desc}" - المستلم: ${cashRecord.receivedAmount}، المصروف: ${cashRecord.expenseAmount}`,
+        });
+
         if (userId) {
           eventBus.emit('ACTION', {
-            type: `حذف سجل عهدة موظف #${transactionId}`,
+            type: `حذف سجل عهدة نقدية #${transactionId} - ${empName}`,
             actionType: 'delete',
+            pageRoute: '/admin/employee_cash',
             userId: userId,
           });
         }
@@ -416,15 +668,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(200).json({ message: 'تم حذف السجل بنجاح' });
       }
 
-      // If record not found in either table
-      return res.status(404).json({ error: 'record to delete not found' });
+      return res.status(404).json({ error: 'السجل المراد حذفه غير موجود' });
 
     } catch (error) {
       console.error('Error deleting employee cash detail:', error);
       if (error instanceof Error && error.message.includes('Record to delete not found')) {
-        return res.status(404).json({ error: 'record to delete not found' });
+        return res.status(404).json({ error: 'السجل المراد حذفه غير موجود' });
       }
-      res.status(500).json({ error: 'Failed to delete employee cash detail' });
+      res.status(500).json({ error: 'فشل في حذف السجل' });
     } finally {
       await prisma.$disconnect();
     }
