@@ -2,9 +2,64 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient, Prisma } from '@prisma/client';
 import eventBus from 'lib/eventBus';
 import { jwtDecode } from 'jwt-decode';
-import { logAccountingActionFromRequest } from 'lib/accountingLogger';
+import { logAccountingAction } from 'lib/accountingLogger';
 
 const prisma = new PrismaClient();
+
+// Helper to authenticate user and extract role permissions directly from DB
+async function getAuthUserWithPermissions(req: NextApiRequest) {
+  let rawToken = '';
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    rawToken = authHeader.substring(7).trim();
+  }
+
+  const cookieHeader = req.headers.cookie;
+  let cookies: { [key: string]: string } = {};
+  if (cookieHeader) {
+    cookieHeader.split(";").forEach((cookie) => {
+      const [key, value] = cookie.trim().split("=");
+      cookies[key] = decodeURIComponent(value);
+    });
+  }
+
+  if (!rawToken) {
+    rawToken = cookies.authToken || cookies.token || '';
+  }
+
+  if (!rawToken) return null;
+
+  try {
+    const token = jwtDecode(rawToken) as any;
+    if (!token?.id) return null;
+
+    const user = await prisma.user.findUnique({
+      where: { id: Number(token.id) },
+      include: { role: true }
+    });
+
+    if (!user) return null;
+
+    let permissions: any = user.role?.permissions;
+    if (typeof permissions === 'string') {
+      try {
+        permissions = JSON.parse(permissions);
+      } catch {
+        permissions = {};
+      }
+    }
+
+    return {
+      id: user.id,
+      username: user.username || token.username || 'مستخدم',
+      role: user.role?.name || token.role || '',
+      permissions: permissions || {}
+    };
+  } catch (error) {
+    console.error('Error authenticating user in entry handler:', error);
+    return null;
+  }
+}
 
 // Helper function to recalculate totals from entries
 // Now supports transactions for data integrity
@@ -100,6 +155,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   } else if (req.method === 'PUT') {
     try {
+      const authUser = await getAuthUserWithPermissions(req);
+      if (!authUser) {
+        return res.status(401).json({ error: 'يجب تسجيل الدخول أولاً' });
+      }
+
+      const hasEditPermission = authUser.permissions?.['إدارة المحاسبة']?.['تعديل'] === true;
+      if (!hasEditPermission) {
+        return res.status(403).json({ error: 'غير مصرح لك بتعديل القيود المحاسبية. يجب تفعيل صلاحية التعديل في إدارة المحاسبة.' });
+      }
+
       const {
         date,
         description,
@@ -169,13 +234,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
 
       // Log accounting action
-      await logAccountingActionFromRequest(req, {
-        action: `تعديل قيد محاسبي - رقم العقد: ${entry.statement.contractNumber}`,
+      await logAccountingAction({
+        action: `تعديل قيد محاسبي - رقم العقد: ${entry.statement.contractNumber || 'غير محدد'} - العميل: ${entry.statement.client?.fullname || 'غير محدد'}`,
         actionType: 'update_client_entry',
         actionStatus: 'success',
         actionClientId: entry.statement.clientId,
+        actionUserId: authUser.id,
         actionAmount: Number(entry.debit) || Number(entry.credit),
-        actionNotes: `تعديل قيد محاسبي - ${description} - المدين: ${newDebit}، الدائن: ${newCredit}`,
+        actionNotes: `تم تعديل القيد #${entry.id} بواسطة المستخدم: ${authUser.username} (ID: ${authUser.id}) | البيان: ${description} | المدين: ${newDebit}، الدائن: ${newCredit} | نوع الحركة: ${entryType || 'عادي'}`,
       });
 
       res.status(200).json(entry);
@@ -188,6 +254,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   } else if (req.method === 'DELETE') {
     try {
+      const authUser = await getAuthUserWithPermissions(req);
+      if (!authUser) {
+        return res.status(401).json({ error: 'يجب تسجيل الدخول أولاً' });
+      }
+
+      const hasDeletePermission = authUser.permissions?.['إدارة المحاسبة']?.['حذف'] === true;
+      if (!hasDeletePermission) {
+        return res.status(403).json({ error: 'غير مصرح لك بحذف القيود المحاسبية. يجب تفعيل صلاحية الحذف في إدارة المحاسبة.' });
+      }
+
       // ✅ Use transaction for delete and recalculation
       const deletedInfo = await prisma.$transaction(async (tx) => {
         // Get entry before deletion to know statementId and date
@@ -198,7 +274,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               include: {
                 client: {
                   select: {
-                    fullname: true
+                    id: true,
+                    fullname: true,
+                    nationalId: true
                   }
                 }
               }
@@ -227,14 +305,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return entryToDelete;
       });
 
-      // Log accounting action
-      await logAccountingActionFromRequest(req, {
-        action: `حذف قيد محاسبي - رقم العقد: ${deletedInfo.statement.contractNumber}`,
+      // Log accounting action with detailed audit info
+      const formattedDate = deletedInfo.date ? new Date(deletedInfo.date).toISOString().split('T')[0] : 'غير محدد';
+      const debitVal = Number(deletedInfo.debit) || 0;
+      const creditVal = Number(deletedInfo.credit) || 0;
+      const amountVal = debitVal > 0 ? debitVal : creditVal;
+      const clientName = deletedInfo.statement?.client?.fullname || 'غير محدد';
+      const contractNum = deletedInfo.statement?.contractNumber || 'غير محدد';
+
+      await logAccountingAction({
+        action: `حذف قيد محاسبي - رقم العقد: ${contractNum} - العميل: ${clientName}`,
         actionType: 'delete_client_entry',
         actionStatus: 'success',
         actionClientId: deletedInfo.statement.clientId,
-        actionAmount: Number(deletedInfo.debit) || Number(deletedInfo.credit),
-        actionNotes: `حذف قيد محاسبي - ${deletedInfo.description} - المدين: ${deletedInfo.debit}، الدائن: ${deletedInfo.credit}`,
+        actionUserId: authUser.id,
+        actionAmount: amountVal,
+        actionNotes: `تم حذف القيد #${deletedInfo.id} بواسطة المستخدم: ${authUser.username} (ID: ${authUser.id}) | البيان: ${deletedInfo.description} | مدين: ${debitVal} | دائن: ${creditVal} | التاريخ: ${formattedDate} | نوع القيد: ${deletedInfo.entryType || 'عادي'} | كشف حساب العقد: ${contractNum} | العميل: ${clientName}`,
       });
 
       res.status(200).json({ message: 'Client account entry deleted successfully' });
@@ -250,4 +336,3 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 }
-

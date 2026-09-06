@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from 'example/containers/Layout';
-import { ArrowRightIcon, MoonIcon, SunIcon, OfficeBuildingIcon, DocumentTextIcon, PlusCircleIcon, SearchIcon, ViewGridIcon, DotsHorizontalIcon, ArrowUpIcon, ReceiptTaxIcon, CreditCardIcon, RefreshIcon, CalendarIcon, CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/outline';
+import { ArrowRightIcon, MoonIcon, SunIcon, OfficeBuildingIcon, DocumentTextIcon, PlusCircleIcon, SearchIcon, ViewGridIcon, DotsHorizontalIcon, ArrowUpIcon, ReceiptTaxIcon, CreditCardIcon, RefreshIcon, CalendarIcon, CheckCircleIcon, ExclamationCircleIcon, TrashIcon, XIcon } from '@heroicons/react/outline';
 import Style from "styles/Home.module.css";
 import { jwtDecode } from 'jwt-decode';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-import { SettingFilled } from '@ant-design/icons';
+import { SettingFilled, DeleteOutlined } from '@ant-design/icons';
 import {
   DndContext, 
   closestCenter,
@@ -66,6 +66,7 @@ interface ClientAccountStatement {
     profileStatus: string;
     typeOfContract: string;
     Total?: number | null;
+    paid?: number | null;
     HomeMaid?: {
       id: number;
       Name: string;
@@ -94,7 +95,7 @@ interface ClientAccountStatement {
 }
 
 // Sortable Row Component
-const SortableRow = ({ entry, index, formatCurrency, getDate, openEditModal }: any) => {
+const SortableRow = ({ entry, index, formatCurrency, getDate, openEditModal, openDeleteModal, canEditEntry, canDeleteEntry }: any) => {
   const {
     attributes,
     listeners,
@@ -114,6 +115,8 @@ const SortableRow = ({ entry, index, formatCurrency, getDate, openEditModal }: a
     backgroundColor: isDragging ? '#f0f9ff' : undefined, // Light blue background when dragging
   };
 
+  const isEditable = entry?.isEditable !== false;
+
   return (
     <tr 
       ref={setNodeRef} 
@@ -129,30 +132,40 @@ const SortableRow = ({ entry, index, formatCurrency, getDate, openEditModal }: a
         <td className="px-6 py-4 text-md font-mono">{entry.credit > 0 ? formatCurrency(entry.credit) : '-'}</td>
         <td className="px-6 py-4 text-md font-bold text-primary">{formatCurrency(entry.balance)}</td>
         <td className="px-6 py-4 text-md">
-            
-            {
-              entry?.isEditable !== false ? (
-                // Prevent drag on button click by stopping propagation on the button itself if needed, 
-                // but since the whole row is draggable handle, we should probably make only a specific handle draggable OR
-                // ensure button clicks work. With {...listeners} on TR, the whole row is a handle.
-                // Usually button clicks still work unless we prevent default.
+            <div className="flex items-center gap-3">
+              {/* خيار التعديل للسجلات القابلة للتعديل عند توفر صلاحية التعديل */}
+              {isEditable && canEditEntry && (
                 <button 
-                onPointerDown={(e) => e.stopPropagation()} // Prevent drag start when clicking button
-                onClick={() => openEditModal(entry)}
-                className="text-primary hover:underline font-medium flex items-center gap-1 cursor-pointer"
-            >
-                <SettingFilled className="w-4 h-4 bg-transparent text-primary" />
-                اجراءات
-            </button>
-                ) : 
+                  type="button"
+                  onPointerDown={(e) => e.stopPropagation()} 
+                  onClick={() => openEditModal(entry)}
+                  className="text-primary hover:underline font-medium flex items-center gap-1 cursor-pointer"
+                  title="تعديل القيد"
+                >
+                  <SettingFilled className="w-4 h-4 bg-transparent text-primary" />
+                  <span>تعديل</span>
+                </button>
+              )}
+
+              {/* خيار الحذف يظهر فقط عند وجود صلاحية الحذف في إدارة المحاسبة */}
+              {canDeleteEntry && (
                 <button 
-                disabled
-                className="text-primary hover:underline font-medium flex items-center gap-1 opacity-50 cursor-not-allowed"
-            >
-                {/* <SettingFilled className="w-4 h-4 bg-transparent text-primary" /> */}
-                {/* اجراءات */}
-            </button>
-            }
+                  type="button"
+                  onPointerDown={(e) => e.stopPropagation()} 
+                  onClick={() => openDeleteModal(entry)}
+                  className="text-red-600 hover:text-red-700 hover:underline font-medium flex items-center gap-1 cursor-pointer transition-colors"
+                  title="حذف القيد"
+                >
+                  <TrashIcon className="w-4 h-4 text-red-600" />
+                  <span>حذف</span>
+                </button>
+              )}
+
+              {/* إذا لم تتوفر أي صلاحية */}
+              {(!isEditable || !canEditEntry) && !canDeleteEntry && (
+                <span className="text-slate-300 dark:text-slate-600">-</span>
+              )}
+            </div>
         </td>
     </tr>
   );
@@ -165,10 +178,19 @@ const ClientStatementPage = () => {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingEntry, setEditingEntry] = useState<ClientAccountEntry | null>(null);
+  const [entryToDelete, setEntryToDelete] = useState<ClientAccountEntry | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [userId, setUserId] = useState<number | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  // الصلاحيات الدقيقة المعتمدة حصراً على إدارة المحاسبة
+  const [permissions, setPermissions] = useState<any>({});
+  const [canDeleteEntry, setCanDeleteEntry] = useState(false);
+  const [canEditEntry, setCanEditEntry] = useState(false);
+  const [canAddEntry, setCanAddEntry] = useState(false);
 
   const showMessage = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
@@ -223,7 +245,7 @@ const ClientStatementPage = () => {
     }
   };
   
-    const sensors = useSensors(
+  const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8, // Require 8px movement before drag starts to prevent accidental drags on clicks
@@ -244,17 +266,12 @@ const ClientStatementPage = () => {
         
         const newEntries = arrayMove(prev.entries, oldIndex, newIndex);
         
-        // Return new state with updated entries
         return {
           ...prev,
           entries: newEntries
         };
       });
 
-      // We need to get the new order IDs to send to API
-      // We can't rely on 'statement' state here because setState is async
-      // So we calculate it again or use a functional update and side effect.
-      // Better to calculate new order locally for API call.
        const oldIndex = statement.entries.findIndex((item) => item.id === active.id);
        const newIndex = statement.entries.findIndex((item) => item.id === over?.id);
        const newEntries = arrayMove(statement.entries, oldIndex, newIndex);
@@ -266,13 +283,41 @@ const ClientStatementPage = () => {
            headers: { 'Content-Type': 'application/json' },
            body: JSON.stringify({ orderedIds }),
          });
-         // showMessage('success', 'تم حفظ الترتيب'); // Optional: show message or just fail silently/log error
        } catch (error) {
          console.error('Failed to save order:', error);
          showMessage('error', 'فشل حفظ الترتيب');
        }
     }
   };
+
+  // التحقق الحصري من الصلاحيات من /api/auth/me
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const headers: any = {};
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        const res = await fetch('/api/auth/me', { headers });
+        if (res.ok) {
+          const data = await res.json();
+          const userPerms = data.user?.permissions || {};
+          setPermissions(userPerms);
+          
+          // الاعتماد الصريح على خانات إدارة المحاسبة
+          setCanDeleteEntry(userPerms?.['إدارة المحاسبة']?.['حذف'] === true);
+          setCanEditEntry(userPerms?.['إدارة المحاسبة']?.['تعديل'] === true);
+          setCanAddEntry(userPerms?.['إدارة المحاسبة']?.['إضافة'] === true);
+          setUserId(Number(data.user?.id) || null);
+        }
+      } catch (err) {
+        console.error('Error fetching user permissions:', err);
+      }
+    };
+
+    fetchUserPermissions();
+  }, []);
 
   useEffect(() => {
     if (id) {
@@ -293,16 +338,6 @@ const ClientStatementPage = () => {
     return () => clearTimeout(timeout);
   }, [searchTerm]);
 
-  useEffect(() => {
-    const user = localStorage.getItem('token');
-    if (user) {
-      const decoded: any = jwtDecode(user);
-      setUserId(Number(decoded?.id));
-    } else {
-      setUserId(null);
-    }
-  }, []);
-
   const handleAddEntry = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -315,11 +350,13 @@ const ClientStatementPage = () => {
     }
 
     try {
+      const token = localStorage.getItem('token');
+      const headers: any = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
       const response = await fetch('/api/client-accounts/entries', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           statementId: id,
           date: formData.date,
@@ -345,7 +382,7 @@ const ClientStatementPage = () => {
         showMessage('success', 'تم إضافة السجل بنجاح');
       } else {
         const data = await response.json();
-        showMessage('error', data.message || 'فشل في إضافة السجل');
+        showMessage('error', data.error || data.message || 'فشل في إضافة السجل');
       }
     } catch (error) {
       console.error('Error adding entry:', error);
@@ -366,11 +403,13 @@ const ClientStatementPage = () => {
     }
 
     try {
+      const token = localStorage.getItem('token');
+      const headers: any = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
       const response = await fetch(`/api/client-accounts/entries/${editingEntry.id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           date: formData.date,
           description: formData.description,
@@ -395,7 +434,7 @@ const ClientStatementPage = () => {
         showMessage('success', 'تم تعديل السجل بنجاح');
       } else {
         const data = await response.json();
-        showMessage('error', data.message || 'فشل في تعديل السجل');
+        showMessage('error', data.error || data.message || 'فشل في تعديل السجل');
       }
     } catch (error) {
       console.error('Error editing entry:', error);
@@ -416,11 +455,48 @@ const ClientStatementPage = () => {
     setShowEditModal(true);
   };
 
- const fieldNames: { [key: string]: string } = {
-  'officeLinkInfo': 'الربط مع إدارة المكاتب',
-   'travel_permit_issued':'تم إصدار تصريح السفر',
+  const openDeleteModal = (entry: ClientAccountEntry) => {
+    setEntryToDelete(entry);
+    setShowDeleteModal(true);
+  };
 
-   'foreign_labor_approved':'تمت الموافقة من وزارة العمل الأجنبية',
+  const handleConfirmDelete = async () => {
+    if (!entryToDelete) return;
+
+    try {
+      setIsDeleting(true);
+      const token = localStorage.getItem('token');
+      const headers: any = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const response = await fetch(`/api/client-accounts/entries/${entryToDelete.id}`, {
+        method: 'DELETE',
+        headers,
+      });
+
+      if (response.ok) {
+        setShowDeleteModal(false);
+        setShowEditModal(false);
+        setEntryToDelete(null);
+        setEditingEntry(null);
+        fetchStatement();
+        showMessage('success', 'تم حذف القيد المحاسبي بنجاح وإعادة احتساب الأرصدة وتوثيق العملية في سجل التدقيق.');
+      } else {
+        const data = await response.json();
+        showMessage('error', data.error || data.message || 'فشل في حذف القيد المحاسبي');
+      }
+    } catch (error) {
+      console.error('Error deleting entry:', error);
+      showMessage('error', 'حدث خطأ أثناء حذف القيد المحاسبي');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const fieldNames: { [key: string]: string } = {
+    'officeLinkInfo': 'الربط مع إدارة المكاتب',
+    'travel_permit_issued':'تم إصدار تصريح السفر',
+    'foreign_labor_approved':'تمت الموافقة من وزارة العمل الأجنبية',
     'externalOfficeInfo': 'المكتب الخارجي',
     'externalOfficeApproval': 'موافقة المكتب الخارجي',
     'medicalCheck': 'الفحص الطبي',
@@ -432,7 +508,8 @@ const ClientStatementPage = () => {
     'destinations': 'الوجهات',
     'receipt': 'الاستلام',
     'pending_external_office': 'في انتظار المكتب الخارجي',
-    'ticketUpload': 'رفع المستندات'  };
+    'ticketUpload': 'رفع المستندات'  
+  };
 
   const translateContractStatus = (status: string) => {
     return fieldNames[status] || status;
@@ -470,7 +547,6 @@ const ClientStatementPage = () => {
     const end = new Date(endDateString);
     const now = new Date();
     
-    // Reset hours to compare only dates
     end.setHours(0, 0, 0, 0);
     now.setHours(0, 0, 0, 0);
     
@@ -523,7 +599,6 @@ const ClientStatementPage = () => {
       tableRows.push(rowData);
     });
 
-    // Add total row
     const totalRow = [
        "",
        "",
@@ -549,20 +624,17 @@ const ClientStatementPage = () => {
          const pageWidth = doc.internal.pageSize.width;
          const pageHeight = doc.internal.pageSize.height;
         
-         // Header Info
          doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
          doc.setFontSize(14);
          doc.text(`كشف حساب العميل: ${statement.client?.fullname || ''}`, pageWidth / 2, 20, { align: 'center' });
          doc.setFontSize(10);
          doc.text(`تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}`, 10, 20, { align: 'left' });
          
-          // Client Info Section just below header
           if (doc.getCurrentPageInfo().pageNumber === 1) {
              doc.text(`رقم الهوية: ${statement.client?.nationalId || '-'}`, pageWidth - 20, 45, { align: 'right' });
              doc.text(`رقم الجوال: ${statement.client?.phonenumber || '-'}`, pageWidth - 80, 45, { align: 'right' });
           }
 
-         // Footer
          const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
          doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
          doc.text("الضمان 90 يوم من تاريخ الوصول", 20, pageHeight - 10, { align: 'left' });
@@ -584,7 +656,6 @@ const ClientStatementPage = () => {
       'الرصيد': formatCurrency(entry.balance)
     }));
 
-    // Add totals
     worksheetData.push({
       '#': '',
       'التاريخ': '',
@@ -594,7 +665,6 @@ const ClientStatementPage = () => {
       'الرصيد': formatCurrency(statement.totals.netAmount)
     } as any);
 
-    // Add warranty note
     worksheetData.push({
       '#': '',
       'التاريخ': '',
@@ -607,7 +677,6 @@ const ClientStatementPage = () => {
     const worksheet = XLSX.utils.json_to_sheet(worksheetData);
     const workbook = XLSX.utils.book_new();
     
-    // Adjust column widths
     worksheet['!cols'] = [
       { wch: 5 }, { wch: 15 }, { wch: 40 }, { wch: 15 }, { wch: 15 }, { wch: 15 }
     ];
@@ -615,7 +684,6 @@ const ClientStatementPage = () => {
     XLSX.utils.book_append_sheet(workbook, worksheet, 'كشف الحساب');
     XLSX.writeFile(workbook, `كشف_حساب_${statement.client?.fullname || 'عميل'}.xlsx`);
   };
-
 
   if (loading) {
     return (
@@ -640,7 +708,6 @@ const ClientStatementPage = () => {
     );
   }
 
- // دالة ترجمة حالة الطلب من الإنجليزية إلى العربية
   const translateBookingStatus = (status: string) => {
     const statusTranslations: { [key: string]: string } = {
       'pending': 'قيد الانتظار',
@@ -671,7 +738,6 @@ const ClientStatementPage = () => {
 
     return statusTranslations[status] || status;
   };
-
 
   return (
     <Layout>
@@ -831,13 +897,15 @@ const ClientStatementPage = () => {
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
                 <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex flex-wrap items-center justify-between gap-4">
                     <div className="flex gap-2">
-                        <button 
-                            onClick={() => setShowAddModal(true)}
-                            className="bg-primary text-white py-2 px-4 rounded-lg text-md font-medium flex items-center gap-1 hover:bg-opacity-90 transition-all shadow-sm"
-                        >
-                            <PlusCircleIcon className="w-5 h-5 bg-transparent text-white" />
-                            إضافة سجل
-                        </button>
+                        {canAddEntry && (
+                          <button 
+                              onClick={() => setShowAddModal(true)}
+                              className="bg-primary text-white py-2 px-4 rounded-lg text-md font-medium flex items-center gap-1 hover:bg-opacity-90 transition-all shadow-sm"
+                          >
+                              <PlusCircleIcon className="w-5 h-5 bg-transparent text-white" />
+                              إضافة سجل
+                          </button>
+                        )}
                     </div>
                     <div className="flex items-center gap-3 flex-grow md:flex-grow-0">
                         <div className="relative flex-grow md:w-64">
@@ -905,6 +973,9 @@ const ClientStatementPage = () => {
                                           formatCurrency={formatCurrency}
                                           getDate={getDate}
                                           openEditModal={openEditModal}
+                                          openDeleteModal={openDeleteModal}
+                                          canEditEntry={canEditEntry}
+                                          canDeleteEntry={canDeleteEntry}
                                         />
                                     ))}
                                   </SortableContext>
@@ -938,62 +1009,71 @@ const ClientStatementPage = () => {
         
         {/* Add Entry Modal */}
         {showAddModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50">
-            <div className="bg-white p-8 rounded-lg w-[600px] max-w-[90%] shadow-lg">
-              <h2 className="text-xl text-center mb-6 text-teal-700">إضافة سجل</h2>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" dir="rtl">
+            <div className="bg-white dark:bg-slate-800 p-6 md:p-8 rounded-2xl w-[600px] max-w-[95%] shadow-2xl relative border border-slate-100 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="absolute top-4 left-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                title="إغلاق"
+              >
+                <XIcon className="w-5 h-5" />
+              </button>
+              <h2 className="text-xl font-bold text-center mb-6 text-[#0D5C63] dark:text-teal-400">إضافة سجل جديد</h2>
               <form onSubmit={handleAddEntry} className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col">
-                  <label className="text-md font-medium text-gray-700 mb-1">التاريخ</label>
+                  <label className="text-md font-medium text-gray-700 dark:text-gray-300 mb-1">التاريخ</label>
                   <input
                     type="date"
                     value={formData.date}
                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    className="p-2 border border-gray-300 rounded text-md bg-gray-50"
+                    className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-md bg-gray-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-[#0D5C63]"
                     required
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-md font-medium text-gray-700 mb-1">رصيد المدين</label>
+                  <label className="text-md font-medium text-gray-700 dark:text-gray-300 mb-1">رصيد المدين</label>
                   <input
                     type="number"
                     placeholder="ادخل رصيد المدين"
                     value={formData.debit}
                     onChange={(e) => setFormData({ ...formData, debit: e.target.value })}
-                    className="p-2 border border-gray-300 rounded text-md bg-gray-50"
+                    className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-md bg-gray-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-[#0D5C63]"
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-md font-medium text-gray-700 mb-1">رصيد الدائن</label>
+                  <label className="text-md font-medium text-gray-700 dark:text-gray-300 mb-1">رصيد الدائن</label>
                   <input
                     type="number"
                     placeholder="ادخل رصيد الدائن"
                     value={formData.credit}
                     onChange={(e) => setFormData({ ...formData, credit: e.target.value })}
-                    className="p-2 border border-gray-300 rounded text-md bg-gray-50"
+                    className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-md bg-gray-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-[#0D5C63]"
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-md font-medium text-gray-700 mb-1">البيان</label>
+                  <label className="text-md font-medium text-gray-700 dark:text-gray-300 mb-1">البيان</label>
                   <input
                     type="text"
                     placeholder="ادخل البيان"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="p-2 border border-gray-300 rounded text-md bg-gray-50"
+                    className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-md bg-gray-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-[#0D5C63]"
                     required
                   />
                 </div>
-                <div className="col-span-2 flex justify-center gap-4 mt-4">
+                <div className="col-span-2 flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100 dark:border-gray-700">
                   <button
                     type="button"
                     onClick={() => setShowAddModal(false)}
-                    className="px-6 py-2 bg-gray-300 text-gray-700 rounded text-md"
+                    className="px-6 py-2.5 bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 font-medium rounded-xl text-md transition-colors"
                   >
                     إلغاء
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2 bg-teal-800 text-white rounded text-md"
+                    className="px-8 py-2.5 bg-[#0D5C63] hover:bg-[#094247] text-white font-bold rounded-xl text-md shadow-md transition-all"
+                    style={{ backgroundColor: '#0D5C63', color: '#ffffff' }}
                   >
                     إضافة
                   </button>
@@ -1005,88 +1085,197 @@ const ClientStatementPage = () => {
 
         {/* Edit Entry Modal */}
         {showEditModal && editingEntry && (
-          <div className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50">
-            <div className="bg-white p-8 rounded-lg w-[600px] max-w-[90%] shadow-lg">
-              <h2 className="text-xl text-center mb-6 text-teal-700">تعديل</h2>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" dir="rtl">
+            <div className="bg-white dark:bg-slate-800 p-6 md:p-8 rounded-2xl w-[600px] max-w-[95%] shadow-2xl relative border border-slate-100 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                className="absolute top-4 left-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                title="إغلاق"
+              >
+                <XIcon className="w-5 h-5" />
+              </button>
+              <h2 className="text-xl font-bold text-center mb-6 text-[#0D5C63] dark:text-teal-400">تعديل القيد المحاسبي</h2>
               <form onSubmit={handleEditEntry} className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col">
-                  <label className="text-md font-medium text-gray-700 mb-1">رصيد المدين</label>
+                  <label className="text-md font-medium text-gray-700 dark:text-gray-300 mb-1">رصيد المدين</label>
                   <input
                     type="number"
                     value={formData.debit}
                     onChange={(e) => setFormData({ ...formData, debit: e.target.value })}
-                    className="p-2 border border-gray-300 rounded text-md bg-gray-50"
+                    className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-md bg-gray-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-[#0D5C63]"
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-md font-medium text-gray-700 mb-1">رصيد الدائن</label>
+                  <label className="text-md font-medium text-gray-700 dark:text-gray-300 mb-1">رصيد الدائن</label>
                   <input
                     type="number"
                     value={formData.credit}
                     onChange={(e) => setFormData({ ...formData, credit: e.target.value })}
-                    className="p-2 border border-gray-300 rounded text-md bg-gray-50"
+                    className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-md bg-gray-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-[#0D5C63]"
                   />
                 </div>
                 <div className="col-span-2 flex flex-col">
-                  <label className="text-md font-medium text-gray-700 mb-1">البيان</label>
+                  <label className="text-md font-medium text-gray-700 dark:text-gray-300 mb-1">البيان</label>
                   <input
                     type="text"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="p-2 border border-gray-300 rounded text-md bg-gray-50"
+                    className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-md bg-gray-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-[#0D5C63]"
                     required
                   />
                 </div>
-                <div className="col-span-2 flex justify-center gap-4 mt-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowEditModal(false)}
-                    className="px-6 py-2 bg-gray-300 text-gray-700 rounded text-md"
-                  >
-                    إلغاء
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-6 py-2 bg-teal-800 text-white rounded text-md"
-                  >
-                    حفظ
-                  </button>
+                <div className="col-span-2 flex justify-between items-center gap-4 mt-6 pt-4 border-t border-gray-100 dark:border-gray-700">
+                  {canDeleteEntry ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowEditModal(false);
+                        openDeleteModal(editingEntry);
+                      }}
+                      className="px-4 py-2.5 bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 rounded-xl text-md font-bold border border-red-200 dark:border-red-800 transition-colors flex items-center gap-1.5"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                      <span>حذف هذا القيد</span>
+                    </button>
+                  ) : <div />}
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowEditModal(false)}
+                      className="px-6 py-2.5 bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 font-medium rounded-xl text-md transition-colors"
+                    >
+                      إلغاء
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-8 py-2.5 bg-[#0D5C63] hover:bg-[#094247] text-white font-bold rounded-xl text-md shadow-md transition-all"
+                      style={{ backgroundColor: '#0D5C63', color: '#ffffff' }}
+                    >
+                      حفظ
+                    </button>
+                  </div>
                 </div>
               </form>
             </div>
           </div>
         )}
 
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && entryToDelete && (
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[100] animate-fade-in p-4" dir="rtl">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 md:p-8 w-[480px] max-w-[95%] relative border border-slate-200 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => { setShowDeleteModal(false); setEntryToDelete(null); }}
+                className="absolute top-4 left-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                title="إغلاق"
+              >
+                <XIcon className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center gap-3 text-red-600 dark:text-red-400 mb-4 pb-3 border-b border-slate-100 dark:border-slate-700">
+                <div className="p-2.5 bg-red-100 dark:bg-red-900/30 rounded-full">
+                  <TrashIcon className="w-6 h-6 text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">تأكيد حذف القيد المحاسبي</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">سيتم حذف القيد وإعادة احتساب الرصيد وتوثيق العملية في سجل التدقيق</p>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl space-y-2 mb-6 text-sm border border-slate-100 dark:border-slate-700/50">
+                <div className="flex justify-between py-1.5 border-b border-slate-200/60 dark:border-slate-700/60">
+                  <span className="text-slate-500 dark:text-slate-400">التاريخ:</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">{getDate(entryToDelete.date)}</span>
+                </div>
+                <div className="flex justify-between py-1.5 border-b border-slate-200/60 dark:border-slate-700/60">
+                  <span className="text-slate-500 dark:text-slate-400">البيان:</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">{entryToDelete.description}</span>
+                </div>
+                <div className="flex justify-between py-1.5 border-b border-slate-200/60 dark:border-slate-700/60">
+                  <span className="text-slate-500 dark:text-slate-400">المدين:</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">{entryToDelete.debit > 0 ? formatCurrency(entryToDelete.debit) : '-'}</span>
+                </div>
+                <div className="flex justify-between py-1.5">
+                  <span className="text-slate-500 dark:text-slate-400">الدائن:</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">{entryToDelete.credit > 0 ? formatCurrency(entryToDelete.credit) : '-'}</span>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setShowDeleteModal(false); setEntryToDelete(null); }}
+                  disabled={isDeleting}
+                  className="px-5 py-2.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-md font-medium transition-colors"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDelete}
+                  disabled={isDeleting}
+                  className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-md font-bold flex items-center gap-2 shadow-md transition-all disabled:opacity-50"
+                  style={{ backgroundColor: '#dc2626', color: '#ffffff' }}
+                >
+                  {isDeleting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>جاري الحذف...</span>
+                    </>
+                  ) : (
+                    <>
+                      <TrashIcon className="w-5 h-5" />
+                      <span>تأكيد الحذف</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Message Modal */}
         {message && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] animate-fade-in">
-            <div className={`bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-[400px] max-w-[90%] transform transition-all scale-100 ${
-               message.type === 'success' ? 'border-t-4 border-emerald-500' : 'border-t-4 border-red-500'
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[100] animate-fade-in p-4" dir="rtl">
+            <div className={`bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 md:p-8 w-[420px] max-w-[92%] relative transform transition-all scale-100 ${
+               message.type === 'success' ? 'border-t-4 border-[#0D5C63]' : 'border-t-4 border-red-500'
             }`}>
-              <div className="flex flex-col items-center text-center gap-4">
+              {/* زر الإغلاق العلوي X */}
+              <button
+                type="button"
+                onClick={closeMessage}
+                className="absolute top-4 left-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                title="إغلاق"
+              >
+                <XIcon className="w-5 h-5" />
+              </button>
+
+              <div className="flex flex-col items-center text-center gap-4 mt-1">
                 {message.type === 'success' ? (
-                  <div className="bg-emerald-100 dark:bg-emerald-900/30 p-3 rounded-full">
-                    <CheckCircleIcon className="w-12 h-12 text-emerald-600 dark:text-emerald-400" />
+                  <div className="bg-teal-50 dark:bg-teal-900/40 p-4 rounded-full text-[#0D5C63]">
+                    <CheckCircleIcon className="w-12 h-12 text-[#0D5C63]" />
                   </div>
                 ) : (
-                   <div className="bg-red-100 dark:bg-red-900/30 p-3 rounded-full">
-                    <ExclamationCircleIcon className="w-12 h-12 text-red-600 dark:text-red-400" />
+                   <div className="bg-red-50 dark:bg-red-900/40 p-4 rounded-full text-red-600">
+                    <ExclamationCircleIcon className="w-12 h-12 text-red-600" />
                    </div>
                 )}
                 
-                <h3 className={`text-xl font-bold ${message.type === 'success' ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>
+                <h3 className={`text-xl font-bold ${message.type === 'success' ? 'text-[#0D5C63] dark:text-teal-400' : 'text-red-700 dark:text-red-400'}`}>
                   {message.type === 'success' ? 'تمت العملية بنجاح' : 'تنبيه'}
                 </h3>
                 
-                <p className="text-slate-600 dark:text-slate-300 font-medium">
+                <p className="text-slate-600 dark:text-slate-300 font-medium text-md leading-relaxed px-2">
                   {message.text}
                 </p>
 
                 <button 
+                  type="button"
                   onClick={closeMessage}
-                  className={`mt-2 px-6 py-2 rounded-lg text-white font-medium transition-colors w-full ${
-                    message.type === 'success' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'
-                  }`}
+                  className="mt-4 px-6 py-2.5 rounded-xl font-bold text-white transition-all w-full shadow-md hover:shadow-lg active:scale-[0.98] cursor-pointer"
+                  style={{ backgroundColor: message.type === 'success' ? '#0D5C63' : '#dc2626', color: '#ffffff' }}
                 >
                   حسناً
                 </button>
