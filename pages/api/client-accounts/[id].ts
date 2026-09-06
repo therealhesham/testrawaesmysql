@@ -1,15 +1,20 @@
-// import '../../lib/loggers'; // استدعاء loggers.ts في بداية التطبيق
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import eventBus from 'lib/eventBus';
 import { jwtDecode } from 'jwt-decode';
-import { logAccountingActionFromRequest } from 'lib/accountingLogger';
+import { logAccountingAction } from 'lib/accountingLogger';
 
 const prisma = new PrismaClient();
 
-// Helper function to get user info from cookies
-const getUserFromCookies = (req: NextApiRequest) => {
+// Helper to authenticate user and extract role permissions directly from DB
+async function getAuthUserWithPermissions(req: NextApiRequest) {
+  let rawToken = '';
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    rawToken = authHeader.substring(7).trim();
+  }
+
   const cookieHeader = req.headers.cookie;
   let cookies: { [key: string]: string } = {};
   if (cookieHeader) {
@@ -18,19 +23,44 @@ const getUserFromCookies = (req: NextApiRequest) => {
       cookies[key] = decodeURIComponent(value);
     });
   }
-  
-  if (cookies.authToken) {
-    try {
-      const token = jwtDecode(cookies.authToken) as any;
-      return { userId: Number(token.id), username: token.username };
-    } catch (error) {
-      console.error('Error decoding token:', error);
-      return { userId: null, username: 'غير محدد' };
-    }
+
+  if (!rawToken) {
+    rawToken = cookies.authToken || cookies.token || '';
   }
-  
-  return { userId: null, username: 'غير محدد' };
-};
+
+  if (!rawToken) return null;
+
+  try {
+    const token = jwtDecode(rawToken) as any;
+    if (!token?.id) return null;
+
+    const user = await prisma.user.findUnique({
+      where: { id: Number(token.id) },
+      include: { role: true }
+    });
+
+    if (!user) return null;
+
+    let permissions: any = user.role?.permissions;
+    if (typeof permissions === 'string') {
+      try {
+        permissions = JSON.parse(permissions);
+      } catch {
+        permissions = {};
+      }
+    }
+
+    return {
+      id: user.id,
+      username: user.username || token.username || 'مستخدم',
+      role: user.role?.name || token.role || '',
+      permissions: permissions || {}
+    };
+  } catch (error) {
+    console.error('Error authenticating user in statement handler:', error);
+    return null;
+  }
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { id } = req.query;
@@ -139,7 +169,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return a.id - b.id;
       });
 
-      // إعادة حساب الرصيد الجاري لكل قيد: مدين يزيد، دائن يقلل (لضمان تطابق البيانات القديمة مع المعادلة الجديدة)
+      // إعادة حساب الرصيد الجاري لكل قيد: مدين يزيد، دائن يقلل
       let runningBalance = 0;
       const entriesWithBalance = sortedEntries.map((e: { id: number; date: Date; description: string; debit: Prisma.Decimal; credit: Prisma.Decimal; balance: Prisma.Decimal; entryType: string; isEditable?: boolean; [k: string]: any }) => {
         runningBalance += Number(e.debit) - Number(e.credit);
@@ -160,6 +190,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   } else if (req.method === 'PUT') {
     try {
+      const authUser = await getAuthUserWithPermissions(req);
+      if (!authUser) {
+        return res.status(401).json({ error: 'يجب تسجيل الدخول أولاً' });
+      }
+
+      const hasEditPermission = authUser.permissions?.['إدارة المحاسبة']?.['تعديل'] === true;
+      if (!hasEditPermission) {
+        return res.status(403).json({ error: 'غير مصرح لك بتعديل حسابات العملاء. يجب تفعيل صلاحية التعديل في إدارة المحاسبة.' });
+      }
+
       const {
         contractNumber,
         officeName,
@@ -172,9 +212,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         netAmount: providedNetAmount
       } = req.body;
 
-      // Get user info for logging
-      const { userId } = getUserFromCookies(req);
-
       let totalRevenue: number;
       let totalExpenses: number;
       let netAmount: number;
@@ -186,7 +223,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         totalRevenue = Number(providedRevenue) || 0;
         totalExpenses = Number(providedExpenses) || 0;
         
-        // ✅ Calculate netAmount with commission deduction
         const commissionPercentage = req.body.commissionPercentage !== undefined 
           ? Number(req.body.commissionPercentage) 
           : 0;
@@ -197,14 +233,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             ? Number(providedNetAmount) || 0
             : totalRevenue - totalExpenses - commissionAmount;
       } else {
-        // Recalculate totals from entries instead of using provided values
         const entries = await prisma.clientAccountEntry.findMany({
           where: { statementId: Number(id) }
         });
         totalRevenue = entries.reduce((sum, entry) => sum + Number(entry.credit), 0);
         totalExpenses = entries.reduce((sum, entry) => sum + Number(entry.debit), 0);
         
-        // ✅ Get current commission percentage from database
         const currentStatement = await prisma.clientAccountStatement.findUnique({
           where: { id: Number(id) },
           select: { commissionPercentage: true }
@@ -250,13 +284,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
 
       // Log accounting action
-      await logAccountingActionFromRequest(req, {
+      await logAccountingAction({
         action: `تعديل حساب عميل - رقم العقد: ${contractNumber}`,
         actionType: 'update_client_account',
         actionStatus: 'success',
         actionClientId: statement.client.id,
+        actionUserId: authUser.id,
         actionAmount: netAmount,
-        actionNotes: `تعديل حساب عميل - الإيرادات: ${totalRevenue}، المصروفات: ${totalExpenses}، الصافي: ${netAmount}${officeName ? ` - المكتب: ${officeName}` : ''}${contractStatus ? ` - حالة العقد: ${contractStatus}` : ''}`,
+        actionNotes: `تعديل حساب عميل بواسطة ${authUser.username} - الإيرادات: ${totalRevenue}، المصروفات: ${totalExpenses}، الصافي: ${netAmount}${officeName ? ` - المكتب: ${officeName}` : ''}${contractStatus ? ` - حالة العقد: ${contractStatus}` : ''}`,
       });
 
       res.status(200).json(statement);
@@ -268,31 +303,47 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   } else if (req.method === 'DELETE') {
     try {
-      // Get user info for logging
-      const { userId } = getUserFromCookies(req);
+      const authUser = await getAuthUserWithPermissions(req);
+      if (!authUser) {
+        return res.status(401).json({ error: 'يجب تسجيل الدخول أولاً' });
+      }
+
+      const hasDeletePermission = authUser.permissions?.['إدارة المحاسبة']?.['حذف'] === true;
+      if (!hasDeletePermission) {
+        return res.status(403).json({ error: 'غير مصرح لك بحذف حسابات العملاء. يجب تفعيل صلاحية الحذف في إدارة المحاسبة.' });
+      }
 
       // Get statement info before deletion for logging
       const statementToDelete = await prisma.clientAccountStatement.findUnique({
         where: { id: Number(id) },
-        select: { contractNumber: true, client: { select: { fullname: true } } }
+        include: { client: { select: { id: true, fullname: true, nationalId: true } }, entries: true }
       });
 
-      await prisma.clientAccountStatement.delete({
-        where: {
-          id: Number(id)
-        }
+      if (!statementToDelete) {
+        return res.status(404).json({ error: 'كشف الحساب غير موجود' });
+      }
+
+      // Delete in transaction (entries first, then statement)
+      await prisma.$transaction(async (tx) => {
+        await tx.clientAccountEntry.deleteMany({
+          where: { statementId: Number(id) }
+        });
+
+        await tx.clientAccountStatement.delete({
+          where: { id: Number(id) }
+        });
       });
 
       // Log accounting action
-      if (statementToDelete) {
-        await logAccountingActionFromRequest(req, {
-          action: `حذف حساب عميل - العميل: ${statementToDelete.client?.fullname || 'غير محدد'} - رقم العقد: ${statementToDelete.contractNumber}`,
-          actionType: 'delete_client_account',
-          actionStatus: 'success',
-          actionClientId: Number(id),
-          actionNotes: `حذف حساب عميل - رقم العقد: ${statementToDelete.contractNumber}`,
-        });
-      }
+      await logAccountingAction({
+        action: `حذف كشف حساب عميل - رقم العقد: ${statementToDelete.contractNumber || 'غير محدد'} - العميل: ${statementToDelete.client?.fullname || 'غير محدد'}`,
+        actionType: 'delete_client_account',
+        actionStatus: 'success',
+        actionClientId: statementToDelete.clientId,
+        actionUserId: authUser.id,
+        actionAmount: Number(statementToDelete.netAmount) || Number(statementToDelete.totalRevenue) || 0,
+        actionNotes: `تم حذف كشف الحساب بالكامل #${statementToDelete.id} بواسطة المستخدم: ${authUser.username} (ID: ${authUser.id}) | العميل: ${statementToDelete.client?.fullname || 'غير محدد'} | رقم العقد: ${statementToDelete.contractNumber || 'غير محدد'} | الإيرادات: ${statementToDelete.totalRevenue} | المصروفات: ${statementToDelete.totalExpenses} | الصافي: ${statementToDelete.netAmount}`,
+      });
 
       res.status(200).json({ message: 'Client account statement deleted successfully' });
     } catch (error) {
@@ -306,4 +357,3 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 }
-

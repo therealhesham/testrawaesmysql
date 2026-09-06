@@ -86,6 +86,12 @@ export default function Home() {
     isOpen: boolean;
     visaId: number | null;
   }>({ isOpen: false, visaId: null });
+  const [canDeleteFinancial, setCanDeleteFinancial] = useState(false);
+  const [deleteStatementModal, setDeleteStatementModal] = useState<{
+    isOpen: boolean;
+    statement: ClientAccountStatement | null;
+  }>({ isOpen: false, statement: null });
+  const [isDeletingStatement, setIsDeletingStatement] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [originalClientInfo, setOriginalClientInfo] = useState<ClientInfo>({
     id: '',
@@ -98,6 +104,25 @@ export default function Home() {
   const [professions, setProfessions] = useState<Array<{ id: number; name: string; gender?: string | null }>>([]);
 
   const router = useRouter();
+
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const headers: any = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const res = await fetch('/api/auth/me', { headers });
+        if (res.ok) {
+          const data = await res.json();
+          const userPerms = data.user?.permissions || {};
+          setCanDeleteFinancial(userPerms?.['إدارة المحاسبة']?.['حذف'] === true);
+        }
+      } catch (err) {
+        console.error('Error fetching permissions in clientdetails:', err);
+      }
+    };
+    fetchUserPermissions();
+  }, []);
 
   const fetchClientInfo = async () => {
     if (!router.query.id) return;
@@ -133,16 +158,53 @@ export default function Home() {
     if (!router.query.id) return;
     try {
       setIsLoadingFinancial(true);
-      const response = await fetch(`/api/client-accounts?client=${router.query.id}&limit=100`);
-      const data = await response.json();
-      if (data.statements) {
-        setFinancialStatements(data.statements);
+      const token = localStorage.getItem('token');
+      const headers: any = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const response = await fetch(`/api/client-accounts?client=${router.query.id}&limit=100`, { headers });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.statements) {
+          setFinancialStatements(data.statements);
+        }
       }
     } catch (error) {
-      console.error(error);
-      setNotification({ message: 'فشل في جلب البيانات المالية', type: 'error' });
+      console.error('Error fetching financial statements:', error);
     } finally {
       setIsLoadingFinancial(false);
+    }
+  };
+
+  const handleDeleteStatement = (statement: ClientAccountStatement) => {
+    setDeleteStatementModal({ isOpen: true, statement });
+  };
+
+  const confirmDeleteStatement = async () => {
+    if (!deleteStatementModal.statement) return;
+    try {
+      setIsDeletingStatement(true);
+      const token = localStorage.getItem('token');
+      const headers: any = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const response = await fetch(`/api/client-accounts/${deleteStatementModal.statement.id}`, {
+        method: 'DELETE',
+        headers,
+      });
+
+      if (response.ok) {
+        setNotification({ message: 'تم حذف كشف الحساب المالي بنجاح وإزالته من سجل العميل', type: 'success' });
+        setDeleteStatementModal({ isOpen: false, statement: null });
+        fetchFinancialStatements();
+      } else {
+        const data = await response.json();
+        setNotification({ message: data.error || data.message || 'فشل في حذف كشف الحساب المالي', type: 'error' });
+      }
+    } catch (error) {
+      console.error('Error deleting financial statement:', error);
+      setNotification({ message: 'حدث خطأ أثناء حذف كشف الحساب المالي', type: 'error' });
+    } finally {
+      setIsDeletingStatement(false);
     }
   };
 
@@ -809,14 +871,24 @@ const arabicRegionMap: { [key: string]: string } = {
                             })}
                           </td>
                           <td className="p-3 border">
-                            <div className="flex gap-3 justify-center items-center">
+                            <div className="flex gap-2 justify-center items-center">
                               <button
                                 onClick={() => router.push(`/admin/client-accounts/${statement.id}`)}
-                                className="text-teal-600 hover:text-teal-800 transition-colors px-2 py-1 rounded"
+                                className="text-teal-700 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 font-medium transition-colors px-3 py-1 rounded-lg text-sm border border-teal-200"
                                 title="عرض التفاصيل"
                               >
                                 عرض التفاصيل
                               </button>
+                              {canDeleteFinancial && (
+                                <button
+                                  onClick={() => handleDeleteStatement(statement)}
+                                  className="text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 font-medium transition-colors px-2.5 py-1 rounded-lg text-sm border border-red-200 flex items-center gap-1 cursor-pointer"
+                                  title="حذف كشف الحساب بالكامل"
+                                >
+                                  <TrashIcon className="w-4 h-4 text-red-600" />
+                                  <span>حذف</span>
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -859,6 +931,87 @@ const arabicRegionMap: { [key: string]: string } = {
               )}
             </div>
           </CollapsibleSection>
+
+          {/* Statement Delete Confirmation Modal */}
+          {deleteStatementModal.isOpen && deleteStatementModal.statement && (
+            <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[100] animate-fade-in p-4" dir="rtl">
+              <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 w-[480px] max-w-[95%] relative border border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setDeleteStatementModal({ isOpen: false, statement: null })}
+                  className="absolute top-4 left-4 text-gray-400 hover:text-gray-600 p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+                  title="إغلاق"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+
+                <div className="flex items-center gap-3 text-red-600 mb-4 pb-3 border-b border-gray-100">
+                  <div className="p-2.5 bg-red-100 rounded-full">
+                    <TrashIcon className="w-6 h-6 text-red-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">تأكيد حذف كشف الحساب المالي</h3>
+                    <p className="text-xs text-gray-500">سيتم مسح كشف الحساب بالكامل وإزالته من ملف العميل وتوثيق العملية</p>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-xl space-y-2 mb-6 text-sm border border-gray-100">
+                  <div className="flex justify-between py-1.5 border-b border-gray-200">
+                    <span className="text-gray-500">رقم العقد:</span>
+                    <span className="font-semibold text-gray-800">{deleteStatementModal.statement.contractNumber || '-'}</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 border-b border-gray-200">
+                    <span className="text-gray-500">اسم المكتب:</span>
+                    <span className="font-semibold text-gray-800">{deleteStatementModal.statement.officeName || '-'}</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 border-b border-gray-200">
+                    <span className="text-gray-500">الإيرادات:</span>
+                    <span className="font-semibold text-gray-800">{Number(deleteStatementModal.statement.totalRevenue).toLocaleString('ar-SA')} ريال</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 border-b border-gray-200">
+                    <span className="text-gray-500">المصروفات:</span>
+                    <span className="font-semibold text-gray-800">{Number(deleteStatementModal.statement.totalExpenses).toLocaleString('ar-SA')} ريال</span>
+                  </div>
+                  <div className="flex justify-between py-1.5">
+                    <span className="text-gray-500">الصافي:</span>
+                    <span className="font-semibold text-gray-800">{Number(deleteStatementModal.statement.netAmount).toLocaleString('ar-SA')} ريال</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setDeleteStatementModal({ isOpen: false, statement: null })}
+                    disabled={isDeletingStatement}
+                    className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-md font-medium transition-colors"
+                  >
+                    إلغاء
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmDeleteStatement}
+                    disabled={isDeletingStatement}
+                    className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-md font-bold flex items-center gap-2 shadow-md transition-all disabled:opacity-50 cursor-pointer"
+                    style={{ backgroundColor: '#dc2626', color: '#ffffff' }}
+                  >
+                    {isDeletingStatement ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>جاري الحذف...</span>
+                      </>
+                    ) : (
+                      <>
+                        <TrashIcon className="w-5 h-5 text-white" />
+                        <span>تأكيد الحذف</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </Layout>
