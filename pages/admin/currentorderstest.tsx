@@ -1,7 +1,7 @@
-import { useEffect, useState, useCallback, useRef } from 'react'; // أضف useCallback
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'; // أضف useCallback
 import { useRouter } from 'next/router';
 import { DocumentDownloadIcon, TableIcon } from '@heroicons/react/outline';
-import { Search, ChevronDown, X, Columns, Hash, Phone, CreditCard, Book, FileText } from 'lucide-react';
+import { Search, ChevronDown, X, Columns, Hash, Phone, CreditCard, Book, FileText, Filter, Check } from 'lucide-react';
 import Layout from 'example/containers/Layout';
 import Style from "styles/Home.module.css";
 import { jwtDecode } from 'jwt-decode';
@@ -208,6 +208,88 @@ export function getOrderFinancialStatus(order: any): OrderFinancialStatusInfo {
   }
 }
 
+export const FINANCIAL_STATUS_FILTER_OPTIONS: {
+  code: string;
+  label: string;
+  shortLabel: string;
+  icon: string;
+  badgeBg: string;
+  badgeText: string;
+  badgeBorder: string;
+  description: string;
+}[] = [
+  {
+    code: 'all',
+    label: 'جميع الحالات المالية (عرض الكل)',
+    shortLabel: 'الكل',
+    icon: '✨',
+    badgeBg: 'bg-gray-100',
+    badgeText: 'text-gray-700',
+    badgeBorder: 'border-gray-300',
+    description: 'عرض كافة السجلات دون أي تصفية',
+  },
+  {
+    code: 'paid_full_single',
+    label: 'مسدد بالكامل (دفعة واحدة)',
+    shortLabel: 'مسدد (دفعة واحدة)',
+    icon: '🟢',
+    badgeBg: 'bg-emerald-50 text-emerald-800',
+    badgeText: 'text-emerald-800',
+    badgeBorder: 'border-emerald-300',
+    description: 'تم سداد كامل العقد دفعة واحدة (متبقي: 0)',
+  },
+  {
+    code: 'paid_full_two',
+    label: 'مسدد بالكامل (اكتملت الدفعتين)',
+    shortLabel: 'مسدد (اكتملت الدفعتين)',
+    icon: '🔵',
+    badgeBg: 'bg-teal-50 text-teal-800',
+    badgeText: 'text-teal-800',
+    badgeBorder: 'border-teal-300',
+    description: 'نظام دفعتين وتم سداد الدفعتين بالكامل',
+  },
+  {
+    code: 'two_installments_with_sanad',
+    label: 'دفعتين — متبقي دفعة (مع سند لأمر)',
+    shortLabel: 'متبقي دفعة (مع سند)',
+    icon: '🟠',
+    badgeBg: 'bg-amber-50 text-amber-900',
+    badgeText: 'text-amber-900',
+    badgeBorder: 'border-amber-400',
+    description: 'متبقي دفعة ثانية مع وجود سند لأمر موثق',
+  },
+  {
+    code: 'two_installments_no_sanad',
+    label: 'دفعتين — متبقي دفعة (بدون سند لأمر ⚠️)',
+    shortLabel: 'متبقي دفعة (بدون سند ⚠️)',
+    icon: '🟣',
+    badgeBg: 'bg-purple-50 text-purple-900',
+    badgeText: 'text-purple-900',
+    badgeBorder: 'border-purple-400',
+    description: 'متبقي دفعة ثانية وملف السند غير مرفوع',
+  },
+  {
+    code: 'unpaid',
+    label: 'معلق (لم يُسدد أي مبلغ)',
+    shortLabel: 'معلق (غير مسدد)',
+    icon: '🔴',
+    badgeBg: 'bg-red-50 text-red-900',
+    badgeText: 'text-red-900',
+    badgeBorder: 'border-red-300',
+    description: 'يوجد سجل مالي مسجل ولكن لم يدفع أي مبلغ',
+  },
+  {
+    code: 'no_statement',
+    label: 'لا يوجد سجل مالي',
+    shortLabel: 'بدون سجل مالي',
+    icon: '📋',
+    badgeBg: 'bg-slate-100 text-slate-700',
+    badgeText: 'text-slate-700',
+    badgeBorder: 'border-slate-300',
+    description: 'لم يتم إنشاء كشف حساب أو سجل مالي بعد',
+  },
+];
+
 const ORDER_TABLE_COLUMNS_STORAGE = 'currentorderstest_table_columns_v2';
 
 type OrderTableColKey =
@@ -307,6 +389,54 @@ export default function Dashboard({
   const [orderColumnsMenuOpen, setOrderColumnsMenuOpen] = useState(false);
   const orderColumnsMenuRef = useRef<HTMLDivElement>(null);
   const skipNextOrderColumnSave = useRef(true);
+
+  // حالة فلترة السجل المالي
+  const [financialStatusFilter, setFinancialStatusFilter] = useState<string>('all');
+  const [financialFilterMenuOpen, setFinancialFilterMenuOpen] = useState<boolean>(false);
+  const financialFilterMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (financialFilterMenuRef.current && !financialFilterMenuRef.current.contains(event.target as Node)) {
+        setFinancialFilterMenuOpen(false);
+      }
+    };
+    if (financialFilterMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [financialFilterMenuOpen]);
+
+  // البيانات المفلترة حسب الحالة المالية
+  const filteredData = useMemo(() => {
+    if (financialStatusFilter === 'all') return data;
+    return data.filter((booking) => {
+      const finStatus = getOrderFinancialStatus(booking);
+      return finStatus.code === financialStatusFilter;
+    });
+  }, [data, financialStatusFilter]);
+
+  // إحصائيات الحالات المالية في الصفحة الحالية
+  const financialStatusCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      all: data.length,
+      paid_full_single: 0,
+      paid_full_two: 0,
+      two_installments_with_sanad: 0,
+      two_installments_no_sanad: 0,
+      unpaid: 0,
+      no_statement: 0,
+    };
+    data.forEach((booking) => {
+      const fin = getOrderFinancialStatus(booking);
+      if (counts[fin.code] !== undefined) {
+        counts[fin.code]++;
+      }
+    });
+    return counts;
+  }, [data]);
 
   // دالة ترجمة حالة الطلب من الإنجليزية إلى العربية
   const translateBookingStatus = (status: string, booking?: any) => {
@@ -845,6 +975,7 @@ const exportedData = async ()=>{
     setDateFilterType('all');
     setDateFrom('');
     setDateTo('');
+    setFinancialStatusFilter('all');
     setCurrentPage(1); // Reset to first page
     // fetchData(1); // Fetch data with reset filters for page 1
   };
@@ -1200,7 +1331,7 @@ const exportedData = async ()=>{
                   </div>
                 </div>
               </div>
-              <div className="overflow-x-auto min-h-[360px] pb-16" dir="rtl">
+              <div className="overflow-x-auto min-h-[580px] pb-40" dir="rtl">
                 {isLoading ? (
                   <div className="flex justify-center items-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-900"></div>
@@ -1210,21 +1341,148 @@ const exportedData = async ()=>{
                   <table className="w-full border-collapse min-w-[1000px] text-right">
                     <thead>
                       <tr className="bg-teal-900 ">
-                        {visibleOrderTableColumns.map((col) => (
-                          <th
-                            key={col.key}
-                            className="text-white text-md font-normal p-4 text-right whitespace-nowrap"
-                          >
-                            {col.label}
-                          </th>
-                        ))}
+                        {visibleOrderTableColumns.map((col) => {
+                          if (col.key === 'financialStatus') {
+                            const isFilterActive = financialStatusFilter !== 'all';
+                            const activeOption = FINANCIAL_STATUS_FILTER_OPTIONS.find((o) => o.code === financialStatusFilter);
+                            return (
+                              <th
+                                key={col.key}
+                                className="text-white text-md font-normal p-4 text-right whitespace-nowrap"
+                              >
+                                <div className="inline-flex items-center gap-2 relative" ref={financialFilterMenuRef}>
+                                  <span className="font-semibold text-white">{col.label}</span>
+                                  
+                                  {/* زر أيقونة الفلتر بجانب النص مباشرة */}
+                                  <div className="relative inline-flex items-center">
+                                    <button
+                                      type="button"
+                                      onMouseDown={(e) => {
+                                        e.stopPropagation();
+                                      }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        setFinancialFilterMenuOpen((prev) => !prev);
+                                      }}
+                                      className={`relative p-1.5 rounded-md transition-all duration-200 border cursor-pointer select-none shadow-sm inline-flex items-center justify-center ${
+                                        isFilterActive
+                                          ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-md ring-2 ring-amber-300/40 hover:bg-amber-300'
+                                          : 'bg-teal-800/90 text-teal-100 border-teal-700/80 hover:bg-teal-700 hover:text-white hover:border-teal-500'
+                                      }`}
+                                      title={isFilterActive ? `مفلتر: ${activeOption?.label || ''}` : 'تصفية حسب حالة السجل المالي'}
+                                    >
+                                      <Filter className={`w-3.5 h-3.5 ${isFilterActive ? 'text-slate-950 fill-slate-950' : 'text-teal-200'}`} />
+                                      {isFilterActive && (
+                                        <span className="absolute -top-1 -right-1 w-2 h-2 bg-rose-500 rounded-full border border-teal-900" />
+                                      )}
+                                    </button>
+
+                                    {/* القائمة المنسدلة للفلترة */}
+                                    {financialFilterMenuOpen && (
+                                      <div
+                                        className="absolute right-0 top-full mt-2 z-[200] min-w-[320px] w-max max-w-sm rounded-xl border border-gray-200 bg-white p-2.5 shadow-2xl text-right font-tajawal animate-in fade-in zoom-in-95 duration-150"
+                                        dir="rtl"
+                                        onMouseDown={(e) => e.stopPropagation()}
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-100 px-1">
+                                          <div className="flex items-center gap-1.5 text-xs font-bold text-gray-800">
+                                            <Filter className="w-3.5 h-3.5 text-teal-800" />
+                                            <span>تصفية حالة السجل المالي</span>
+                                          </div>
+                                          {isFilterActive && (
+                                            <button
+                                              type="button"
+                                              onMouseDown={(e) => e.stopPropagation()}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                e.preventDefault();
+                                                setFinancialStatusFilter('all');
+                                                setFinancialFilterMenuOpen(false);
+                                              }}
+                                              className="text-[11px] text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-0.5 cursor-pointer font-medium"
+                                            >
+                                              <X className="w-3 h-3" />
+                                              إلغاء الفلترة
+                                            </button>
+                                          )}
+                                        </div>
+
+                                        <div className="space-y-1">
+                                          {FINANCIAL_STATUS_FILTER_OPTIONS.map((opt) => {
+                                            const isSelected = financialStatusFilter === opt.code;
+                                            const count = financialStatusCounts[opt.code] || 0;
+                                            return (
+                                              <button
+                                                key={opt.code}
+                                                type="button"
+                                                onMouseDown={(e) => e.stopPropagation()}
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  e.preventDefault();
+                                                  setFinancialStatusFilter(opt.code);
+                                                  setFinancialFilterMenuOpen(false);
+                                                }}
+                                                className={`w-full flex items-center justify-between gap-2 p-2 rounded-lg text-right text-xs transition-all duration-150 cursor-pointer ${
+                                                  isSelected
+                                                    ? 'bg-teal-50 border border-teal-300 text-teal-950 font-semibold shadow-sm ring-1 ring-teal-200'
+                                                    : 'hover:bg-gray-50 text-gray-700 border border-transparent'
+                                                }`}
+                                              >
+                                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                  <span className="text-sm leading-none shrink-0">{opt.icon}</span>
+                                                  <div className="flex flex-col min-w-0 text-right">
+                                                    <span className={`text-xs whitespace-nowrap ${isSelected ? 'font-bold text-teal-900' : 'text-gray-800'}`}>
+                                                      {opt.label}
+                                                    </span>
+                                                    <span className="text-[10px] text-gray-400 font-normal whitespace-nowrap">
+                                                      {opt.description}
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 shrink-0">
+                                                  <span
+                                                    className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                                                      count > 0
+                                                        ? isSelected
+                                                          ? 'bg-teal-600 text-white'
+                                                          : 'bg-gray-100 text-gray-700'
+                                                        : 'bg-gray-50 text-gray-400'
+                                                    }`}
+                                                  >
+                                                    {count}
+                                                  </span>
+                                                  {isSelected && <Check className="w-3.5 h-3.5 text-teal-700 shrink-0" />}
+                                                </div>
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </th>
+                            );
+                          }
+
+                          return (
+                            <th
+                              key={col.key}
+                              className="text-white text-md font-normal p-4 text-right whitespace-nowrap"
+                            >
+                              {col.label}
+                            </th>
+                          );
+                        })}
                       </tr>
                     </thead>
                     <tbody>
-                      {data.length > 0 ? (
-                        data.map((booking, rowIndex) => {
+                      {filteredData.length > 0 ? (
+                        filteredData.map((booking, rowIndex) => {
                           const contractIso = contractDateIsoFromBooking(booking);
-                          const isBottomRows = data.length >= 4 && rowIndex >= data.length - 2;
+                          const isBottomRows = filteredData.length >= 4 && rowIndex >= filteredData.length - 2;
                           return (
                             <tr key={booking.id} className="bg-gray-50 border-b border-gray-300 last:border-b-0 hover:bg-gray-100/70 transition-colors">
                               {visibleOrderTableColumns.map((col) => {
@@ -1416,7 +1674,21 @@ const exportedData = async ()=>{
                       ) : (
                         <tr>
                           <td colSpan={visibleOrderColumnCount} className="p-8 text-center text-gray-500">
-                            لا توجد بيانات متاحة
+                            {financialStatusFilter !== 'all' ? (
+                              <div className="flex flex-col items-center justify-center gap-2 py-4">
+                                <span className="text-2xl">🔍</span>
+                                <span className="font-semibold text-gray-700">لا توجد طلبات تطابق الحالة المالية المحددة في الصفحة الحالية</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setFinancialStatusFilter('all')}
+                                  className="text-xs text-teal-800 underline hover:text-teal-900 mt-1 cursor-pointer font-medium"
+                                >
+                                  إلغاء فلتر الحالة المالية وعرض جميع السجلات
+                                </button>
+                              </div>
+                            ) : (
+                              'لا توجد بيانات متاحة'
+                            )}
                           </td>
                         </tr>
                       )}

@@ -1,6 +1,6 @@
 {
   "name": "windmill-dashboard-nextjs-typescript",
-  "version": "1.2.2",
+  "version": "1.2.5",
   "private": true,
   "scripts": {
     "dev": "set NODE_OPTIONS=--openssl-legacy-provider && next dev",
@@ -17,6 +17,7 @@
     "@emotion/styled": "^11.14.0",
     "@fortawesome/fontawesome-free": "^6.7.2",
     "@google-cloud/storage": "^7.17.1",
+    "@gradio/client": "^2.5.1",
     "@headlessui/react": "^1.7.6",
     "@heroicons/react": "^1.0.1",
     "@hookform/resolvers": "^3.4.2",
@@ -92,6 +93,7 @@
     "react-to-print": "^2.15.1",
     "react-vertical-timeline-component": "^3.6.0",
     "react-world-flags": "^1.6.0",
+    "replicate": "^1.4.0",
     "socket.io": "^4.5.2",
     "socket.io-client": "^4.5.2",
     "sort-es": "^1.7.9",

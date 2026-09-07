@@ -187,6 +187,11 @@ const routes: IRoute[] = [
     path: "/admin/external-website",
     icon: "CardsIcon",
     name: "التحكم في الموقع الخارجي",
+  },
+  {
+    path: "/admin/image-upscale-test",
+    icon: "CardsIcon",
+    name: "تحسين وتوضيح الصور",
   }
 ];
 
