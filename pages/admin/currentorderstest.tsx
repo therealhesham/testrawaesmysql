@@ -74,8 +74,35 @@ export interface OrderFinancialStatusInfo {
   sanadUrl: string | null;
 }
 
+function extractStatement(order: any) {
+  if (!order) return null;
+  const raw = order.clientAccountStatement;
+  if (!raw) return null;
+  if (Array.isArray(raw)) {
+    return raw.length > 0 ? raw[0] : null;
+  }
+  if (typeof raw === 'object') {
+    return raw;
+  }
+  return null;
+}
+
+function extractEntries(statement: any): any[] {
+  if (!statement) return [];
+  const raw = statement.entries;
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {}
+  }
+  return [];
+}
+
 export function getOrderFinancialStatus(order: any): OrderFinancialStatusInfo {
-  const statement = order?.clientAccountStatement?.[0] || (Array.isArray(order?.clientAccountStatement) ? order?.clientAccountStatement[0] : null);
+  const statement = extractStatement(order);
 
   if (!statement) {
     const rawTotal = Number(order?.Total || 0);
@@ -98,13 +125,15 @@ export function getOrderFinancialStatus(order: any): OrderFinancialStatusInfo {
     };
   }
 
+  const entries = extractEntries(statement);
+
   let totalDebit = 0;
   let totalCredit = 0;
   let remainingBalance = 0;
 
-  if (statement.entries && statement.entries.length > 0) {
-    totalDebit = statement.entries.reduce((sum: number, entry: any) => sum + Number(entry.debit || 0), 0);
-    totalCredit = statement.entries.reduce((sum: number, entry: any) => sum + Number(entry.credit || 0), 0);
+  if (entries.length > 0) {
+    totalDebit = entries.reduce((sum: number, entry: any) => sum + Number(entry.debit || 0), 0);
+    totalCredit = entries.reduce((sum: number, entry: any) => sum + Number(entry.credit || 0), 0);
     remainingBalance = totalDebit - totalCredit;
   } else {
     totalDebit = Number(statement.totalRevenue ?? order?.Total ?? 0);
@@ -119,7 +148,7 @@ export function getOrderFinancialStatus(order: any): OrderFinancialStatusInfo {
     order?.Installments === 2 ||
     order?.PaymentMethod === 'two-installments' ||
     order?.PaymentMethod === 'دفعتين' ||
-    Boolean(statement.entries && statement.entries.some((e: any) => e.description?.includes('دفعة أولى') || e.description?.includes('دفعة ثانية')));
+    (entries.length > 0 && entries.some((e: any) => String(e?.description || '').includes('دفعة أولى') || String(e?.description || '').includes('دفعة ثانية')));
 
   // Case A: Fully Paid (Remaining <= 0)
   if (remainingBalance <= 0 && (totalCredit > 0 || totalDebit === 0)) {
@@ -409,34 +438,21 @@ export default function Dashboard({
     };
   }, [financialFilterMenuOpen]);
 
-  // البيانات المفلترة حسب الحالة المالية
+  // البيانات المعروضة في الجدول (يتم جلبها وتصفيتها من الخادم لجميع الصفحات)
   const filteredData = useMemo(() => {
-    if (financialStatusFilter === 'all') return data;
-    return data.filter((booking) => {
-      const finStatus = getOrderFinancialStatus(booking);
-      return finStatus.code === financialStatusFilter;
-    });
-  }, [data, financialStatusFilter]);
-
-  // إحصائيات الحالات المالية في الصفحة الحالية
-  const financialStatusCounts = useMemo(() => {
-    const counts: Record<string, number> = {
-      all: data.length,
-      paid_full_single: 0,
-      paid_full_two: 0,
-      two_installments_with_sanad: 0,
-      two_installments_no_sanad: 0,
-      unpaid: 0,
-      no_statement: 0,
-    };
-    data.forEach((booking) => {
-      const fin = getOrderFinancialStatus(booking);
-      if (counts[fin.code] !== undefined) {
-        counts[fin.code]++;
-      }
-    });
-    return counts;
+    return data;
   }, [data]);
+
+  // إحصائيات الحالات المالية لكافة السجلات والصفحات
+  const [financialStatusCounts, setFinancialStatusCounts] = useState<Record<string, number>>({
+    all: 0,
+    paid_full_single: 0,
+    paid_full_two: 0,
+    two_installments_with_sanad: 0,
+    two_installments_no_sanad: 0,
+    unpaid: 0,
+    no_statement: 0,
+  });
 
   // دالة ترجمة حالة الطلب من الإنجليزية إلى العربية
   const translateBookingStatus = (status: string, booking?: any) => {
@@ -535,6 +551,7 @@ export default function Dashboard({
         ...(status && bookingStatusQueryFromStepLabel(status)),
         ...(dateFrom && { dateFrom }),
         ...(dateTo && { dateTo }),
+        ...(financialStatusFilter && financialStatusFilter !== 'all' && { financialStatus: financialStatusFilter }),
       });
 
       const res = await fetch(`/api/currentordersprisma?${queryParams.toString()}`);
@@ -542,12 +559,15 @@ export default function Dashboard({
         throw new Error(`HTTP error! status: ${res.status}`);
       }
 
-      const { homemaids, totalCount, totalPages, recruitment, rental } = await res.json();
+      const { homemaids, totalCount, totalPages, recruitment, rental, financialStatusCounts: apiFinancialCounts } = await res.json();
       setData(Array.isArray(homemaids) ? homemaids : []);
       setTotalCount(totalCount || 0);
       setRecruitmentCount(recruitment || 0);
       setRentalCount(rental || 0);
       setTotalPages(totalPages || 1);
+      if (apiFinancialCounts) {
+        setFinancialStatusCounts(apiFinancialCounts);
+      }
       setCurrentPage(page);
     } catch (error) {
       console.error('Error fetching bookings:', error);
@@ -557,7 +577,7 @@ export default function Dashboard({
     } finally {
       setIsLoading(false);
     }
-  }, [hasPermission, contractType, searchTerm, nationality, office, status, dateFrom, dateTo]); // Dependencies for useCallback
+  }, [hasPermission, contractType, searchTerm, nationality, office, status, dateFrom, dateTo, financialStatusFilter]); // Dependencies for useCallback
 useEffect(() => {
   const authToken = localStorage.getItem('token');
   const decoder = authToken ? jwtDecode(authToken) as any : null;
@@ -734,7 +754,7 @@ useEffect(() => {
       setCurrentPage(1);
       fetchData(1);
     }
-  }, [contractType, searchTerm, nationality, office, status, dateFrom, dateTo, hasPermission, isCheckingAuth, fetchData]);
+  }, [contractType, searchTerm, nationality, office, status, dateFrom, dateTo, financialStatusFilter, hasPermission, isCheckingAuth, fetchData]);
 
 const exportedData = async ()=>{
 
@@ -746,6 +766,9 @@ const exportedData = async ()=>{
     ...(office && { officeName: office }),
     ...(contractType && {typeOfContract:contractType}),
     ...(status && bookingStatusQueryFromStepLabel(status)),
+    ...(dateFrom && { dateFrom }),
+    ...(dateTo && { dateTo }),
+    ...(financialStatusFilter && financialStatusFilter !== 'all' && { financialStatus: financialStatusFilter }),
   }).toString();
   const res = await fetch(`/api/currentordersprisma?${query}`);
   if (!res.ok) throw new Error("Failed to fetch data");
@@ -1155,22 +1178,22 @@ const exportedData = async ()=>{
               </div>
               <div className="mb-6 flex flex-col gap-3">
                 <div className="flex w-full flex-wrap items-center gap-3">
-                  <div className="flex shrink-0 items-center bg-gray-50 border border-gray-300 rounded gap-2 px-3 py-1.5">
+                  <div className="relative shrink-0 w-[220px] h-[38px]">
                     <input
                       type="text"
                       placeholder="بحث"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="min-w-[120px] border-none bg-transparent text-md text-gray-500 text-right outline-none"
+                      className="w-full h-full bg-gray-50 border border-gray-300 rounded text-sm text-gray-700 text-right pr-2.5 pl-8 outline-none focus:outline-none focus:ring-0 focus:border-teal-700 transition-colors"
                     />
-                    <Search className="w-4 h-4 shrink-0 text-gray-500" />
+                    <Search className="w-4 h-4 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>
                   
-                  <div className="relative shrink-0 flex-1 min-w-[140px] max-w-[200px]">
+                  <div className="relative shrink-0 w-[135px] h-[38px]">
                     <select
                       value={status}
                       onChange={(e) => setStatus(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-300 rounded py-1.5 text-md text-gray-500 cursor-pointer outline-none text-right bg-[position:left_0.75rem_center] !pr-3 !pl-10"
+                      className="w-full h-full bg-gray-50 border border-gray-300 rounded text-sm text-gray-600 cursor-pointer outline-none text-right bg-[position:left_0.5rem_center] !pr-2.5 !pl-7"
                     >
                       <option value="">حالة الطلب</option>
                       {STATUS_FILTER_AR_OPTIONS.map((s) => (
@@ -1181,11 +1204,11 @@ const exportedData = async ()=>{
                     </select>
                   </div>
 
-                  <div className="relative shrink-0 flex-1 min-w-[140px] max-w-[200px]">
+                  <div className="relative shrink-0 w-[135px] h-[38px]">
                     <select
                       value={nationality}
                       onChange={(e) => setNationality(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-300 rounded py-1.5 text-md text-gray-500 cursor-pointer outline-none text-right bg-[position:left_0.75rem_center] !pr-3 !pl-10"
+                      className="w-full h-full bg-gray-50 border border-gray-300 rounded text-sm text-gray-600 cursor-pointer outline-none text-right bg-[position:left_0.5rem_center] !pr-2.5 !pl-7"
                     >
                       <option value="">كل الجنسيات</option>
                       {nationalities.map((nat) => (
@@ -1196,11 +1219,11 @@ const exportedData = async ()=>{
                     </select>
                   </div>
 
-                  <div className="relative shrink-0 flex-1 min-w-[140px] max-w-[200px]">
+                  <div className="relative shrink-0 w-[135px] h-[38px]">
                     <select
                       value={office}
                       onChange={(e) => setOffice(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-300 rounded py-1.5 text-md text-gray-500 cursor-pointer outline-none text-right bg-[position:left_0.75rem_center] !pr-3 !pl-10"
+                      className="w-full h-full bg-gray-50 border border-gray-300 rounded text-sm text-gray-600 cursor-pointer outline-none text-right bg-[position:left_0.5rem_center] !pr-2.5 !pl-7"
                     >
                       <option value="">كل المكاتب</option>
                       {offices.map((off: any) => (
@@ -1211,11 +1234,11 @@ const exportedData = async ()=>{
                     </select>
                   </div>
 
-                  <div className="relative shrink-0 flex-1 min-w-[160px] max-w-[220px]">
+                  <div className="relative shrink-0 w-[185px] h-[38px]">
                     <select
                       value={dateFilterType}
                       onChange={(e) => handleDateFilterChange(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-300 rounded py-1.5 text-md text-gray-500 cursor-pointer outline-none text-right bg-[position:left_0.75rem_center] !pr-3 !pl-10"
+                      className="w-full h-full bg-gray-50 border border-gray-300 rounded text-sm text-gray-600 cursor-pointer outline-none text-right bg-[position:left_0.5rem_center] !pr-2.5 !pl-7"
                     >
                       <option value="all">تاريخ العقد: جميع الأوقات</option>
                       <option value="today">تاريخ العقد: اليوم</option>
@@ -1229,38 +1252,13 @@ const exportedData = async ()=>{
                   <button
                     type="button"
                     onClick={handleResetFilters}
-                    className="shrink-0 bg-teal-900 text-white border-none rounded px-4 py-1.5 text-md font-tajawal cursor-pointer"
+                    className="shrink-0 h-[38px] bg-teal-900 text-white border-none rounded px-4 text-sm font-tajawal cursor-pointer hover:bg-teal-950 transition-colors flex items-center justify-center"
                   >
                     إعادة ضبط
                   </button>
-                </div>
 
-                {dateFilterType === 'custom' && (
-                  <div className="flex w-full flex-wrap items-center gap-4 p-3 bg-gray-50 border border-gray-200 rounded-md shadow-sm">
-                    <span className="text-gray-700 text-sm font-bold">تحديد فترة العقد المخصصة:</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-600 text-sm">من تاريخ</span>
-                      <input
-                        type="date"
-                        value={dateFrom}
-                        onChange={(e) => setDateFrom(e.target.value)}
-                        className="bg-white border border-gray-300 rounded px-3 py-1 text-sm text-gray-600 focus:outline-none focus:border-teal-600"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-600 text-sm">إلى تاريخ</span>
-                      <input
-                        type="date"
-                        value={dateTo}
-                        onChange={(e) => setDateTo(e.target.value)}
-                        className="bg-white border border-gray-300 rounded px-3 py-1 text-sm text-gray-600 focus:outline-none focus:border-teal-600"
-                      />
-                    </div>
-                  </div>
-                )}
-                <div className="flex w-full justify-end">
                   <div
-                    className="relative"
+                    className="relative shrink-0 mr-auto"
                     ref={orderColumnsMenuRef}
                     onMouseDown={(e) => e.stopPropagation()}
                     onClick={(e) => e.stopPropagation()}
@@ -1271,7 +1269,7 @@ const exportedData = async ()=>{
                         e.stopPropagation();
                         setOrderColumnsMenuOpen((o) => !o);
                       }}
-                      className="flex items-center gap-1.5 bg-white border border-gray-300 text-teal-900 rounded px-3 py-2 text-md font-tajawal hover:bg-gray-50"
+                      className="flex items-center gap-1.5 h-[38px] bg-white border border-gray-300 text-teal-900 rounded px-3 text-sm font-tajawal hover:bg-gray-50 cursor-pointer"
                       aria-expanded={orderColumnsMenuOpen}
                       aria-haspopup="true"
                     >
@@ -1281,7 +1279,7 @@ const exportedData = async ()=>{
                     </button>
                     {orderColumnsMenuOpen && (
                       <div
-                        className="absolute right-0 top-full z-[100] mt-1 min-w-[260px] max-h-[70vh] overflow-y-auto rounded-md border border-gray-200 bg-white py-2 shadow-lg"
+                        className="absolute left-0 top-full z-[100] mt-1 min-w-[260px] max-h-[70vh] overflow-y-auto rounded-md border border-gray-200 bg-white py-2 shadow-lg"
                         dir="rtl"
                         role="menu"
                         onMouseDown={(e) => e.stopPropagation()}
@@ -1330,6 +1328,30 @@ const exportedData = async ()=>{
                     )}
                   </div>
                 </div>
+
+                {dateFilterType === 'custom' && (
+                  <div className="flex w-full flex-wrap items-center gap-4 p-3 bg-gray-50 border border-gray-200 rounded-md shadow-sm">
+                    <span className="text-gray-700 text-sm font-bold">تحديد فترة العقد المخصصة:</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600 text-sm">من تاريخ</span>
+                      <input
+                        type="date"
+                        value={dateFrom}
+                        onChange={(e) => setDateFrom(e.target.value)}
+                        className="bg-white border border-gray-300 rounded px-3 py-1 text-sm text-gray-600 focus:outline-none focus:border-teal-600"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600 text-sm">إلى تاريخ</span>
+                      <input
+                        type="date"
+                        value={dateTo}
+                        onChange={(e) => setDateTo(e.target.value)}
+                        className="bg-white border border-gray-300 rounded px-3 py-1 text-sm text-gray-600 focus:outline-none focus:border-teal-600"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="overflow-x-auto min-h-[580px] pb-40" dir="rtl">
                 {isLoading ? (

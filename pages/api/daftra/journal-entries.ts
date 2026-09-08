@@ -102,19 +102,47 @@ export default async function handler(
     console.log('Daftra Response:', JSON.stringify(response.data, null, 2));
     const daftraJournalId = response.data?.data?.Journal?.id || response.data?.Journal?.id || response.data?.id;
 
-    // Update order status in database as posted
+    // Update order status and synced financial amounts in database as posted
     if (orderId) {
       try {
+        const updateData: any = {
+          isJournalPosted: true,
+          daftraJournalId: String(daftraJournalId || ''),
+          journalPostedAt: new Date()
+        };
+
+        const revLine = lines.find((l: any) => l.type === 'revenue') || lines[1];
+        const taxLine = lines.find((l: any) => l.type === 'tax') || lines[2];
+        const clientLine = lines.find((l: any) => l.type === 'client') || lines[0];
+
+        const finalTotal = totalAmount != null && !isNaN(Number(totalAmount)) 
+          ? Number(totalAmount) 
+          : (Number(clientLine?.debit) || 0);
+
+        const finalRevenue = revenueAmount != null && !isNaN(Number(revenueAmount)) 
+          ? Number(revenueAmount) 
+          : (Number(revLine?.credit) || 0);
+
+        const finalTax = taxAmount != null && !isNaN(Number(taxAmount)) 
+          ? Number(taxAmount) 
+          : (Number(taxLine?.credit) || 0);
+
+        if (finalTotal > 0) {
+          updateData.Total = parseFloat(finalTotal.toFixed(2));
+        }
+        if (finalRevenue > 0) {
+          updateData.AmountWithoutTax = parseFloat(finalRevenue.toFixed(2));
+        }
+        if (finalTax >= 0) {
+          updateData.TaxAmount = parseFloat(finalTax.toFixed(2));
+        }
+
         await (prisma as any).neworder.update({
           where: { id: Number(orderId) },
-          data: {
-            isJournalPosted: true,
-            daftraJournalId: String(daftraJournalId || ''),
-            journalPostedAt: new Date()
-          }
+          data: updateData
         });
       } catch (orderUpdateErr) {
-        console.error('Failed to update neworder isJournalPosted:', orderUpdateErr);
+        console.error('Failed to update neworder isJournalPosted and amounts:', orderUpdateErr);
       }
     }
     

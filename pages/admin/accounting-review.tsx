@@ -1025,14 +1025,22 @@ export default function AccountingReviewPage() {
       const costCenterObj = costCenters.find(c => String(c.id || c.CostCenter?.id) === String(primaryCcId));
       const costCenterName = costCenterObj ? (costCenterObj.CostCenter?.name || costCenterObj.name) : '';
 
-      const clientAccObj = accounts.find(a => String(a.id || a.JournalAccount?.id) === String(journalEntry.lines[0]?.account_id));
+      const clientLine = journalEntry.lines.find((l: any) => l.type === 'client') || journalEntry.lines[0];
+      const revLine = journalEntry.lines.find((l: any) => l.type === 'revenue') || journalEntry.lines[1];
+      const taxLine = journalEntry.lines.find((l: any) => l.type === 'tax') || journalEntry.lines[2];
+
+      const clientAccObj = accounts.find(a => String(a.id || a.JournalAccount?.id) === String(clientLine?.account_id));
       const clientAccountName = clientAccObj ? (clientAccObj.JournalAccount?.name || clientAccObj.name) : '';
 
-      const revAccObj = accounts.find(a => String(a.id || a.JournalAccount?.id) === String(journalEntry.lines[1]?.account_id));
+      const revAccObj = accounts.find(a => String(a.id || a.JournalAccount?.id) === String(revLine?.account_id));
       const revenueAccountName = revAccObj ? (revAccObj.JournalAccount?.name || revAccObj.name) : '';
 
-      const taxAccObj = accounts.find(a => String(a.id || a.JournalAccount?.id) === String(journalEntry.lines[2]?.account_id));
+      const taxAccObj = accounts.find(a => String(a.id || a.JournalAccount?.id) === String(taxLine?.account_id));
       const taxAccountName = taxAccObj ? (taxAccObj.JournalAccount?.name || taxAccObj.name) : '';
+
+      const finalTotalAmount = parseFloat(String(clientLine?.debit || totalDebit)) || 0;
+      const finalRevenueAmount = parseFloat(String(revLine?.credit || 0)) || 0;
+      const finalTaxAmount = parseFloat(String(taxLine?.credit || 0)) || 0;
 
       const payload = {
         orderId: selectedOrder?.id,
@@ -1046,9 +1054,9 @@ export default function AccountingReviewPage() {
         clientAccountName,
         revenueAccountName,
         taxAccountName,
-        totalAmount: totalDebit,
-        revenueAmount: parseFloat(String(journalEntry.lines[1]?.credit)) || 0,
-        taxAmount: parseFloat(String(journalEntry.lines[2]?.credit)) || 0,
+        totalAmount: finalTotalAmount,
+        revenueAmount: finalRevenueAmount,
+        taxAmount: finalTaxAmount,
         lines: journalEntry.lines.map((l) => ({
           ...l,
           debit: parseFloat(String(l.debit)) || 0,
@@ -1845,41 +1853,43 @@ export default function AccountingReviewPage() {
                   <button 
                     type="button"
                     onClick={() => setIsModalOpen(false)} 
-                    className="px-5 py-2.5 border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 bg-white hover:bg-gray-100 transition"
+                    className="px-5 py-2.5 border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 bg-white hover:bg-gray-100 transition cursor-pointer"
                   >
                     إلغاء
                   </button>
-                  <button 
-                    type="button"
-                    disabled={submittingJournal || selectedOrder?.isJournalPosted}
-                    onClick={submitJournalEntry} 
-                    className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all active:scale-95 disabled:opacity-75 ${
-                      selectedOrder?.isJournalPosted
-                        ? 'bg-emerald-700 text-white cursor-not-allowed'
-                        : 'bg-[#1A4D4F] hover:bg-[#164044] text-white hover:shadow-lg'
-                    }`}
-                  >
-                    {submittingJournal ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        <span>جاري ترحيل القيد لدفترة...</span>
-                      </>
-                    ) : selectedOrder?.isJournalPosted ? (
-                      <>
-                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                        </svg>
-                        <span>تم ترحيل هذا القيد مسبقاً لدفترة</span>
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        <span>اعتماد وترحيل إلى دفترة</span>
-                      </>
-                    )}
-                  </button>
+
+                  {(selectedOrder?.isJournalPosted || selectedOrder?.daftraJournalId) ? (
+                    <div 
+                      style={{ backgroundColor: '#047857', color: '#ffffff', borderColor: '#065f46' }}
+                      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold shadow-md select-none border"
+                    >
+                      <svg style={{ color: '#a7f3d0' }} className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span style={{ color: '#ffffff' }} className="font-bold">تم ترحيل هذا القيد مسبقاً لدفترة</span>
+                    </div>
+                  ) : (
+                    <button 
+                      type="button"
+                      disabled={submittingJournal}
+                      onClick={submitJournalEntry} 
+                      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all active:scale-95 bg-[#1A4D4F] hover:bg-[#164044] text-white hover:shadow-lg disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      {submittingJournal ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          <span>جاري ترحيل القيد لدفترة...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span>اعتماد وترحيل إلى دفترة</span>
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
 

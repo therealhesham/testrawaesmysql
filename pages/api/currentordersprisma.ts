@@ -18,6 +18,86 @@ const prisma =
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
+function extractStatement(order: any) {
+  if (!order) return null;
+  const raw = order.clientAccountStatement;
+  if (!raw) return null;
+  if (Array.isArray(raw)) {
+    return raw.length > 0 ? raw[0] : null;
+  }
+  if (typeof raw === 'object') {
+    return raw;
+  }
+  return null;
+}
+
+function extractEntries(statement: any): any[] {
+  if (!statement) return [];
+  const raw = statement.entries;
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {}
+  }
+  return [];
+}
+
+function getOrderFinancialStatusCode(order: any): string {
+  const statement = extractStatement(order);
+  if (!statement) {
+    return 'no_statement';
+  }
+
+  const entries = extractEntries(statement);
+
+  let totalDebit = 0;
+  let totalCredit = 0;
+  let remainingBalance = 0;
+
+  if (entries.length > 0) {
+    totalDebit = entries.reduce((sum: number, entry: any) => sum + Number(entry.debit || 0), 0);
+    totalCredit = entries.reduce((sum: number, entry: any) => sum + Number(entry.credit || 0), 0);
+    remainingBalance = totalDebit - totalCredit;
+  } else {
+    totalDebit = Number(statement.totalRevenue ?? order?.Total ?? 0);
+    totalCredit = Number(statement.totalExpenses ?? order?.paid ?? 0);
+    remainingBalance = Number(statement.netAmount ?? (totalDebit - totalCredit));
+  }
+
+  const sanadUrl = order?.orderDocument || statement?.attachment || null;
+  const hasSanad = Boolean(sanadUrl && String(sanadUrl).trim() !== '' && sanadUrl !== 'عرض' && sanadUrl !== 'غير متوفر');
+
+  const isTwoInstallments =
+    order?.Installments === 2 ||
+    order?.PaymentMethod === 'two-installments' ||
+    order?.PaymentMethod === 'دفعتين' ||
+    (entries.length > 0 && entries.some((e: any) => String(e?.description || '').includes('دفعة أولى') || String(e?.description || '').includes('دفعة ثانية')));
+
+  // Case A: Fully Paid (Remaining <= 0)
+  if (remainingBalance <= 0 && (totalCredit > 0 || totalDebit === 0)) {
+    if (isTwoInstallments) {
+      return 'paid_full_two';
+    } else {
+      return 'paid_full_single';
+    }
+  }
+
+  // Case B: No payment made yet (Unpaid / pending)
+  if (totalCredit <= 0) {
+    return 'unpaid';
+  }
+
+  // Case C: Partial Payment (Remaining > 0)
+  if (hasSanad) {
+    return 'two_installments_with_sanad';
+  } else {
+    return 'two_installments_no_sanad';
+  }
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     if (req.method === "GET") {
@@ -40,6 +120,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         isLinked,
         dateFrom,
         dateTo,
+        financialStatus,
       } = req.query;
 
       // دعم التصدير: عند إرسال perPage كبير نستخدمه لجلب كل البيانات (صفحة واحدة كبيرة)
@@ -115,156 +196,130 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ];
       }
 
-      // ✅ الاستعلامات بالتوازي لتقليل زمن التنفيذ
-      const [homemaids, totalCount, recruitment, rental] = await Promise.all([
-        prisma.neworder.findMany({
-          orderBy: { id: "desc" },
+      const orderSelectFields = {
+        id: true,
+        bookingstatus: true,
+        orderDocument: true,
+        contract: true,
+        PaymentMethod: true,
+        Installments: true,
+        Total: true,
+        paid: true,
+        clientAccountStatement: {
           select: {
             id: true,
-            bookingstatus: true,
-            orderDocument: true,
-            contract: true,
-            PaymentMethod: true,
-            Installments: true,
-            Total: true,
-            paid: true,
-            clientAccountStatement: {
+            totalRevenue: true,
+            totalExpenses: true,
+            netAmount: true,
+            attachment: true,
+            entries: {
               select: {
                 id: true,
-                totalRevenue: true,
-                totalExpenses: true,
-                netAmount: true,
-                attachment: true,
-                entries: {
-                  select: {
-                    id: true,
-                    debit: true,
-                    credit: true,
-                    balance: true,
-                    description: true,
-                  },
-                },
-              },
-            },
-            arrivals: { select: { InternalmusanedContract: true, DateOfApplication: true } },
-            client: {
-              select: {
-                id: true,
-                fullname: true,
-                phonenumber: true,
-                nationalId: true,
-              },
-            },
-            HomeMaid: {
-              select: {
-                id: true,
-                Name: true,
-                Passportnumber: true,
-                office: { select: { office: true, Country: true } },
+                debit: true,
+                credit: true,
+                balance: true,
+                description: true,
               },
             },
           },
+        },
+        arrivals: { select: { InternalmusanedContract: true, DateOfApplication: true } },
+        client: {
+          select: {
+            id: true,
+            fullname: true,
+            phonenumber: true,
+            nationalId: true,
+          },
+        },
+        HomeMaid: {
+          select: {
+            id: true,
+            Name: true,
+            Passportnumber: true,
+            office: { select: { office: true, Country: true } },
+          },
+        },
+      };
+
+      const baseNotCondition = {
+        OR: [
+          {
+            bookingstatus: {
+              in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
+            },
+          },
+          // استبعاد الطلبات التي لديها ملف استلام
+          {
+            DeliveryDetails: {
+              some: {
+                deliveryFile: {
+                  not: null,
+                },
+              },
+            },
+          },
+        ],
+      };
+
+      // ✅ جلب السجلات وحساب الإحصائيات لكافة الصفحات
+      const [allCandidateOrders, recCount, rentCount] = await Promise.all([
+        prisma.neworder.findMany({
+          orderBy: { id: "desc" },
+          select: orderSelectFields,
           where: {
             ...filters,
-            NOT: {
-              OR: [
-                {
-                  bookingstatus: {
-                    in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
-                  },
-                },
-                // استبعاد الطلبات التي لديها ملف استلام
-                {
-                  DeliveryDetails: {
-                    some: {
-                      deliveryFile: {
-                        not: null,
-                      },
-                    },
-                  },
-                },
-              ],
-            },
-          },
-          skip: (pageNumber - 1) * pageSize,
-          take: pageSize,
-        }),
-
-        prisma.neworder.count({
-          where: {
-            ...filters,
-            NOT: {
-              OR: [
-                {
-                  bookingstatus: {
-                    in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
-                  },
-                },
-                // استبعاد الطلبات التي لديها ملف استلام
-                {
-                  DeliveryDetails: {
-                    some: {
-                      deliveryFile: {
-                        not: null,
-                      },
-                    },
-                  },
-                },
-              ],
-            },
+            NOT: baseNotCondition,
           },
         }),
-
         prisma.neworder.count({
           where: {
             typeOfContract: "recruitment",
-            NOT: {
-              OR: [
-                {
-                  bookingstatus: {
-                    in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
-                  },
-                },
-                // استبعاد الطلبات التي لديها ملف استلام
-                {
-                  DeliveryDetails: {
-                    some: {
-                      deliveryFile: {
-                        not: null,
-                      },
-                    },
-                  },
-                },
-              ],
-            },
+            NOT: baseNotCondition,
           },
         }),
-
         prisma.neworder.count({
           where: {
             typeOfContract: "rental",
-            NOT: {
-              OR: [
-                {
-                  bookingstatus: {
-                    in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
-                  },
-                },
-                // استبعاد الطلبات التي لديها ملف استلام
-                {
-                  DeliveryDetails: {
-                    some: {
-                      deliveryFile: {
-                        not: null,
-                      },
-                    },
-                  },
-                },
-              ],
-            },
+            NOT: baseNotCondition,
           },
         }),
       ]);
+
+      const financialStatusCounts: Record<string, number> = {
+        all: allCandidateOrders.length,
+        paid_full_single: 0,
+        paid_full_two: 0,
+        two_installments_with_sanad: 0,
+        two_installments_no_sanad: 0,
+        unpaid: 0,
+        no_statement: 0,
+      };
+
+      for (const order of allCandidateOrders) {
+        const code = getOrderFinancialStatusCode(order);
+        if (financialStatusCounts[code] !== undefined) {
+          financialStatusCounts[code]++;
+        }
+      }
+
+      let homemaids: any[] = [];
+      let totalCount = 0;
+
+      if (financialStatus && financialStatus !== "all") {
+        const filteredOrders = allCandidateOrders.filter(
+          (order) => getOrderFinancialStatusCode(order) === financialStatus
+        );
+        totalCount = filteredOrders.length;
+        homemaids = filteredOrders.slice((pageNumber - 1) * pageSize, pageNumber * pageSize);
+      } else {
+        totalCount = allCandidateOrders.length;
+        homemaids = allCandidateOrders.slice((pageNumber - 1) * pageSize, pageNumber * pageSize);
+      }
+
+      const recruitment = recCount;
+      const rental = rentCount;
+      const totalPages = Math.ceil(totalCount / pageSize) || 1;
 
       // ✅ إرسال الرد مباشرة قبل أي عمليات غير ضرورية (لتقليل زمن الاستجابة للمستخدم)
       res.status(200).json({
@@ -272,7 +327,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         totalCount,
         recruitment,
         rental,
-        totalPages: Math.ceil(totalCount / pageSize),
+        totalPages,
+        financialStatusCounts,
       });
 
       // ✅ إرسال الحدث بعد الرد حتى لا يؤخر العميل
