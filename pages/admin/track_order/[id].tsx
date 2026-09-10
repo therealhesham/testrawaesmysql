@@ -78,6 +78,12 @@ interface OrderData {
   accountingStatementId?: number | null;
   totalAmount?: number | null;
   paidAmount?: number | null;
+  PaymentMethod?: string | null;
+  Installments?: number | null;
+  AmountWithoutTax?: number | null;
+  TaxAmount?: number | null;
+  contract?: string | null;
+  orderDocument?: string | null;
   ticketsDetails?: OrderTicketDetail[];
 }
 
@@ -1527,15 +1533,43 @@ export default function TrackOrder() {
     });
   };
 
+  const getInitialAccountingPaymentMethod = (totalStr: string, paidStr: string): 'cash' | 'two-installments' | 'three-installments' | 'custom' => {
+    const rawMethod = String(orderData?.PaymentMethod || '').trim().toLowerCase();
+    const inst = orderData?.Installments;
+    if (rawMethod === 'three-installments' || rawMethod === 'ثلاث دفعات' || rawMethod === 'ثلاثة دفعات' || inst === 3) {
+      return 'three-installments';
+    }
+    if (rawMethod === 'two-installments' || rawMethod === 'دفعتين' || rawMethod === 'دفعتان' || inst === 2) {
+      return 'two-installments';
+    }
+    if (rawMethod === 'custom') {
+      return 'custom';
+    }
+    if (rawMethod === 'cash' || rawMethod === 'كاش' || rawMethod === 'دفعة واحدة' || inst === 1) {
+      return 'cash';
+    }
+    const tot = Number(totalStr) || 0;
+    const pd = Number(paidStr) || 0;
+    if (tot > 0 && pd > 0 && tot - pd > 0) {
+      return 'two-installments';
+    }
+    return 'cash';
+  };
+
   const openCreateAccountingModal = () => {
     setIsAccountingEditMode(false);
-    setAccountingModalTotal('');
-    setAccountingModalPaid('');
-    setAccountingModalAmountWithoutTax('');
-    setAccountingModalTaxAmount('');
-    setAccountingModalPaymentMethod('cash');
-    setAccountingModalContract((orderData?.documentUpload as any)?.contract || (orderData as any)?.contract || '');
-    setAccountingModalOrderDocument((orderData?.documentUpload as any)?.orderDocument || (orderData as any)?.orderDocument || '');
+    const total = orderData?.totalAmount != null ? String(orderData.totalAmount) : ((orderData as any)?.Total != null ? String((orderData as any).Total) : '');
+    const paid = orderData?.paidAmount != null ? String(orderData.paidAmount) : ((orderData as any)?.paid != null ? String((orderData as any).paid) : '');
+    const withoutTax = orderData?.AmountWithoutTax != null ? String(orderData.AmountWithoutTax) : (total ? String(Math.round((Number(total) / 1.15) * 100) / 100) : '');
+    const tax = orderData?.TaxAmount != null ? String(orderData.TaxAmount) : (total && withoutTax ? String(Math.round((Number(total) - Number(withoutTax)) * 100) / 100) : '');
+
+    setAccountingModalTotal(total);
+    setAccountingModalPaid(paid);
+    setAccountingModalAmountWithoutTax(withoutTax);
+    setAccountingModalTaxAmount(tax);
+    setAccountingModalPaymentMethod(getInitialAccountingPaymentMethod(total, paid));
+    setAccountingModalContract((orderData?.documentUpload as any)?.contract || orderData?.contract || orderData?.orderFiles?.contract || '');
+    setAccountingModalOrderDocument((orderData?.documentUpload as any)?.orderDocument || orderData?.orderDocument || orderData?.orderFiles?.orderDocument || '');
     setAccountingModalErrors({});
     setShowCreateAccountingModal(true);
   };
@@ -1544,16 +1578,16 @@ export default function TrackOrder() {
     setIsAccountingEditMode(true);
     const total = orderData?.totalAmount != null ? String(orderData.totalAmount) : ((orderData as any)?.Total != null ? String((orderData as any).Total) : '');
     const paid = orderData?.paidAmount != null ? String(orderData.paidAmount) : ((orderData as any)?.paid != null ? String((orderData as any).paid) : '');
-    const withoutTax = (orderData as any)?.AmountWithoutTax != null ? String((orderData as any).AmountWithoutTax) : (total ? String(Math.round((Number(total) / 1.15) * 100) / 100) : '');
-    const tax = (orderData as any)?.TaxAmount != null ? String((orderData as any).TaxAmount) : (total && withoutTax ? String(Math.round((Number(total) - Number(withoutTax)) * 100) / 100) : '');
+    const withoutTax = orderData?.AmountWithoutTax != null ? String(orderData.AmountWithoutTax) : (total ? String(Math.round((Number(total) / 1.15) * 100) / 100) : '');
+    const tax = orderData?.TaxAmount != null ? String(orderData.TaxAmount) : (total && withoutTax ? String(Math.round((Number(total) - Number(withoutTax)) * 100) / 100) : '');
 
     setAccountingModalTotal(total);
     setAccountingModalPaid(paid);
     setAccountingModalAmountWithoutTax(withoutTax);
     setAccountingModalTaxAmount(tax);
-    setAccountingModalContract((orderData?.documentUpload as any)?.contract || (orderData as any)?.contract || '');
-    setAccountingModalOrderDocument((orderData?.documentUpload as any)?.orderDocument || (orderData as any)?.orderDocument || '');
-    setAccountingModalPaymentMethod((orderData as any)?.PaymentMethod || ((Number(total) > 0 && Number(paid) > 0 && Number(total) - Number(paid) > 0) ? 'two-installments' : 'cash'));
+    setAccountingModalContract((orderData?.documentUpload as any)?.contract || orderData?.contract || orderData?.orderFiles?.contract || '');
+    setAccountingModalOrderDocument((orderData?.documentUpload as any)?.orderDocument || orderData?.orderDocument || orderData?.orderFiles?.orderDocument || '');
+    setAccountingModalPaymentMethod(getInitialAccountingPaymentMethod(total, paid));
     setAccountingModalErrors({});
     setShowCreateAccountingModal(true);
   };

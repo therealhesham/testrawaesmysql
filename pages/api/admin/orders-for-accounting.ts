@@ -1,7 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from 'lib/prisma';
 
 export default async function handler(
   req: NextApiRequest,
@@ -12,11 +10,25 @@ export default async function handler(
   }
 
   try {
-    // Fetch orders that are approved or have a Total amount
+    const nonCashMethods = [
+      'two-installments',
+      'three-installments',
+      'custom',
+      'دفعتين',
+      'دفعتان',
+      'ثلاثة دفعات',
+      'ثلاث دفعات',
+      'مخصص',
+      'قسط',
+      'أقساط',
+    ];
+
+    // Fetch orders that are approved or have a Total amount and are Cash / Full payment only
     const orders: any[] = await (prisma as any).neworder.findMany({
       where: {
         Total: {
           not: null,
+          gt: 0,
         },
         AmountWithoutTax: {
           not: null,
@@ -27,13 +39,20 @@ export default async function handler(
         bookingstatus: {
           notIn: ['cancelled', 'rejected', 'ملغي', 'ملغى', 'مرفوض'],
         },
+        OR: [
+          { PaymentMethod: null },
+          { PaymentMethod: { notIn: nonCashMethods } },
+        ],
       },
       select: {
         id: true,
         ClientName: true,
         Total: true,
+        paid: true,
         AmountWithoutTax: true,
         TaxAmount: true,
+        PaymentMethod: true,
+        Installments: true,
         contract: true,
         bookingstatus: true,
         isJournalPosted: true,
@@ -43,20 +62,20 @@ export default async function handler(
         arrivals: {
           select: {
             InternalmusanedContract: true,
-            ExternalDateLinking: true
-          }
+            ExternalDateLinking: true,
+          },
         },
         client: {
           select: {
             id: true,
-            fullname: true
-          }
+            fullname: true,
+          },
         },
         HomeMaid: {
           select: {
-            officeName: true
-          }
-        }
+            officeName: true,
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -64,10 +83,18 @@ export default async function handler(
       take: 50, // Limit to 50 for performance
     });
 
-    const formattedOrders = orders.map((order: any) => ({
+    // In-memory filter as an extra safeguard
+    const filteredOrders = orders.filter((order: any) => {
+      const pm = String(order.PaymentMethod || '').trim().toLowerCase();
+      if (nonCashMethods.includes(pm)) return false;
+      if (order.Installments != null && Number(order.Installments) > 1) return false;
+      return true;
+    });
+
+    const formattedOrders = filteredOrders.map((order: any) => ({
       ...order,
       ClientName: order.ClientName || order.client?.fullname || 'غير محدد',
-      officeName: order.HomeMaid?.officeName || ''
+      officeName: order.HomeMaid?.officeName || '',
     }));
 
     res.status(200).json(formattedOrders);

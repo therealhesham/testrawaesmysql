@@ -144,15 +144,38 @@ export function getOrderFinancialStatus(order: any): OrderFinancialStatusInfo {
   const sanadUrl = order?.orderDocument || statement?.attachment || null;
   const hasSanad = Boolean(sanadUrl && sanadUrl.trim() !== '' && sanadUrl !== 'عرض' && sanadUrl !== 'غير متوفر');
 
+  const isThreeInstallments =
+    order?.Installments === 3 ||
+    order?.PaymentMethod === 'three-installments' ||
+    order?.PaymentMethod === 'ثلاث دفعات' ||
+    order?.PaymentMethod === 'ثلاثة دفعات';
+
   const isTwoInstallments =
-    order?.Installments === 2 ||
-    order?.PaymentMethod === 'two-installments' ||
-    order?.PaymentMethod === 'دفعتين' ||
-    (entries.length > 0 && entries.some((e: any) => String(e?.description || '').includes('دفعة أولى') || String(e?.description || '').includes('دفعة ثانية')));
+    !isThreeInstallments && (
+      order?.Installments === 2 ||
+      order?.PaymentMethod === 'two-installments' ||
+      order?.PaymentMethod === 'دفعتين' ||
+      (entries.length > 0 && entries.some((e: any) => String(e?.description || '').includes('دفعة أولى') || String(e?.description || '').includes('دفعة ثانية')))
+    );
 
   // Case A: Fully Paid (Remaining <= 0)
   if (remainingBalance <= 0 && (totalCredit > 0 || totalDebit === 0)) {
-    if (isTwoInstallments) {
+    if (isThreeInstallments) {
+      return {
+        code: 'paid_full_two',
+        label: 'مسدد بالكامل (اكتملت 3 دفعات)',
+        badgeBg: 'bg-teal-100',
+        badgeText: 'text-teal-800',
+        badgeBorder: 'border-teal-300',
+        tooltip: 'كان الطلب مجدولاً على 3 دفعات، وتم سداد كامل المستحقات واكتمال الدفعات بنجاح.',
+        icon: '🔵',
+        total: totalDebit,
+        paid: totalCredit,
+        remaining: 0,
+        hasSanad,
+        sanadUrl,
+      };
+    } else if (isTwoInstallments) {
       return {
         code: 'paid_full_two',
         label: 'مسدد بالكامل (اكتملت الدفعتين)',
@@ -203,15 +226,49 @@ export function getOrderFinancialStatus(order: any): OrderFinancialStatusInfo {
     };
   }
 
+  // Determine remaining installments count text
+  let remainingInstallmentsText = 'متبقي دفعة';
+  let installmentsTooltipDetail = '';
+  if (isThreeInstallments) {
+    const paidPaymentsCount = entries.filter((e: any) => 
+      e?.entryType === 'payment' || 
+      (Number(e?.credit) > 0 && e?.entryType !== 'invoice') ||
+      String(e?.description || '').includes('دفعة') ||
+      String(e?.description || '').includes('سداد')
+    ).length;
+
+    const hasSecondPayment = entries.some((e: any) => 
+      String(e?.description || '').includes('دفعة ثانية') || 
+      String(e?.description || '').includes('دفعة 2')
+    ) || paidPaymentsCount >= 2;
+
+    if (hasSecondPayment) {
+      remainingInstallmentsText = 'متبقي دفعة';
+      installmentsTooltipDetail = 'العقد بنظام 3 دفعات، تم سداد دفعتين ومتبقي الدفعة الثالثة والأخيرة';
+    } else {
+      remainingInstallmentsText = 'متبقي دفعتين';
+      installmentsTooltipDetail = 'العقد بنظام 3 دفعات، تم سداد الدفعة الأولى ومتبقي دفعتين (الثانية والثالثة)';
+    }
+  } else if (isTwoInstallments) {
+    remainingInstallmentsText = 'متبقي دفعة';
+    installmentsTooltipDetail = 'العقد بنظام دفعتين، تم سداد الدفعة الأولى ومتبقي الدفعة الثانية';
+  } else if (order?.Installments && order.Installments > 1) {
+    const paidCount = Math.max(1, entries.filter((e: any) => e?.entryType === 'payment' || Number(e?.credit) > 0).length);
+    const remCount = Math.max(1, order.Installments - paidCount);
+    remainingInstallmentsText = remCount === 1 ? 'متبقي دفعة' : remCount === 2 ? 'متبقي دفعتين' : `متبقي ${remCount} دفعات`;
+    installmentsTooltipDetail = `العقد بنظام ${order.Installments} أقساط، متبقي ${remCount} دفعات`;
+  }
+
   // Case C: Partial Payment (Remaining > 0)
+  const systemName = isThreeInstallments ? '3 دفعات' : isTwoInstallments ? 'دفعتين' : 'أقساط';
   if (hasSanad) {
     return {
       code: 'two_installments_with_sanad',
-      label: 'دفعتين — متبقي دفعة (سند لأمر موثق)',
+      label: `${systemName} — ${remainingInstallmentsText} (سند لأمر موثق)`,
       badgeBg: 'bg-amber-100',
       badgeText: 'text-amber-900',
       badgeBorder: 'border-amber-400',
-      tooltip: 'العقد بنظام دفعتين، تم سداد الدفعة الأولى ومتبقي الدفعة الثانية مع وجود سند لأمر موثق ومرفوع نظامياً.',
+      tooltip: `${installmentsTooltipDetail || (isThreeInstallments ? 'العقد بنظام 3 دفعات' : 'العقد بنظام أقساط')} مع وجود سند لأمر موثق ومرفوع نظامياً.`,
       icon: '🟠',
       total: totalDebit,
       paid: totalCredit,
@@ -222,11 +279,11 @@ export function getOrderFinancialStatus(order: any): OrderFinancialStatusInfo {
   } else {
     return {
       code: 'two_installments_no_sanad',
-      label: 'دفعتين — متبقي دفعة (بدون سند لأمر ⚠️)',
+      label: `${systemName} — ${remainingInstallmentsText} (بدون سند لأمر ⚠️)`,
       badgeBg: 'bg-purple-100',
       badgeText: 'text-purple-900',
       badgeBorder: 'border-purple-400',
-      tooltip: 'تنبيه هام: العقد بنظام دفعتين ومتبقي دفعة ثانية ولكن ملف سند لأمر غير مرفوع في النظام! يتطلب اتخاذ إجراء.',
+      tooltip: `تنبيه هام: ${installmentsTooltipDetail || (isThreeInstallments ? 'العقد بنظام 3 دفعات' : 'العقد بنظام أقساط')} ولكن ملف سند لأمر غير مرفوع في النظام! يتطلب اتخاذ إجراء.`,
       icon: '🟣',
       total: totalDebit,
       paid: totalCredit,

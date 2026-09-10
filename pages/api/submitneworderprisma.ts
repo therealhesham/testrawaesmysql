@@ -181,6 +181,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
+    const installmentsCount = PaymentMethod === 'cash' || PaymentMethod === 'كاش' ? 1
+      : PaymentMethod === 'two-installments' || PaymentMethod === 'دفعتين' ? 2
+      : PaymentMethod === 'three-installments' || PaymentMethod === 'ثلاث دفعات' || PaymentMethod === 'ثلاثة دفعات' ? 3
+      : null;
+
     const result = await prisma.neworder.create({
       include: { client: true },
       data: {
@@ -190,6 +195,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         bookingstatus: "pending_external_office",
         Passportnumber,
         PaymentMethod,
+        Installments: installmentsCount,
         typeOfContract,
         Name,
         ClientName,

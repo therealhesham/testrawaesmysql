@@ -48,6 +48,16 @@ async function recalculateBalancesAfterDate(statementId: number, fromDate: Date)
   }
 }
 
+// Helper function to resolve installment count from payment method
+function getInstallmentsCount(method: string | null | undefined): number | null {
+  if (!method) return null;
+  const m = String(method).trim().toLowerCase();
+  if (m === 'cash' || m === 'كاش' || m === 'دفعة واحدة') return 1;
+  if (m === 'two-installments' || m === 'دفعتين' || m === 'دفعتان' || m === '2') return 2;
+  if (m === 'three-installments' || m === 'ثلاثة دفعات' || m === 'ثلاث دفعات' || m === '3') return 3;
+  return null;
+}
+
 /**
  * POST/PUT /api/client-accounts/create-from-order
  * Body: { orderId: number, total?: number, paid?: number }
@@ -110,6 +120,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // 1. تحديث قيم الطلب في قاعدة البيانات مع احتساب الضريبة
         const netCalc = bodyAmountWithoutTax != null ? Number(bodyAmountWithoutTax) : Math.round((newTotal / 1.15) * 100) / 100;
         const taxCalc = bodyTaxAmount != null ? Number(bodyTaxAmount) : Math.round((newTotal - netCalc) * 100) / 100;
+        const installmentsCalc = bodyPaymentMethod ? getInstallmentsCount(bodyPaymentMethod) : undefined;
         await (prisma as any).neworder.update({
           where: { id: Number(orderId) },
           data: {
@@ -119,7 +130,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             TaxAmount: taxCalc,
             ...(bodyContract ? { contract: bodyContract } : {}),
             ...(bodyOrderDocument ? { orderDocument: bodyOrderDocument } : {}),
-            ...(bodyPaymentMethod ? { PaymentMethod: bodyPaymentMethod } : {}),
+            ...(bodyPaymentMethod ? { 
+              PaymentMethod: bodyPaymentMethod,
+              ...(installmentsCalc !== undefined ? { Installments: installmentsCalc } : {}),
+            } : {}),
           },
         });
 
@@ -268,6 +282,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const totalNum = Number(bodyTotal);
         const netCalc = bodyAmountWithoutTax != null ? Number(bodyAmountWithoutTax) : Math.round((totalNum / 1.15) * 100) / 100;
         const taxCalc = bodyTaxAmount != null ? Number(bodyTaxAmount) : Math.round((totalNum - netCalc) * 100) / 100;
+        const installmentsCalc = bodyPaymentMethod ? getInstallmentsCount(bodyPaymentMethod) : undefined;
         await (prisma as any).neworder.update({
           where: { id: Number(orderId) },
           data: {
@@ -277,7 +292,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             TaxAmount: taxCalc,
             ...(bodyContract ? { contract: bodyContract } : {}),
             ...(bodyOrderDocument ? { orderDocument: bodyOrderDocument } : {}),
-            ...(bodyPaymentMethod ? { PaymentMethod: bodyPaymentMethod } : {}),
+            ...(bodyPaymentMethod ? { 
+              PaymentMethod: bodyPaymentMethod,
+              ...(installmentsCalc !== undefined ? { Installments: installmentsCalc } : {}),
+            } : {}),
           },
         });
       }
@@ -438,6 +456,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // 2. تحديث قيم الطلب في قاعدة البيانات
       const netCalc = bodyAmountWithoutTax != null ? Number(bodyAmountWithoutTax) : Math.round((newTotal / 1.15) * 100) / 100;
       const taxCalc = bodyTaxAmount != null ? Number(bodyTaxAmount) : Math.round((newTotal - netCalc) * 100) / 100;
+      const installmentsCalc = bodyPaymentMethod ? getInstallmentsCount(bodyPaymentMethod) : undefined;
       await (prisma as any).neworder.update({
         where: { id: Number(orderId) },
         data: {
@@ -447,7 +466,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           TaxAmount: taxCalc,
           ...(bodyContract ? { contract: bodyContract } : {}),
           ...(bodyOrderDocument ? { orderDocument: bodyOrderDocument } : {}),
-          ...(bodyPaymentMethod ? { PaymentMethod: bodyPaymentMethod } : {}),
+          ...(bodyPaymentMethod ? { 
+            PaymentMethod: bodyPaymentMethod,
+            ...(installmentsCalc !== undefined ? { Installments: installmentsCalc } : {}),
+          } : {}),
         },
       });
 

@@ -70,15 +70,23 @@ function getOrderFinancialStatusCode(order: any): string {
   const sanadUrl = order?.orderDocument || statement?.attachment || null;
   const hasSanad = Boolean(sanadUrl && String(sanadUrl).trim() !== '' && sanadUrl !== 'عرض' && sanadUrl !== 'غير متوفر');
 
+  const isThreeInstallments =
+    order?.Installments === 3 ||
+    order?.PaymentMethod === 'three-installments' ||
+    order?.PaymentMethod === 'ثلاث دفعات' ||
+    order?.PaymentMethod === 'ثلاثة دفعات';
+
   const isTwoInstallments =
-    order?.Installments === 2 ||
-    order?.PaymentMethod === 'two-installments' ||
-    order?.PaymentMethod === 'دفعتين' ||
-    (entries.length > 0 && entries.some((e: any) => String(e?.description || '').includes('دفعة أولى') || String(e?.description || '').includes('دفعة ثانية')));
+    !isThreeInstallments && (
+      order?.Installments === 2 ||
+      order?.PaymentMethod === 'two-installments' ||
+      order?.PaymentMethod === 'دفعتين' ||
+      (entries.length > 0 && entries.some((e: any) => String(e?.description || '').includes('دفعة أولى') || String(e?.description || '').includes('دفعة ثانية')))
+    );
 
   // Case A: Fully Paid (Remaining <= 0)
   if (remainingBalance <= 0 && (totalCredit > 0 || totalDebit === 0)) {
-    if (isTwoInstallments) {
+    if (isTwoInstallments || isThreeInstallments) {
       return 'paid_full_two';
     } else {
       return 'paid_full_single';

@@ -97,6 +97,11 @@ export default async function handler(
       console.log('No valid token found, proceeding without user info');
     }
 
+    const installmentsCount = PaymentMethod === 'cash' || PaymentMethod === 'كاش' ? 1
+      : PaymentMethod === 'two-installments' || PaymentMethod === 'دفعتين' ? 2
+      : PaymentMethod === 'three-installments' || PaymentMethod === 'ثلاث دفعات' || PaymentMethod === 'ثلاثة دفعات' ? 3
+      : null;
+
     // Create the order (age is only used for search, not stored)
     const orderData: any = {
       ClientName,
@@ -104,6 +109,7 @@ export default async function handler(
       Nationalitycopy,
       Religion,
       PaymentMethod,
+      Installments: installmentsCount,
       typeOfContract: "recruitment",
       Total: Total ? Number(Total) : 0,
       paid: Paid ? Number(Paid) : 0,

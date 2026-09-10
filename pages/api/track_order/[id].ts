@@ -157,11 +157,7 @@ console.log(id)
               officeName: true,
             },
           },
-          cancelledOrders: {
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-            select: { ReasonOfCancellation: true },
-          },
+
           arrivals: {
             select: {
               DateOfApplication: true,
@@ -226,6 +222,8 @@ console.log(id)
             },
           },
           cancelledOrders: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
             include: {
               HomeMaid: {
                 select: {
@@ -396,6 +394,12 @@ console.log(id)
         accountingStatementId: (order as any).clientAccountStatement?.[0]?.id ?? null,
         totalAmount: order.Total ?? null,
         paidAmount: order.paid ?? null,
+        PaymentMethod: order.PaymentMethod ?? null,
+        Installments: order.Installments ?? null,
+        AmountWithoutTax: order.AmountWithoutTax ?? null,
+        TaxAmount: order.TaxAmount ?? null,
+        contract: order.contract ?? null,
+        orderDocument: order.orderDocument ?? null,
         reasonOfRejection: (order as any).rejectedOrders?.[0]?.ReasonOfRejection ?? order.ReasonOfRejection ?? null,
         reasonOfCancellation: (order as any).cancelledOrders?.[0]?.ReasonOfCancellation ?? order.ReasonOfCancellation ?? null,
         cancelledOrderNationality: (order as any).cancelledOrders?.[0]?.HomeMaid?.office?.Country ?? null,
@@ -558,7 +562,7 @@ const cookieHeader = req.headers.cookie;
             bookingstatus: 'pending_external_office',
             clientBookingStatus: 'pending_external_office',
             typeOfContract: order.typeOfContract,
-            Nationality: order.Nationality,
+            Nationality: order.Nationality as any,
             Religion: order.Religion,
             Passportnumber: null,
             nationalId: order.nationalId,

@@ -2073,21 +2073,28 @@ export default function Home() {
                               const totalCredit = statement.entries.reduce((sum: number, entry: any) => sum + Number(entry.credit || 0), 0);
                               remainingBalance = totalDebit - totalCredit;
                             } else {
-                              remainingBalance = Number(statement.netAmount);
-                              totalDebit = Number(statement.totalRevenue);
+                              remainingBalance = Number(statement.netAmount || 0);
+                              totalDebit = Number(statement.totalRevenue || 0);
                             }
-                            
+
+                            const formatNumber = (num: number) => {
+                              const rounded = Math.round(Number(num || 0) * 100) / 100;
+                              return rounded.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+                            };
+
+                            const roundedRemaining = Math.round(remainingBalance * 100) / 100;
+
                             return (
                               <div className="flex flex-col gap-1 items-start bg-gray-50 p-2 rounded-lg border border-gray-100 min-w-[140px]">
-                                {remainingBalance <= 0 ? (
+                                {roundedRemaining <= 0 ? (
                                   <span className="text-green-600 font-bold bg-green-50 px-2 py-1 rounded w-full text-center">تم السداد بالكامل</span>
                                 ) : (
                                   <>
                                     <span className="text-red-600 font-bold bg-red-50 px-2 py-1 rounded w-full text-center">
-                                      المتبقي: {remainingBalance}
+                                      المتبقي: {formatNumber(remainingBalance)}
                                     </span>
                                     <span className="text-gray-400 text-xs mt-1 w-full text-center">
-                                      الإجمالي: {totalDebit}
+                                      الإجمالي: {formatNumber(totalDebit)}
                                     </span>
                                   </>
                                 )}
@@ -2352,30 +2359,30 @@ export default function Home() {
                   <div className="w-64">
                     <Select
                       isMulti
-                      options={availableSources.map((source) => ({ value: source, label: source }))}
-                      value={selectedSources.map((source) => ({ value: source, label: source }))}
-                      onChange={(selected) => {
-                        setSelectedSources(selected ? selected.map((item) => item.value) : []);
+                      options={availableSources.map((source: any) => ({ value: source, label: source }))}
+                      value={selectedSources.map((source: any) => ({ value: source, label: source }))}
+                      onChange={(selected: any) => {
+                        setSelectedSources(selected ? selected.map((item: any) => item.value) : []);
                       }}
                       placeholder="اختر المصادر"
                       className="text-right"
                       styles={{
-                        control: (base) => ({
+                        control: (base: any) => ({
                           ...base,
                           backgroundColor: '#F9FAFB',
                           borderColor: '#D1D5DB',
                           textAlign: 'right',
                           paddingRight: '0.5rem',
                         }),
-                        menu: (base) => ({
+                        menu: (base: any) => ({
                           ...base,
                           textAlign: 'right',
                         }),
-                        multiValue: (base) => ({
+                        multiValue: (base: any) => ({
                           ...base,
                           direction: 'rtl',
                         }),
-                        multiValueLabel: (base) => ({
+                        multiValueLabel: (base: any) => ({
                           ...base,
                           textAlign: 'right',
                         }),
