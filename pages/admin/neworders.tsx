@@ -1187,22 +1187,22 @@ useEffect(() => {
                 placeholder="كل الأعمار"
                 className="w-40 text-right"
                 styles={{
-                  control: (base) => ({
+                  control: (base: any) => ({
                     ...base,
                     backgroundColor: '#F9FAFB',
                     borderColor: '#D1D5DB',
                     textAlign: 'right',
                     paddingRight: '0.5rem',
                   }),
-                  menu: (base) => ({
+                  menu: (base: any) => ({
                     ...base,
                     textAlign: 'right',
                   }),
-                  singleValue: (base) => ({
+                  singleValue: (base: any) => ({
                     ...base,
                     textAlign: 'right',
                   }),
-                  placeholder: (base) => ({
+                  placeholder: (base: any) => ({
                     ...base,
                     textAlign: 'right',
                   }),
@@ -1216,22 +1216,22 @@ useEffect(() => {
                 placeholder="كل الجنسيات"
                 className="w-40 text-right"
                 styles={{
-                  control: (base) => ({
+                  control: (base: any) => ({
                     ...base,
                     backgroundColor: '#F9FAFB',
                     borderColor: '#D1D5DB',
                     textAlign: 'right',
                     paddingRight: '0.5rem',
                   }),
-                  menu: (base) => ({
+                  menu: (base: any) => ({
                     ...base,
                     textAlign: 'right',
                   }),
-                  singleValue: (base) => ({
+                  singleValue: (base: any) => ({
                     ...base,
                     textAlign: 'right',
                   }),
-                  placeholder: (base) => ({
+                  placeholder: (base: any) => ({
                     ...base,
                     textAlign: 'right',
                   }),
@@ -1577,22 +1577,22 @@ useEffect(() => {
                   placeholder="اختر عميل من القائمة"
                   className="w-full mt-2 mb-4 text-right"
                   styles={{
-                    control: (base) => ({
+                    control: (base: any) => ({
                       ...base,
                       backgroundColor: '#F9FAFB',
                       borderColor: '#D1D5DB',
                       padding: '0.5rem',
                       textAlign: 'right',
                     }),
-                    menu: (base) => ({
+                    menu: (base: any) => ({
                       ...base,
                       textAlign: 'right',
                     }),
-                    singleValue: (base) => ({
+                    singleValue: (base: any) => ({
                       ...base,
                       textAlign: 'right',
                     }),
-                    placeholder: (base) => ({
+                    placeholder: (base: any) => ({
                       ...base,
                       textAlign: 'right',
                     }),
@@ -1835,7 +1835,6 @@ export const getServerSideProps: GetServerSideProps<DashboardProps> = async () =
                   Country: true,
                 },
               },
-              logs: { include: { user: true } },
             },
           },
         },
@@ -1887,7 +1886,6 @@ export const getServerSideProps: GetServerSideProps<DashboardProps> = async () =
                   Country: true,
                 },
               },
-              logs: { include: { user: true } },
             },
           },
         },
