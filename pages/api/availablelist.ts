@@ -10,7 +10,7 @@ export default async function handler(
   // const pageSize = 10;
   const pageNumber = parseInt(page as string, 10) || 1;
 
-const pageSize = Number(pageSizeQ);
+const pageSize = Number(pageSizeQ) || 10;
 
   const filters: any = {};
   // if (id) filters.HomemaidId = Number(id);
