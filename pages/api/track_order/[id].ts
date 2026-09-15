@@ -1473,11 +1473,14 @@ const cookieHeader = req.headers.cookie;
             if (updatedData['اسم العميل']) {
               const oldName = order.client?.fullname;
               clientUpdateData.fullname = updatedData['اسم العميل'];
+              updateData.ClientName = updatedData['اسم العميل'];
               changes.push(`اسم العميل: من "${oldName || 'فارغ'}" إلى "${updatedData['اسم العميل']}"`);
             }
             if (updatedData['رقم الهاتف']) {
               const oldPhone = order.client?.phonenumber;
               clientUpdateData.phonenumber = updatedData['رقم الهاتف'];
+              updateData.PhoneNumber = updatedData['رقم الهاتف'];
+              updateData.clientphonenumber = updatedData['رقم الهاتف'];
               changes.push(`رقم الهاتف: من "${oldPhone || 'فارغ'}" إلى "${updatedData['رقم الهاتف']}"`);
             }
             

@@ -93,7 +93,7 @@ export default async function handler(
 
     const formattedOrders = filteredOrders.map((order: any) => ({
       ...order,
-      ClientName: order.ClientName || order.client?.fullname || 'غير محدد',
+      ClientName: order.client?.fullname || order.ClientName || 'غير محدد',
       officeName: order.HomeMaid?.officeName || '',
     }));
 
