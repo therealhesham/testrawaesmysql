@@ -77,6 +77,7 @@ const menuItems: MenuItem[] = [
     subItems: [
       { id: 31, label: "العملاء", link: "/admin/clients" },
       { id: 32, label: "العملاء المحتملون", link: "/admin/quick_clients" },
+      { id: 33, label: "عملاء الخصومات", link: "/admin/discount-clients" },
     ],
   },
   {

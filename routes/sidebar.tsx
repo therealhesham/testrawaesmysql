@@ -89,6 +89,11 @@ const routes: IRoute[] = [
     name: "العملاء المحتملين",
   },
   {
+    path: "/admin/discount-clients",
+    icon: "HomeIcon",
+    name: "عملاء الخصومات",
+  },
+  {
     path: "/admin/employees",
     icon: "HomeIcon",
     name: "الموظفين",

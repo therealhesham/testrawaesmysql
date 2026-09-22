@@ -19,6 +19,7 @@ export function getPageTitleArabic(pageRoute: string | undefined): string {
     '/admin/endedorders': 'الطلبات المكتملة',
     '/admin/rejectedorders': 'الطلبات الملغية',
     '/admin/clients': 'قائمة العملاء',
+    '/admin/discount-clients': 'عملاء الخصومات',
     '/admin/fulllist': 'قائمة العاملات',
     '/admin/availablelist': 'العاملات المتاحات',
     '/admin/bookedlist': 'العاملات المحجوزات',
