@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import axios from 'axios';
 import Layout from 'example/containers/Layout';
 import Style from 'styles/Home.module.css';
+import prisma from 'lib/prisma';
 import { jwtDecode } from 'jwt-decode';
 import ExcelJS from 'exceljs';
 import { formatSaudiCity } from 'lib/cityHelper';

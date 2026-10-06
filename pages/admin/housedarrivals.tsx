@@ -2,6 +2,7 @@ import Layout from 'example/containers/Layout';
 import Head from 'next/head';
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import prisma from 'lib/prisma';
 import Style from 'styles/Home.module.css';
 import { Plus, Search, FileText, RotateCcw, Settings, MoreHorizontal, Trash2, UserPlus, Phone, Check, Calendar, Clock, ShieldCheck, Building, Globe, ArrowLeft, ArrowRight, ChevronDown, ChevronUp, Smartphone, CreditCard, Activity, Package, CheckCircle2, XCircle, Tag, ClipboardCheck, Plane, Edit3, Camera, Upload, UploadCloud, Eye, User, MapPin, UserCheck, LogOut, AlertCircle, Users, Home as HomeIcon, DollarSign, Filter } from 'lucide-react';
 import { DocumentTextIcon } from '@heroicons/react/outline';
