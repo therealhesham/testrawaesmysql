@@ -7,7 +7,7 @@ const QuickClientRegistrationModal: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   
   // Form State
-  const [phoneNumber, setPhoneNumber] = useState('05');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [notes, setNotes] = useState('');
   const [clientName, setClientName] = useState('');
   const [source, setSource] = useState('');
@@ -44,8 +44,7 @@ const QuickClientRegistrationModal: React.FC = () => {
         e.preventDefault();
         setIsOpen((prev) => {
           if (!prev) {
-            // When opening, reset the phone number to 05
-            setPhoneNumber('05');
+            setPhoneNumber('');
             setNotes('');
             setClientName('');
             setSource('');
@@ -63,7 +62,7 @@ const QuickClientRegistrationModal: React.FC = () => {
   useEffect(() => {
     const handleOpenModal = () => {
       setIsOpen(true);
-      setPhoneNumber('05');
+      setPhoneNumber('');
       setNotes('');
       setClientName('');
       setSource('');
@@ -75,7 +74,6 @@ const QuickClientRegistrationModal: React.FC = () => {
   // Auto focus phone input when modal opens
   useEffect(() => {
     if (isOpen && phoneInputRef.current) {
-      // Focus and place cursor at the end
       phoneInputRef.current.focus();
       const length = phoneInputRef.current.value.length;
       phoneInputRef.current.setSelectionRange(length, length);
@@ -88,11 +86,6 @@ const QuickClientRegistrationModal: React.FC = () => {
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value;
-    
-    // Prevent removing '05'
-    if (!val.startsWith('05')) {
-      val = '05';
-    }
     
     // Only allow digits
     val = val.replace(/[^\d]/g, '');
@@ -124,7 +117,7 @@ const QuickClientRegistrationModal: React.FC = () => {
       showToast('تم حفظ بيانات الاتصال بنجاح!', 'success');
       
       // Reset form on success
-      setPhoneNumber('05');
+      setPhoneNumber('');
       setNotes('');
       setClientName('');
       setSource('');

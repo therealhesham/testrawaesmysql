@@ -3,6 +3,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@100..900&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&display=swap");
 @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@200;300;400;500;700;800;900&display=swap');
+
 /* @apply w-[80%] mx-auto; */
 html,
 :root {
@@ -678,3 +679,53 @@ input[type="date"]::-webkit-datetime-edit-day-field,
 input[type="date"]::-webkit-datetime-edit-year-field {
   direction: ltr;
 }
+
+/* Remove default/Tailwind background arrow on select elements with appearance-none */
+select.appearance-none,
+select[class*="appearance-none"] {
+  background-image: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+}
+
+/* Universal English Numeral & Date Enforcement */
+input,
+select,
+textarea,
+.force-en-num,
+.en-num-text {
+  font-variant-numeric: lining-nums tabular-nums !important;
+  font-feature-settings: "lnum" 1, "tnum" 1, "locl" 0 !important;
+}
+
+input[type="date"],
+input[type="number"],
+input[type="tel"],
+.force-en-num,
+.en-num-text {
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, Roboto, sans-serif !important;
+  -webkit-locale: "en-US" !important;
+}
+
+/* Chrome / Edge Datepicker internal localization */
+input[type="date"] {
+  direction: ltr !important;
+  text-align: right !important;
+}
+
+input[type="date"]::-webkit-datetime-edit,
+input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+input[type="date"]::-webkit-datetime-edit-text,
+input[type="date"]::-webkit-datetime-edit-month-field,
+input[type="date"]::-webkit-datetime-edit-day-field,
+input[type="date"]::-webkit-datetime-edit-year-field {
+  -webkit-locale: "en-US" !important;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, Roboto, sans-serif !important;
+  font-feature-settings: "lnum" 1, "locl" 0 !important;
+  font-variant-numeric: lining-nums tabular-nums !important;
+  direction: ltr !important;
+}
+
+
+

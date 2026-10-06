@@ -46,6 +46,7 @@ const menuItems: MenuItem[] = [
     subItems: [
       { id: 21, label: "طلبات جديدة", link: "/admin/neworders" },
       { id: 22, label: "الطلبات الحالية", link: "/admin/currentorderstest" },
+      { id: 25, label: "معاملات نقل الكفالة", link: "/admin/transfersponsorship" },
     ],
   },
   { id: 3, label: "قائمة العملاء", icon: PeopleIcon, link: "/admin/clients" },
@@ -64,8 +65,8 @@ const menuItems: MenuItem[] = [
     label: "شئون الاقامة",
     icon: FaBuilding,
     subItems: [
-      { id: 51, label: "التسكين", link: "/admin/housedarrivals" },
-      { id: 511, label: "مغادرات نقل كفالة", link: "/admin/housing_departed_transfer_sponsorship" },
+      { id: 51, label: "التسكين (المتواجدات)", link: "/admin/housedarrivals" },
+      { id: 511, label: "مغادرات السكن", link: "/admin/housing-departures" },
       { id: 52, label: "الاعاشات", link: "/admin/checkedtable" },
     ],
   },

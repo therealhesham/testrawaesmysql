@@ -19,19 +19,60 @@ export default async function handler(
     }
 
     const limitNum = parseInt(limit as string);
+    const parsedSearchNumber = parseInt(search);
+    const isValidNumber = !isNaN(parsedSearchNumber);
 
-    // Search homemaids by ID, name, passport number, or phone
-    // Search for homemaids that are NOT linked to housedworker table (housedarrivals)
-    // and are linked to transferSponsorShips table (external workers)
+    // Search homemaids by ID, name, passport number, phone, or client info
     const homemaids = await prisma.homemaid.findMany({
       where: {
         AND: [
           {
             OR: [
-              { id: parseInt(search) || undefined },
+              ...(isValidNumber ? [{ id: parsedSearchNumber }] : []),
               { Name: { contains: search } },
               { Passportnumber: { contains: search } },
-              { phone: { contains: search } }
+              { phone: { contains: search } },
+              { clientphonenumber: { contains: search } },
+              {
+                NewOrder: {
+                  some: {
+                    OR: [
+                      ...(isValidNumber ? [{ clientID: parsedSearchNumber }] : []),
+                      { ClientName: { contains: search } },
+                      { PhoneNumber: { contains: search } },
+                      { clientphonenumber: { contains: search } },
+                      { nationalId: { contains: search } },
+                      {
+                        client: {
+                          OR: [
+                            ...(isValidNumber ? [{ id: parsedSearchNumber }] : []),
+                            { fullname: { contains: search } },
+                            { phonenumber: { contains: search } },
+                            { nationalId: { contains: search } }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                transferSponsorShips: {
+                  OR: [
+                    ...(isValidNumber ? [{ NewClientId: parsedSearchNumber }, { OldClientId: parsedSearchNumber }] : []),
+                    {
+                      NewClient: {
+                        OR: [
+                          ...(isValidNumber ? [{ id: parsedSearchNumber }] : []),
+                          { fullname: { contains: search } },
+                          { phonenumber: { contains: search } },
+                          { nationalId: { contains: search } }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
             ]
           },
           {
@@ -40,12 +81,6 @@ export default async function handler(
               some: {}
             }
           }
-          // {
-            // // Only get homemaids that have a record in transferSponsorShips table
-            // transferSponsorShips: {
-            //   isNot: null
-            // }
-          // }
         ]
       },
       include: {
@@ -80,6 +115,10 @@ export default async function handler(
           select: {
             id: true,
             clientID: true,
+            ClientName: true,
+            PhoneNumber: true,
+            clientphonenumber: true,
+            nationalId: true,
             client: {
               select: {
                 id: true,
@@ -105,30 +144,44 @@ export default async function handler(
     });
 
     // Format the response
-    const formattedHomemaids = homemaids.map(worker => ({
-      id: worker.id,
-      name: worker.Name,
-      nationality: worker.Nationalitycopy,
-      passportNumber: worker.Passportnumber,
-      phone: worker.phone,
-      age: worker.age,
-      office: worker.office?.office || 'غير محدد',
-      country: worker.office?.Country || 'غير محدد',
-      hasTransferSponsorship: worker.transferSponsorShips !== null,
-      transferSponsorShips: worker.transferSponsorShips || null,
-      // Client data from NewOrder.client (Order related to the worker)
-      clientData: worker.NewOrder && worker.NewOrder.length > 0 && worker.NewOrder[0].client ? {
-        clientId: worker.NewOrder[0].client.id,
-        clientName: worker.NewOrder[0].client.fullname || '',
-        clientMobile: worker.NewOrder[0].client.phonenumber || '',
-        clientIdNumber: worker.NewOrder[0].client.nationalId || '',
-        city: worker.NewOrder[0].client.city || '',
-        address: worker.NewOrder[0].client.address || ''
-      } : null,
-      isExternal: worker.isExternal || true,
-      isAvailable: true, // All workers returned are available for housing
-      status: 'متاحة للتسكين - نقل كفالة'
-    }));
+    const formattedHomemaids = homemaids.map(worker => {
+      const order = worker.NewOrder && worker.NewOrder.length > 0 ? worker.NewOrder[0] : null;
+      const client = order?.client;
+      const newClient = worker.transferSponsorShips?.NewClient;
+
+      const clientName = client?.fullname || order?.ClientName || newClient?.fullname || '';
+      const clientMobile = client?.phonenumber || order?.PhoneNumber || order?.clientphonenumber || newClient?.phonenumber || '';
+      const clientIdNumber = client?.nationalId || order?.nationalId || newClient?.nationalId || '';
+      const clientId = client?.id || order?.clientID || newClient?.id || null;
+      const city = client?.city || newClient?.city || '';
+      const address = client?.address || newClient?.address || '';
+
+      const clientData = (clientName || clientMobile || clientIdNumber || clientId) ? {
+        clientId,
+        clientName,
+        clientMobile,
+        clientIdNumber,
+        city,
+        address
+      } : null;
+
+      return {
+        id: worker.id,
+        name: worker.Name,
+        nationality: worker.Nationalitycopy,
+        passportNumber: worker.Passportnumber,
+        phone: worker.phone,
+        age: worker.age,
+        office: worker.office?.office || 'غير محدد',
+        country: worker.office?.Country || 'غير محدد',
+        hasTransferSponsorship: worker.transferSponsorShips !== null,
+        transferSponsorShips: worker.transferSponsorShips || null,
+        clientData,
+        isExternal: worker.isExternal || true,
+        isAvailable: true, // All workers returned are available for housing
+        status: 'متاحة للتسكين - نقل كفالة'
+      };
+    });
 
     // Additional verification: Double-check that these workers are not in housedworker table
     const verificationCheck = await prisma.housedworker.findMany({

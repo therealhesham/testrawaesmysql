@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { logAccountingActionFromRequest } from 'lib/accountingLogger';
+import { recalculateStatementRunningBalances } from 'lib/accountingBalanceHelper';
 
 const prisma = new PrismaClient();
 
@@ -156,20 +157,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           throw new Error('الحساب غير موجود');
         }
 
-        // Get the last entry before or on the new entry's date to calculate the balance
-        const previousEntry = await tx.clientAccountEntry.findFirst({
-          where: {
-            statementId: Number(statementId),
-            date: { lte: entryDate }
-          },
-          orderBy: {
-            date: 'desc'
-          }
+        // Find the current highest displayOrder in this statement so new entries are appended at the bottom
+        const lastEntry = await tx.clientAccountEntry.findFirst({
+          where: { statementId: Number(statementId) },
+          orderBy: { displayOrder: 'desc' }
         });
-
-        // Calculate balance: previous balance + debit - credit (مدين يزيد الرصيد، دائن يقلله)
-        const previousBalance = previousEntry ? Number(previousEntry.balance) : 0;
-        const newBalance = previousBalance + newDebit - newCredit;
+        const nextDisplayOrder = lastEntry && lastEntry.displayOrder != null ? lastEntry.displayOrder + 1 : 0;
 
         // Create the entry
         const createdEntry = await tx.clientAccountEntry.create({
@@ -179,8 +172,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             description,
             debit: newDebit,
             credit: newCredit,
-            balance: newBalance,
-            entryType
+            balance: 0,
+            entryType: entryType || (newDebit > 0 ? 'invoice' : 'payment'),
+            displayOrder: nextDisplayOrder
           },
           include: {
             statement: {
@@ -196,10 +190,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
         });
 
-        // Recalculate totals within the same transaction
-        await recalculateStatementTotals(Number(statementId), tx);
+        // Recalculate all statement running balances and totals
+        await recalculateStatementRunningBalances(Number(statementId), tx);
 
-        return createdEntry;
+        // Fetch updated entry with accurate balance
+        const refreshedEntry = await tx.clientAccountEntry.findUnique({
+          where: { id: createdEntry.id },
+          include: {
+            statement: {
+              include: {
+                client: {
+                  select: {
+                    id: true,
+                    fullname: true
+                  }
+                }
+              }
+            }
+          }
+        });
+
+        return refreshedEntry || createdEntry;
       });
 
       res.status(201).json(entry);

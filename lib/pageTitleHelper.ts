@@ -26,6 +26,7 @@ export function getPageTitleArabic(pageRoute: string | undefined): string {
     '/admin/newhomemaids': 'إضافة عاملة جديدة',
     '/admin/homemaidinfo': 'معلومات العاملة',
     '/admin/housedarrivals': 'التسكين',
+    '/admin/housing-departures': 'العاملات المغادرات من السكن',
     '/admin/housing_departed_transfer_sponsorship': 'مغادرات السكن (سبب المغادرة: نقل كفالة)',
     '/admin/checkedtable': 'الاعاشات',
     '/admin/arrival-list': 'الوصول',

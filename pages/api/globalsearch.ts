@@ -66,6 +66,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       take: 5,
     });
 
+    // 4. Search Transfer Sponsorship Transactions
+    const transfers = await prisma.transferSponsorShips.findMany({
+      where: {
+        OR: [
+          // العاملة (اسم، جواز، إقامة)
+          { HomeMaid: { Name: { contains: queryStr } } },
+          { HomeMaid: { Passportnumber: { contains: queryStr } } },
+          { NationalID: { contains: queryStr } },
+          // الكفيل الجديد (اسم، جوال، هاتف بديل، هوية)
+          { NewClient: { fullname: { contains: queryStr } } },
+          { NewClient: { phonenumber: { contains: queryStr } } },
+          { NewClient: { alternativePhone: { contains: queryStr } } },
+          { NewClient: { nationalId: { contains: queryStr } } },
+          // الكفيل السابق (اسم، جوال، هوية)
+          { OldClient: { fullname: { contains: queryStr } } },
+          { OldClient: { phonenumber: { contains: queryStr } } },
+          { OldClient: { nationalId: { contains: queryStr } } },
+          // رقم المعاملة أو العملية
+          { TransferOperationNumber: { contains: queryStr } },
+          ...(numericQuery ? [{ id: numericQuery }] : []),
+        ],
+      },
+      include: {
+        HomeMaid: { select: { Name: true, Passportnumber: true } },
+        NewClient: { select: { fullname: true, phonenumber: true, nationalId: true } },
+        OldClient: { select: { fullname: true, phonenumber: true } },
+      },
+      take: 6,
+    });
+
     // Format the results for the frontend dropdown
     const results: any[] = [];
 
@@ -99,6 +129,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         id: order.id,
         label: `طلب #${order.id} | العميل: ${clientName} | العاملة: ${maidName}`,
         url: `/admin/track_order/${order.id}`,
+      });
+    });
+
+    // Format Transfers (معاملات نقل الكفالة)
+    transfers.forEach((transfer) => {
+      const maidName = transfer.HomeMaid?.Name || "عاملة";
+      const newSponsor = transfer.NewClient?.fullname || "كفيل جديد";
+      const newSponsorPhone = transfer.NewClient?.phonenumber || "";
+      const stage = transfer.transferStage || "نقل كفالة";
+
+      results.push({
+        type: "transfer",
+        id: transfer.id,
+        label: `نقل كفالة #${transfer.id} | العاملة: ${maidName} | الكفيل الجديد: ${newSponsor}${newSponsorPhone ? ` (${newSponsorPhone})` : ''}`,
+        subLabel: stage,
+        url: `/admin/AddTransactionForm?id=${transfer.id}`,
       });
     });
 

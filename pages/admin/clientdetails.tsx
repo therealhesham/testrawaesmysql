@@ -6,7 +6,9 @@ import { useRouter } from 'next/router';
 import React from 'react';
 import { EditIcon, TrashIcon } from 'icons';
 import { ArrowRight } from 'lucide-react';
+import { formatSaudiCity, saudiCitiesMap } from 'lib/cityHelper';
 
+const ALL_SAUDI_CITIES = Array.from(new Set(Object.values(saudiCitiesMap)));
 
 interface ClientInfo {
   id: string;
@@ -18,10 +20,72 @@ interface ClientInfo {
 
 interface OrderData {
   id: number;
-  ClientName: string;
-  PhoneNumber: string;
+  ClientName?: string | null;
+  PhoneNumber?: string | null;
+  clientphonenumber?: string | null;
   bookingstatus: string;
   createdAt: string;
+  HomemaidId?: number | null;
+  Name?: string | null;
+  Passportnumber?: string | null;
+  Nationalitycopy?: string | null;
+  Total?: number | null;
+  AmountWithoutTax?: number | null;
+  paid?: number | null;
+  contract?: string | null;
+  HomeMaid?: {
+    id: number;
+    Name?: string | null;
+    Passportnumber?: string | null;
+    Nationality?: string | null;
+    Nationalitycopy?: string | null;
+    officeName?: string | null;
+  } | null;
+  arrivals?: Array<{
+    id: number;
+    InternalmusanedContract?: string | null;
+    externalmusanedContract?: string | null;
+    Cost?: number | string | null;
+    office?: string | null;
+  }> | null;
+}
+
+interface TransferData {
+  id: number;
+  HomeMaidId: number;
+  NewClientId: number;
+  OldClientId: number;
+  Cost: string | number | null;
+  Paid: string | number | null;
+  remainingCost?: string | number | null;
+  dailyCost?: string | number | null;
+  transferStage: string | null;
+  ExperimentDuration?: string | null;
+  ExperimentStart?: string | null;
+  ExperimentEnd?: string | null;
+  ContractDate?: string | null;
+  TransferingDate?: string | null;
+  TransferOperationNumber?: string | null;
+  createdAt: string;
+  HomeMaid?: {
+    id: number;
+    Name?: string;
+    Passportnumber?: string;
+    Nationality?: string;
+    job?: string;
+  } | null;
+  NewClient?: {
+    id: number;
+    fullname?: string;
+    phonenumber?: string;
+    nationalId?: string;
+  } | null;
+  OldClient?: {
+    id: number;
+    fullname?: string;
+    phonenumber?: string;
+    nationalId?: string;
+  } | null;
 }
 
 interface ClientAccountEntry {
@@ -78,6 +142,7 @@ export default function Home() {
   });
   const [visas, setVisas] = useState<VisaData[]>([]);
   const [orders, setOrders] = useState<OrderData[]>([]);
+  const [transfers, setTransfers] = useState<TransferData[]>([]);
   const [financialStatements, setFinancialStatements] = useState<ClientAccountStatement[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingFinancial, setIsLoadingFinancial] = useState(false);
@@ -132,7 +197,8 @@ export default function Home() {
       const data = await response.json();
       setClientInfo(data);
       setOriginalClientInfo(data);
-      setOrders(data.orders);
+      setOrders(data.orders || []);
+      setTransfers(data.transfers || []);
       setIsEditMode(false);
     } catch (error) {
       console.error(error);
@@ -382,7 +448,37 @@ export default function Home() {
   }
 
 
-    // دالة ترجمة حالة الطلب من الإنجليزية إلى العربية
+  const getTransferStageBadge = (stage: string | null) => {
+    const stageName = stage || 'انشاء الطلب';
+    let bg = '#eff6ff';
+    let text = '#1d4ed8';
+    let border = '#bfdbfe';
+
+    if (stageName.includes('نقل') || stageName.includes('تم')) {
+      bg = '#ecfdf5';
+      text = '#047857';
+      border = '#a7f3d0';
+    } else if (stageName.includes('تجربة')) {
+      bg = '#fffbeb';
+      text = '#b45309';
+      border = '#fde68a';
+    } else if (stageName.includes('عقد')) {
+      bg = '#eef2ff';
+      text = '#4338ca';
+      border = '#c7d2fe';
+    }
+
+    return (
+      <span
+        className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold"
+        style={{ backgroundColor: bg, color: text, border: `1px solid ${border}` }}
+      >
+        {stageName}
+      </span>
+    );
+  };
+
+  // دالة ترجمة حالة الطلب من الإنجليزية إلى العربية
   const translateBookingStatus = (status: string) => {
     const statusTranslations: { [key: string]: string } = {
       'pending': 'قيد الانتظار',
@@ -505,7 +601,8 @@ const arabicRegionMap: { [key: string]: string } = {
                    <div className="flex items-center gap-2">
                     <input
                       type="text"
-                      className="w-20 p-2 border border-gray-300 rounded-md text-center bg-gray-100 cursor-not-allowed font-bold text-teal-800"
+                      dir="ltr"
+                      className="w-20 p-2 border border-gray-300 rounded-md text-center font-mono bg-gray-100 cursor-not-allowed font-bold text-teal-800"
                       value={clientInfo.id}
                       readOnly
                     />
@@ -527,7 +624,8 @@ const arabicRegionMap: { [key: string]: string } = {
                   <label className="text-sm text-gray-600 mb-1">رقم الهاتف</label>
                   <input
                     type="text"
-                    className={`p-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+                    dir="ltr"
+                    className={`p-2 border border-gray-300 rounded-md text-center font-mono focus:outline-none focus:ring-2 focus:ring-teal-500 ${
                       !isEditMode ? 'bg-gray-100 cursor-not-allowed' : ''
                     }`}
                     value={clientInfo.phonenumber}
@@ -541,11 +639,12 @@ const arabicRegionMap: { [key: string]: string } = {
                 <div className="flex flex-col">
                   <label className="text-sm text-gray-600 mb-1">رقم الهوية</label>
                   <input
-                    type="number"
-                    className={`p-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+                    type="text"
+                    dir="ltr"
+                    className={`p-2 border border-gray-300 rounded-md text-center font-mono focus:outline-none focus:ring-2 focus:ring-teal-500 ${
                       !isEditMode ? 'bg-gray-100 cursor-not-allowed' : ''
                     }`}
-                    value={clientInfo.nationalId}
+                    value={clientInfo.nationalId || ''}
                     onChange={(e) =>
                       setClientInfo({ ...clientInfo, nationalId: e.target.value })
                     }
@@ -559,77 +658,24 @@ const arabicRegionMap: { [key: string]: string } = {
                     className={`p-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-teal-500 ${
                       !isEditMode ? 'bg-gray-100 cursor-not-allowed' : ''
                     }`}
-                    value={clientInfo.city}
+                    value={formatSaudiCity(clientInfo.city) || clientInfo.city || ''}
                     onChange={(e) =>
                       setClientInfo({ ...clientInfo, city: e.target.value })
                     }
                     disabled={!isEditMode}
                     required
                   >
-             
-          <option value="">اختر المدينة</option>
-<option value = "Baha">الباحة</option>
-<option value = "Jawf">الجوف</option>
-<option value = "Qassim">القصيم</option>
-<option value = "Hail">حائل</option>
-<option value = "Jazan">جازان</option>
-<option value = "Najran">نجران</option>
-<option value = "Madinah">المدينة المنورة</option>
-<option value = "Riyadh">الرياض</option>
-<option value = "Al-Kharj">الخرج</option>
-<option value = "Ad Diriyah">الدرعية</option>
-<option value = "Al Majma'ah">المجمعة</option>
-<option value = "Al Zulfi">الزلفي</option>
-<option value = "Ad Dawadimi">الدوادمي</option>
-<option value = "Wadi Ad Dawasir">وادي الدواسر</option>
-<option value = "Afif">عفيف</option>
-<option value = "Al Quway'iyah">القويعية</option>
-<option value = "Shaqra">شقراء</option>
-<option value = "Hotat Bani Tamim">حوطة بني تميم</option>
-<option value = "Makkah">مكة المكرمة</option>
-<option value = "Jeddah">جدة</option>
-<option value = "Taif">الطائف</option>
-<option value = "Rabigh">رابغ</option>
-<option value = "Al Qunfudhah">القنفذة</option>
-<option value = "Al Lith">الليث</option>
-<option value = "Khulais">خليص</option>
-<option value = "Ranyah">رنية</option>
-<option value = "Turabah">تربة</option>
-<option value = "Yanbu">ينبع</option>
-<option value = "Al Ula">العلا</option>
-<option value = "Badr">بدر</option>
-<option value = "Al Hinakiyah">الحناكية</option>
-<option value = "Mahd Al Dhahab">مهد الذهب</option>
-<option value = "Dammam">الدمام</option>
-<option value = "Al Khobar">الخبر</option>
-<option value = "Dhahran">الظهران</option>
-<option value = "Al Ahsa">الأحساء</option>
-<option value = "Al Hufuf">الهفوف</option>
-<option value = "Al Mubarraz">المبرز</option>
-<option value = "Jubail">الجبيل</option>
-<option value = "Hafr Al Batin">حفر الباطن</option>
-<option value = "Al Khafji">الخفجي</option>
-<option value = "Ras Tanura">رأس تنورة</option>
-<option value = "Qatif">القطيف</option>
-<option value = "Abqaiq">بقيق</option>
-<option value = "Nairiyah">النعيرية</option>
-<option value = "Qaryat Al Ulya">قرية العليا</option>
-<option value = "Buraydah">بريدة</option>
-<option value = "Unaizah">عنيزة</option>
-<option value = "Ar Rass">الرس</option>
-<option value = "Al Bukayriyah">البكيرية</option>
-<option value = "Al Badaye">البدائع</option>
-<option value = "Al Mithnab">المذنب</option>
-<option value = "Riyad Al Khabra">رياض الخبراء</option>
-<option value = "Abha">أبها</option>
-<option value = "Khamis Mushait">خميس مشيط</option>
-<option value = "Bisha">بيشة</option>
-<option value = "Mahayil">محايل عسير</option>
-<option value = "Al Namas">النماص</option>
-<option value = "Tanomah">تنومة</option>
-<option value = "Ahad Rafidah">أحد رفيدة</option>
-<option value = "Sarat Abidah">سراة عبيدة</option>
-
+                    <option value="">اختر المدينة</option>
+                    {clientInfo.city && !ALL_SAUDI_CITIES.includes(formatSaudiCity(clientInfo.city)) && (
+                      <option value={clientInfo.city}>
+                        {formatSaudiCity(clientInfo.city) || clientInfo.city}
+                      </option>
+                    )}
+                    {ALL_SAUDI_CITIES.map((city) => (
+                      <option key={city} value={city}>
+                        {city}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -750,40 +796,238 @@ const arabicRegionMap: { [key: string]: string } = {
                 className="mx-auto bg-teal-800 text-white py-2 px-8 rounded-md hover:bg-teal-900 transition"
                 onClick={() =>
                   router.push(
-                    `/admin/order-form?type=add-available&clientId=${router.query.id}&clientName=${clientInfo.fullname}&clientPhone=${clientInfo.phonenumber}&clientCity=${clientInfo.city}`
+                    `/admin/order-form?type=add-available&clientId=${router.query.id}&clientName=${encodeURIComponent(
+                      clientInfo.fullname || ''
+                    )}&clientPhone=${encodeURIComponent(clientInfo.phonenumber || '')}&clientCity=${encodeURIComponent(
+                      clientInfo.city || ''
+                    )}`
                   )
                 }
               >
                 إضافة طلب
               </button>
-              {orders.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-right border-collapse">
-                    <thead>
-                      <tr className="bg-teal-800 text-white text-center">
-                        <th className="p-3 border text-center">رقم الطلب</th>
-                        <th className="p-3 border text-center">اسم العميل</th>
-                        <th className="p-3 border text-center">رقم الهاتف</th>
-                        <th className="p-3 border text-center">حالة الحجز</th>
-                        <th className="p-3 border text-center">تاريخ الإنشاء</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {orders.map((order) => (
-                        <tr key={order.id} className="hover:bg-gray-50 text-center">
-                          <td className="p-3 border text-center cursor-pointer" onClick={()=>router.push(`/admin/track_order/${order.id}`)}>{order.id}</td>
-                          <td className="p-3 border text-center">{order.ClientName}</td>
-                          <td className="p-3 border text-center">{order.PhoneNumber}</td>
-                          <td className="p-3 border text-center">{translateBookingStatus(order.bookingstatus)}</td>
-                          <td className="p-3 border text-center">
-                            {new Date(order.createdAt).toLocaleDateString()}
-                          </td>
+
+              {/* طلبات الاستقدام */}
+              {orders.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <h4 className="font-bold text-teal-800 text-base">طلبات الاستقدام ({orders.length})</h4>
+                  <div className="overflow-x-auto rounded-lg border border-gray-200">
+                    <table className="w-full text-right border-collapse table-fixed">
+                      <thead>
+                        <tr className="bg-teal-800 text-white text-center">
+                          <th className="p-3 border text-center font-semibold w-[11%]">رقم الطلب</th>
+                          <th className="p-3 border text-center font-semibold w-[24%]">العاملة</th>
+                          <th className="p-3 border text-center font-semibold w-[14%]">المكتب الخارجي</th>
+                          <th className="p-3 border text-center font-semibold w-[14%]">رقم عقد مساند</th>
+                          <th className="p-3 border text-center font-semibold w-[11%]">حالة الحجز</th>
+                          <th className="p-3 border text-center font-semibold w-[13%]">تكلفة الاستقدام</th>
+                          <th className="p-3 border text-center font-semibold w-[13%]">تاريخ الإنشاء</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {orders.map((order) => {
+                          const maidId = order.HomeMaid?.id || order.HomemaidId;
+                          const maidName = order.HomeMaid?.Name || order.Name || 'عاملة غير محددة';
+                          const passport = order.HomeMaid?.Passportnumber || order.Passportnumber;
+                          const nationality = order.HomeMaid?.Nationality || order.HomeMaid?.Nationalitycopy || order.Nationalitycopy;
+                          const externalOffice = order.HomeMaid?.officeName || order.arrivals?.[0]?.office;
+                          const musanedContract = order.arrivals?.[0]?.InternalmusanedContract || order.arrivals?.[0]?.externalmusanedContract || order.contract;
+                          const costAmount = order.Total || order.AmountWithoutTax || order.arrivals?.[0]?.Cost;
+
+                          return (
+                            <tr key={order.id} className="hover:bg-gray-50 text-center">
+                              <td
+                                className="p-3 border text-center font-bold text-teal-800 cursor-pointer hover:underline hover:text-teal-900 transition-colors"
+                                onClick={() => router.push(`/admin/track_order/${order.id}`)}
+                                title="عرض تفاصيل الطلب"
+                              >
+                                #{order.id}
+                              </td>
+                              <td className="p-3 border text-center">
+                                <div
+                                  className="font-semibold text-teal-800 hover:text-teal-900 cursor-pointer hover:underline inline-block transition-colors"
+                                  onClick={() => {
+                                    if (maidId) router.push(`/admin/homemaidinfo?id=${maidId}`);
+                                  }}
+                                  title="عرض بروفايل العاملة"
+                                >
+                                  {maidName}
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1 flex items-center justify-center gap-1.5 flex-wrap" dir="rtl">
+                                  {passport && (
+                                    <span className="inline-flex items-center gap-1">
+                                      <span>جواز:</span>
+                                      <span dir="ltr" className="font-mono font-medium text-gray-700">
+                                        {passport}
+                                      </span>
+                                    </span>
+                                  )}
+                                  {passport && nationality && (
+                                    <span className="text-gray-300">|</span>
+                                  )}
+                                  {nationality && (
+                                    <span>{nationality}</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-3 border text-center text-sm text-gray-800">
+                                {externalOffice || '-'}
+                              </td>
+                              <td className="p-3 border text-center text-sm font-mono text-gray-800" dir="ltr">
+                                {musanedContract || '-'}
+                              </td>
+                              <td className="p-3 border text-center">{translateBookingStatus(order.bookingstatus)}</td>
+                              <td className="p-3 border text-center text-gray-800">
+                                {costAmount ? (
+                                  <>
+                                    <span className="font-mono">
+                                      {Number(costAmount).toLocaleString('en-US')}
+                                    </span>
+                                    <span className="text-gray-600 text-xs mr-1"> ريال</span>
+                                  </>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </td>
+                              <td className="p-3 border text-center text-sm text-gray-700 font-mono" dir="ltr">
+                                {(() => {
+                                  if (!order.createdAt) return '-';
+                                  const dateObj = new Date(order.createdAt);
+                                  const y = dateObj.getFullYear();
+                                  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+                                  const d = String(dateObj.getDate()).padStart(2, '0');
+                                  return `${y}/${m}/${d}`;
+                                })()}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              ) : (
+              )}
+
+              {/* معاملات نقل الكفالة */}
+              {transfers.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <h4 className="font-bold text-teal-800 text-base mt-2">معاملات نقل الكفالة ({transfers.length})</h4>
+                  <div className="overflow-x-auto rounded-lg border border-gray-200">
+                    <table className="w-full text-right border-collapse table-fixed">
+                      <thead>
+                        <tr className="bg-teal-800 text-white text-center">
+                          <th className="p-3 border text-center font-semibold w-[11%]">رقم المعاملة</th>
+                          <th className="p-3 border text-center font-semibold w-[24%]">العاملة</th>
+                          <th className="p-3 border text-center font-semibold w-[14%]">صفة العميل</th>
+                          <th className="p-3 border text-center font-semibold w-[14%]">الطرف الآخر</th>
+                          <th className="p-3 border text-center font-semibold w-[11%]">المرحلة</th>
+                          <th className="p-3 border text-center font-semibold w-[13%]">تكلفة نقل الكفالة</th>
+                          <th className="p-3 border text-center font-semibold w-[13%]">تاريخ نقل الكفالة</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {transfers.map((transfer) => {
+                          const isNewSponsor = Number(transfer.NewClientId) === Number(clientInfo.id);
+                          return (
+                            <tr key={transfer.id} className="hover:bg-gray-50 text-center">
+                              <td
+                                className="p-3 border text-center font-bold text-teal-800 cursor-pointer hover:underline hover:text-teal-900 transition-colors"
+                                onClick={() => router.push(`/admin/AddTransactionForm?id=${transfer.id}&mode=view`)}
+                                title="عرض تفاصيل المعاملة"
+                              >
+                                #{transfer.id}
+                              </td>
+                              <td className="p-3 border text-center">
+                                <div
+                                  className="font-semibold text-teal-800 hover:text-teal-900 cursor-pointer hover:underline inline-block transition-colors"
+                                  onClick={() => {
+                                    const maidId = transfer.HomeMaid?.id || transfer.HomeMaidId;
+                                    if (maidId) router.push(`/admin/homemaidinfo?id=${maidId}`);
+                                  }}
+                                  title="عرض بروفايل العاملة"
+                                >
+                                  {transfer.HomeMaid?.Name || 'عاملة غير محددة'}
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1 flex items-center justify-center gap-1.5 flex-wrap" dir="rtl">
+                                  {transfer.HomeMaid?.Passportnumber && (
+                                    <span className="inline-flex items-center gap-1">
+                                      <span>جواز:</span>
+                                      <span dir="ltr" className="font-mono font-medium text-gray-700">
+                                        {transfer.HomeMaid.Passportnumber}
+                                      </span>
+                                    </span>
+                                  )}
+                                  {transfer.HomeMaid?.Passportnumber && transfer.HomeMaid?.Nationality && (
+                                    <span className="text-gray-300">|</span>
+                                  )}
+                                  {transfer.HomeMaid?.Nationality && (
+                                    <span>{transfer.HomeMaid.Nationality}</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-3 border text-center">
+                                {isNewSponsor ? (
+                                  <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                    كفيل جديد (مستلم)
+                                  </span>
+                                ) : (
+                                  <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-800 border border-blue-200">
+                                    كفيل سابق (متنازل)
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-3 border text-center text-sm">
+                                {(() => {
+                                  const counterParty = isNewSponsor ? transfer.OldClient : transfer.NewClient;
+                                  const counterPartyId = isNewSponsor ? (transfer.OldClient?.id || transfer.OldClientId) : (transfer.NewClient?.id || transfer.NewClientId);
+                                  const name = counterParty?.fullname || '-';
+
+                                  if (!counterPartyId) return <span className="text-gray-800">{name}</span>;
+
+                                  return (
+                                    <span
+                                      className="font-medium text-teal-800 hover:text-teal-900 cursor-pointer hover:underline transition-colors inline-block"
+                                      onClick={() => router.push(`/admin/clientdetails?id=${counterPartyId}`)}
+                                      title="عرض ملف العميل"
+                                    >
+                                      {name}
+                                    </span>
+                                  );
+                                })()}
+                              </td>
+                              <td className="p-3 border text-center">
+                                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-teal-50 text-teal-800 border border-teal-200">
+                                  {transfer.transferStage || 'قيد المعالجة'}
+                                </span>
+                              </td>
+                              <td className="p-3 border text-center text-gray-800">
+                                <span className="font-mono">
+                                  {Number(transfer.Cost || 0).toLocaleString('en-US')}
+                                </span>
+                                <span className="text-gray-600 text-xs mr-1"> ريال</span>
+                              </td>
+                              <td className="p-3 border text-center text-sm text-gray-700 font-mono" dir="ltr">
+                                {(() => {
+                                  const dateVal = transfer.TransferingDate || transfer.ContractDate || transfer.createdAt;
+                                  if (!dateVal) return '-';
+                                  const dateObj = new Date(dateVal);
+                                  const y = dateObj.getFullYear();
+                                  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+                                  const d = String(dateObj.getDate()).padStart(2, '0');
+                                  return `${y}/${m}/${d}`;
+                                })()}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* لا توجد طلبات أو معاملات */}
+              {orders.length === 0 && transfers.length === 0 && (
                 <p className="text-center text-gray-600">لا توجد طلبات بعد</p>
               )}
             </div>
@@ -835,27 +1079,27 @@ const arabicRegionMap: { [key: string]: string } = {
                           <td className="p-3 border text-center">
                             {statement.officeName || '-'}
                           </td>
-                          <td className="p-3 border text-center">
-                            {Number(statement.totalRevenue).toLocaleString('ar-SA', {
+                          <td className="p-3 border text-center font-mono">
+                            {Number(statement.totalRevenue).toLocaleString('en-US', {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2,
-                            })} ريال
+                            })} <span className="text-xs">ريال</span>
                           </td>
-                          <td className="p-3 border text-center">
-                            {Number(statement.totalExpenses).toLocaleString('ar-SA', {
+                          <td className="p-3 border text-center font-mono">
+                            {Number(statement.totalExpenses).toLocaleString('en-US', {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2,
-                            })} ريال
+                            })} <span className="text-xs">ريال</span>
                           </td>
-                          <td className={`p-3 border text-center font-semibold ${
+                          <td className={`p-3 border text-center font-semibold font-mono ${
                             Number(statement.netAmount) >= 0 ? 'text-green-600' : 'text-red-600'
                           }`}>
-                            {Number(statement.netAmount).toLocaleString('ar-SA', {
+                            {Number(statement.netAmount).toLocaleString('en-US', {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2,
-                            })} ريال
+                            })} <span className="text-xs">ريال</span>
                           </td>
-                          <td className="p-3 border text-center">
+                          <td className="p-3 border text-center font-mono">
                             {statement.commissionPercentage 
                               ? `${Number(statement.commissionPercentage)}%` 
                               : '-'}
@@ -863,12 +1107,14 @@ const arabicRegionMap: { [key: string]: string } = {
                           <td className="p-3 border text-center">
                             {statement.contractStatus || '-'}
                           </td>
-                          <td className="p-3 border text-center">
-                            {new Date(statement.createdAt).toLocaleDateString('ar-EG', {
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric',
-                            })}
+                          <td className="p-3 border text-center text-sm font-mono" dir="ltr">
+                            {(() => {
+                              const d = new Date(statement.createdAt);
+                              const y = d.getFullYear();
+                              const m = String(d.getMonth() + 1).padStart(2, '0');
+                              const day = String(d.getDate()).padStart(2, '0');
+                              return `${y}/${m}/${day}`;
+                            })()}
                           </td>
                           <td className="p-3 border">
                             <div className="flex gap-2 justify-center items-center">
@@ -898,27 +1144,27 @@ const arabicRegionMap: { [key: string]: string } = {
                           <td colSpan={2} className="p-3 border text-center">
                             الإجمالي
                           </td>
-                          <td className="p-3 border text-center">
-                            {financialStatements.reduce((sum, s) => sum + Number(s.totalRevenue), 0).toLocaleString('ar-SA', {
+                          <td className="p-3 border text-center font-mono">
+                            {financialStatements.reduce((sum, s) => sum + Number(s.totalRevenue), 0).toLocaleString('en-US', {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2,
-                            })} ريال
+                            })} <span className="text-xs">ريال</span>
                           </td>
-                          <td className="p-3 border text-center">
-                            {financialStatements.reduce((sum, s) => sum + Number(s.totalExpenses), 0).toLocaleString('ar-SA', {
+                          <td className="p-3 border text-center font-mono">
+                            {financialStatements.reduce((sum, s) => sum + Number(s.totalExpenses), 0).toLocaleString('en-US', {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2,
-                            })} ريال
+                            })} <span className="text-xs">ريال</span>
                           </td>
-                          <td className={`p-3 border text-center ${
+                          <td className={`p-3 border text-center font-mono ${
                             financialStatements.reduce((sum, s) => sum + Number(s.netAmount), 0) >= 0 
                               ? 'text-green-600' 
                               : 'text-red-600'
                           }`}>
-                            {financialStatements.reduce((sum, s) => sum + Number(s.netAmount), 0).toLocaleString('ar-SA', {
+                            {financialStatements.reduce((sum, s) => sum + Number(s.netAmount), 0).toLocaleString('en-US', {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2,
-                            })} ريال
+                            })} <span className="text-xs">ريال</span>
                           </td>
                           <td colSpan={4} className="p-3 border"></td>
                         </tr>
@@ -968,15 +1214,15 @@ const arabicRegionMap: { [key: string]: string } = {
                   </div>
                   <div className="flex justify-between py-1.5 border-b border-gray-200">
                     <span className="text-gray-500">الإيرادات:</span>
-                    <span className="font-semibold text-gray-800">{Number(deleteStatementModal.statement.totalRevenue).toLocaleString('ar-SA')} ريال</span>
+                    <span className="font-semibold text-gray-800 font-mono">{Number(deleteStatementModal.statement.totalRevenue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ريال</span>
                   </div>
                   <div className="flex justify-between py-1.5 border-b border-gray-200">
                     <span className="text-gray-500">المصروفات:</span>
-                    <span className="font-semibold text-gray-800">{Number(deleteStatementModal.statement.totalExpenses).toLocaleString('ar-SA')} ريال</span>
+                    <span className="font-semibold text-gray-800 font-mono">{Number(deleteStatementModal.statement.totalExpenses).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ريال</span>
                   </div>
                   <div className="flex justify-between py-1.5">
                     <span className="text-gray-500">الصافي:</span>
-                    <span className="font-semibold text-gray-800">{Number(deleteStatementModal.statement.netAmount).toLocaleString('ar-SA')} ريال</span>
+                    <span className="font-semibold text-gray-800 font-mono">{Number(deleteStatementModal.statement.netAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ريال</span>
                   </div>
                 </div>
 

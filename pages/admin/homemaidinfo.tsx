@@ -789,6 +789,21 @@ function HomeMaidInfo() {
            }
         }
       }
+      if (!externalDepDate && data.inHouse && data.inHouse.length > 0) {
+        for (const h of data.inHouse) {
+          if (h.deportationData?.externaldeparatureDate) {
+            externalDepDate = h.deportationData.externaldeparatureDate;
+            break;
+          }
+          if (h.deparatureHousingDate) {
+            externalDepDate = h.deparatureHousingDate;
+            break;
+          }
+        }
+      }
+      if (!externalDepDate && ((data.bookingstatus === 'مغادرة خارجية' || data.bookingstatus === 'مرحلة' || data.bookingstatus === 'ترحيل')) && data.updatedAt) {
+        externalDepDate = data.updatedAt;
+      }
 
       setFormData({
         Name: data.Name || "",
@@ -1614,7 +1629,7 @@ function HomeMaidInfo() {
                   </button>
 
                   {/* إعادة تنشيط العاملة */}
-                  {((formData as any).bookingstatus === 'مغادرة خارجية' || (formData as any).bookingstatus === 'غير لائقة طبيا' || (formData as any).bookingstatus === 'غير لائقة طبياً') && (
+                  {((formData as any).bookingstatus === 'مغادرة خارجية' || (formData as any).bookingstatus === 'مرحلة' || (formData as any).bookingstatus === 'ترحيل' || (formData as any).bookingstatus === 'غير لائقة طبيا' || (formData as any).bookingstatus === 'غير لائقة طبياً') && (
                     <button
                       onClick={() => {
                         handleReactivate();
@@ -1665,7 +1680,7 @@ function HomeMaidInfo() {
                   <div className="flex justify-between items-center mt-2">
                     {/* Stamp Container on the left */}
                     <div className="flex-1 flex justify-center items-center">
-                      {img.id === "Picture" && (formData as any).bookingstatus === 'مغادرة خارجية' && (
+                      {img.id === "Picture" && ((formData as any).bookingstatus === 'مغادرة خارجية' || (formData as any).bookingstatus === 'مرحلة' || (formData as any).bookingstatus === 'ترحيل') && (
                         <div className="border-4 border-red-600 rounded-lg p-2 opacity-80 transform -rotate-12 select-none pointer-events-none no-print shadow-md inline-block">
                           <div className="border-2 border-red-600 px-4 py-2 rounded">
                             <p className="text-red-600 font-bold text-xl tracking-widest text-center mb-1">مغادرة خارجية</p>

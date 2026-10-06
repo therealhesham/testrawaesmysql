@@ -292,34 +292,96 @@ const DesktopNavbar = () => {
                 <div className="absolute top-12 right-0 w-[400px] bg-white shadow-xl rounded-lg z-50 border border-gray-100 max-h-96 overflow-y-auto">
                   {searchResults.length > 0 ? (
                     <ul className="py-2">
-                      {searchResults.map((result, idx) => (
-                        <li key={idx} className="border-b border-gray-50 last:border-b-0">
-                          <Link href={result.url}>
-                            <a 
-                              className="block px-4 py-3 hover:bg-teal-50 transition-colors"
-                              onClick={() => setShowSearchResults(false)}
-                            >
-                              <div className="flex items-center gap-3">
-                                <div className={`p-2 rounded-full ${
-                                  result.type === 'client' ? 'bg-blue-100 text-blue-600' :
-                                  result.type === 'maid' ? 'bg-pink-100 text-pink-600' :
-                                  'bg-teal-100 text-teal-600'
-                                }`}>
-                                  {result.type === 'client' && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>}
-                                  {result.type === 'maid' && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>}
-                                  {result.type === 'order' && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
+                      {searchResults.map((result, idx) => {
+                        let iconBg = '#ccfbf1';
+                        let iconColor = '#0d9488';
+                        let badgeBg = '#f0fdfa';
+                        let badgeColor = '#0f766e';
+                        let badgeBorder = '#99f6e4';
+                        let badgeText = 'تفاصيل طلب';
+
+                        if (result.type === 'client') {
+                          iconBg = '#dbeafe';
+                          iconColor = '#2563eb';
+                          badgeBg = '#eff6ff';
+                          badgeColor = '#1d4ed8';
+                          badgeBorder = '#bfdbfe';
+                          badgeText = 'ملف عميل';
+                        } else if (result.type === 'maid') {
+                          iconBg = '#fce7f3';
+                          iconColor = '#db2777';
+                          badgeBg = '#fdf2f8';
+                          badgeColor = '#be185d';
+                          badgeBorder = '#fbcfe8';
+                          badgeText = 'ملف عاملة';
+                        } else if (result.type === 'transfer') {
+                          iconBg = '#ffedd5';
+                          iconColor = '#ea580c';
+                          badgeBg = '#fff7ed';
+                          badgeColor = '#c2410c';
+                          badgeBorder = '#fed7aa';
+                          badgeText = 'معاملة نقل كفالة';
+                        }
+
+                        return (
+                          <li key={idx} className="border-b border-gray-50 last:border-b-0">
+                            <Link href={result.url}>
+                              <a 
+                                className="block px-4 py-3 hover:bg-teal-50/60 transition-colors"
+                                onClick={() => setShowSearchResults(false)}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div
+                                    className="p-2 rounded-full shrink-0 flex items-center justify-center"
+                                    style={{ backgroundColor: iconBg, color: iconColor }}
+                                  >
+                                    {result.type === 'client' && (
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                      </svg>
+                                    )}
+                                    {result.type === 'maid' && (
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                      </svg>
+                                    )}
+                                    {result.type === 'order' && (
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                      </svg>
+                                    )}
+                                    {result.type === 'transfer' && (
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                      </svg>
+                                    )}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-semibold text-gray-800 truncate">{result.label}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <span
+                                        className="text-[11px] font-bold px-2 py-0.5 rounded border"
+                                        style={{
+                                          backgroundColor: badgeBg,
+                                          color: badgeColor,
+                                          borderColor: badgeBorder,
+                                        }}
+                                      >
+                                        {badgeText}
+                                      </span>
+                                      {result.subLabel && (
+                                        <span className="text-[11px] text-gray-500 font-medium truncate">
+                                          • {result.subLabel}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
                                 </div>
-                                <div>
-                                  <p className="text-sm font-semibold text-gray-800">{result.label}</p>
-                                  <span className="text-xs text-gray-500">
-                                    {result.type === 'client' ? 'ملف عميل' : result.type === 'maid' ? 'ملف عاملة' : 'تفاصيل طلب'}
-                                  </span>
-                                </div>
-                              </div>
-                            </a>
-                          </Link>
-                        </li>
-                      ))}
+                              </a>
+                            </Link>
+                          </li>
+                        );
+                      })}
                     </ul>
                   ) : (
                     !isSearching && (

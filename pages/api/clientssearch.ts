@@ -30,6 +30,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             phonenumber: true,
             nationalId: true,
             city: true,
+            alternativePhone: true,
+            dateofbirth: true,
           },
           take: 10, // Limit to 10 results for performance
         });
@@ -43,7 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Create a new client
     case 'POST':
       try {
-        const { fullname, phonenumber, nationalId, city } = req.body;
+        const { fullname, phonenumber, nationalId, city, alternativePhone, dateofbirth } = req.body;
 
         if (!fullname || !phonenumber || !nationalId) {
           return res.status(400).json({ error: 'الاسم، رقم الهاتف، ورقم الهوية مطلوبين' });
@@ -55,6 +57,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             phonenumber,
             nationalId,
             city,
+            alternativePhone: alternativePhone || null,
+            dateofbirth: dateofbirth ? new Date(dateofbirth) : null,
           },
           select: {
             id: true,
@@ -62,6 +66,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             phonenumber: true,
             nationalId: true,
             city: true,
+            alternativePhone: true,
+            dateofbirth: true,
           },
         });
 

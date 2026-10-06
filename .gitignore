@@ -66,3 +66,4 @@ database_updates_production.sql
 exported.csv
 .gitignore
 exported 4-5.xlsx
+production_migrations.sql

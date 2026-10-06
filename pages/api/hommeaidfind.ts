@@ -83,9 +83,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         where: {
           id: parseInt(id as string)
         },
-        include: {inHouse:{select:{
-   Reason:true,Details:true
-        }},
+        include: {
+          inHouse: {
+            select: {
+              Reason: true,
+              Details: true,
+              deparatureHousingDate: true,
+              deportationData: true,
+              medicalDepartureData: true,
+            }
+          },
           office: true,
           profession: true,
           logs: {

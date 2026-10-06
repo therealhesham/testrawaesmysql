@@ -262,6 +262,7 @@ export default function AccountingReviewPage() {
     else if (lower.includes('adel') || lower.includes('عادل')) keyword = 'عادل';
     else if (lower.includes('best migrant') || lower.includes('بيست')) keyword = 'بيست';
     else if (lower.includes('earth') || lower.includes('ايرث')) keyword = 'ايرث';
+    else if (lower.includes('palma') || lower.includes('بالما')) keyword = 'بالما';
 
     if (keyword) {
       const normKeyword = normalizeArabic(keyword);
@@ -617,6 +618,7 @@ export default function AccountingReviewPage() {
   const getOfficeArabicKeyword = (officeName: string) => {
     if (!officeName) return '';
     const o = officeName.toLowerCase();
+    if (o.includes('palma') || o.includes('بالما')) return 'بالما';
     if (o.includes('fidel') || o.includes('فيدل')) return 'فيدل';
     if (o.includes('jidar') || o.includes('جدار')) return 'جدار';
     if (o.includes('top high') || o.includes('توب هاي') || o.includes('tophigh') || o.includes('توب')) return 'توب هاي';
@@ -752,11 +754,22 @@ export default function AccountingReviewPage() {
       }
 
       // Find revenue account based on Office Name using specific office keywords only
-      const officeKw = getOfficeArabicKeyword(order.officeName);
+      const targetOffice = order.officeName || order.arrivals?.[0]?.office || order.office || '';
+      const officeKw = getOfficeArabicKeyword(targetOffice);
       if (officeKw) {
         const normKw = normalizeArabic(officeKw);
+        // Direct matching for Palma by code 4114001 or keywords
+        let directCodeAcc: any = null;
+        if (normKw === 'بالما') {
+          directCodeAcc = postingAccounts.find((acc: any) => {
+            const a = acc.JournalAccount || acc;
+            const code = String(a.code || '');
+            return code === '4114001' || code === '4114';
+          });
+        }
+
         // Prioritize accounts that explicitly start with or contain "ايراد" and NEVER "مردود" or "مصروف"
-        const matchedRevenueAcc = postingAccounts.find((acc: any) => {
+        const matchedRevenueAcc = directCodeAcc || postingAccounts.find((acc: any) => {
           const a = acc.JournalAccount || acc;
           const name = (a.name || '').trim();
           const normName = normalizeArabic(name);
@@ -768,6 +781,12 @@ export default function AccountingReviewPage() {
           const normName = normalizeArabic(name);
           if (normName.includes('مردود') || normName.includes('مصروف') || normName.includes('ضريب')) return false;
           return normName.includes('ايراد') && normName.includes(normKw);
+        }) || postingAccounts.find((acc: any) => {
+          const a = acc.JournalAccount || acc;
+          const name = (a.name || '').trim();
+          const normName = normalizeArabic(name);
+          if (normName.includes('مردود') || normName.includes('مصروف') || normName.includes('ضريب')) return false;
+          return normName.includes(normKw);
         });
         if (matchedRevenueAcc) {
           const a = matchedRevenueAcc.JournalAccount || matchedRevenueAcc;

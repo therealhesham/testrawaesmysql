@@ -113,7 +113,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       });
 
-      // Get order data separately if orderId exists
+      // Get order or transfer data separately
       let orderData = null;
       if ((statement as any)?.orderId) {
         orderData = await prisma.neworder.findUnique({
@@ -139,6 +139,71 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           if (rawOrder && rawOrder[0]) {
             orderData.Total = rawOrder[0].Total != null ? Number(rawOrder[0].Total) : orderData.Total;
             orderData.paid = rawOrder[0].paid != null ? Number(rawOrder[0].paid) : orderData.paid;
+          }
+        }
+      } else if (statement?.contractNumber?.startsWith('TRF-')) {
+        const transferId = parseInt(statement.contractNumber.replace('TRF-', ''));
+        if (!isNaN(transferId)) {
+          const transfer = await prisma.transferSponsorShips.findUnique({
+            where: { id: transferId },
+            include: {
+              HomeMaid: {
+                include: {
+                  office: true,
+                },
+              },
+              NewClient: true,
+              OldClient: true,
+            },
+          });
+
+          if (transfer) {
+            const hw = await prisma.housedworker.findFirst({
+              where: {
+                OR: [
+                  { homeMaid_id: transfer.HomeMaidId || undefined },
+                  { externalHomedmaidId: transfer.HomeMaidId || undefined },
+                ],
+              },
+              orderBy: { id: 'desc' },
+            });
+
+            const maidCountry = transfer.HomeMaid?.Nationality || transfer.HomeMaid?.Nationalitycopy || 'إثيوبيا';
+
+            orderData = {
+              id: transfer.id,
+              isTransfer: true,
+              ClientName: transfer.NewClient?.fullname || statement.client?.fullname || '',
+              PhoneNumber: transfer.NewClient?.phonenumber || statement.client?.phonenumber || '',
+              createdAt: transfer.createdAt || statement.createdAt,
+              bookingstatus: transfer.transferStage || 'تم نقل الكفالة',
+              profileStatus: transfer.transferStage || 'تم نقل الكفالة',
+              typeOfContract: 'transfer',
+              Total: transfer.Cost ? Number(transfer.Cost) : Number(statement.totalRevenue || 0),
+              paid: transfer.Paid ? Number(transfer.Paid) : Number(statement.netAmount || 0),
+              HomeMaid: transfer.HomeMaid ? {
+                id: transfer.HomeMaid.id,
+                Name: transfer.HomeMaid.Name,
+                Nationality: maidCountry,
+                Passportnumber: transfer.HomeMaid.Passportnumber || '',
+                phone: transfer.HomeMaid.phone || null,
+                Experience: transfer.HomeMaid.Experience || '',
+                officeName: 'معاملات نقل الكفالة',
+                oldClientName: transfer.OldClient?.fullname || '',
+                oldClientPhone: transfer.OldClient?.phonenumber || '',
+                office: {
+                  Country: maidCountry,
+                  office: 'معاملات نقل الكفالة',
+                  phoneNumber: transfer.HomeMaid.phone || '',
+                },
+              } : null,
+              arrivals: [
+                {
+                  KingdomentryDate: transfer.EntryDate || (hw as any)?.kingdomentryDate || (hw as any)?.KingdomentryDate || null,
+                  GuaranteeDurationEnd: (hw as any)?.GuaranteeDurationEnd || null,
+                },
+              ],
+            };
           }
         }
       }
@@ -171,7 +236,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       // إعادة حساب الرصيد الجاري لكل قيد: مدين يزيد، دائن يقلل
       let runningBalance = 0;
-      const entriesWithBalance = sortedEntries.map((e: { id: number; date: Date; description: string; debit: Prisma.Decimal; credit: Prisma.Decimal; balance: Prisma.Decimal; entryType: string; isEditable?: boolean; [k: string]: any }) => {
+      const entriesWithBalance = sortedEntries.map((e: any) => {
         runningBalance += Number(e.debit) - Number(e.credit);
         return { ...e, balance: runningBalance };
       });

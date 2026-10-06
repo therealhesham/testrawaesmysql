@@ -6,10 +6,44 @@ import { jwtDecode } from "jwt-decode";
 export default async function handler(req: NextApiRequest, res: NextApiResponse){
   const { id } = req.query;
   if(req.method === 'GET'){
-  const client = await prisma.client.findUnique({include:{visa:true, orders:true},
-    where: { id: Number(id) },
-  });
-  res.status(200).json(client);
+    const client = await prisma.client.findUnique({
+      where: { id: Number(id) },
+      include: {
+        visa: true,
+        orders: {
+          include: {
+            HomeMaid: true,
+            arrivals: true,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
+      },
+    });
+
+    if (!client) {
+      return res.status(404).json({ error: 'العميل غير موجود' });
+    }
+
+    const transfers = await prisma.transferSponsorShips.findMany({
+      where: {
+        OR: [
+          { NewClientId: Number(id) },
+          { OldClientId: Number(id) },
+        ],
+      },
+      include: {
+        HomeMaid: true,
+        NewClient: true,
+        OldClient: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    res.status(200).json({ ...client, transfers });
   }
   if(req.method === 'POST'){
     const { id, fullname, phonenumber } = req.body;

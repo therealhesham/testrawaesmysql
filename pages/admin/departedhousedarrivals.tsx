@@ -6,6 +6,7 @@ import * as React from "react";
 import { useEffect, useState, useCallback, useRef } from "react";
 import jwt from "jsonwebtoken";
 import { jwtDecode } from "jwt-decode";
+import prisma from "lib/prisma";
 import {
   Button,
   Modal,
@@ -21,7 +22,6 @@ import {
 } from "@mui/material";
 import Style from "styles/Home.module.css";
 import { FaHouseUser } from "react-icons/fa";
-import { set } from "mongoose";
 
 export default function Table() {
   const [employeeType, setEmployeeType] = useState("");
@@ -29,12 +29,12 @@ export default function Table() {
   const [timeDeparature, setTimeDeparature] = useState("");
   const [deparatureFromSaudi, setDeparatureFromSaudi] = useState("");
   // Handler for updating the departure date
-  const handleDateChange = (e) => {
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setDeparatureDate(e.target.value);
   };
 
   // Handler for updating the departure time
-  const handleTimeChange = (e) => {
+  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setTimeDeparature(e.target.value);
   };
 
@@ -105,12 +105,12 @@ export default function Table() {
     setOpenEditModal(false);
   };
   const router = useRouter();
-  const [data, setData] = useState([]);
+  const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+  const [sortConfig, setSortConfig] = useState<{ key: any; direction: string }>({ key: null, direction: "asc" });
   const [openAddModal, setOpenAddModal] = useState(false);
-  const [newHomeMaid, setNewHomeMaid] = useState({});
+  const [newHomeMaid, setNewHomeMaid] = useState<any>({});
   const [newExternalHomemaid, setExternalHomemaid] = useState({
     Nationalitycopy: "",
     Name: "",
@@ -152,7 +152,7 @@ export default function Table() {
   const isFetchingRef = useRef(false);
   const [ID, setID] = useState("");
 
-  function getDate(date) {
+  function getDate(date: any) {
     const currentDate = new Date(date);
     const form = currentDate.toISOString().split("T")[0];
     return form;
@@ -201,13 +201,16 @@ export default function Table() {
     }
   }
   const [employeeName, setEmployeeName] = useState("");
-  const postData = async (e) => {
+  const postData = async (e: React.FormEvent) => {
     setLoadingScreen(true);
     setLoading(true);
     try {
-      const decoded = jwtDecode(localStorage.getItem("token"));
-      console.log(decoded);
-      setEmployee(decoded.username);
+      const token = typeof window !== 'undefined' ? localStorage.getItem("token") : null;
+      if (token) {
+        const decoded: any = jwtDecode(token);
+        console.log(decoded);
+        setEmployee(decoded.username);
+      }
     } catch (e) {
       setLoading(false);
 
@@ -299,12 +302,17 @@ export default function Table() {
   const [dateStatus, setDateStatus] = useState("");
   const postUpdatedStatus = async () => {
     try {
-      const decoded = jwtDecode(localStorage.getItem("token"));
-      console.log(decoded);
-      setEmployee(decoded.username);
+      const token = typeof window !== 'undefined' ? localStorage.getItem("token") : null;
+      if (token) {
+        const decoded: any = jwtDecode(token);
+        console.log(decoded);
+        setEmployee(decoded.username);
+      }
     } catch (e) {
       router.push("/login");
     }
+    const token = typeof window !== 'undefined' ? localStorage.getItem("token") : null;
+    const currentEmployee = token ? (jwtDecode(token) as any)?.username : "";
     const response = await fetch("/api/weekly-status", {
       method: "POST",
       headers: {
@@ -314,7 +322,7 @@ export default function Table() {
         status,
         ID,
         date: dateStatus,
-        employee: jwtDecode(localStorage.getItem("token")).username,
+        employee: currentEmployee,
       }),
     });
     const data = await response.json();
@@ -338,7 +346,7 @@ export default function Table() {
   const handleCloseStatusModal = () => {
     setOpenStatusModal(false);
   };
-  const updateHousingStatus = async (homeMaidId) => {
+  const updateHousingStatus = async (homeMaidId: any) => {
     const response = await fetch("/api/confirmhousing", {
       method: "POST",
       headers: {
@@ -354,7 +362,7 @@ export default function Table() {
     }
   };
 
-  const handleRowClick = (id) => {
+  const handleRowClick = (id: any) => {
     setExpandedRow((prevRow) => (prevRow === id ? null : id));
   };
 
@@ -375,7 +383,7 @@ export default function Table() {
     [loading, hasMore]
   );
 
-  const handleEmployeeChange = (e) => {
+  const handleEmployeeChange = (e: any) => {
     setEmployeeType(e.target.value);
   };
   const [date, setDate] = useState("");
@@ -383,9 +391,12 @@ export default function Table() {
   useEffect(() => {
     setLoading(true);
     try {
-      const decoded = jwtDecode(localStorage.getItem("token"));
-      console.log(decoded);
-      setEmployee(decoded.username);
+      const token = typeof window !== 'undefined' ? localStorage.getItem("token") : null;
+      if (token) {
+        const decoded: any = jwtDecode(token);
+        console.log(decoded);
+        setEmployee(decoded.username);
+      }
     } catch (e) {
       setLoading(false);
       router.push("admin/login");
@@ -405,7 +416,7 @@ export default function Table() {
     }));
   };
 
-  const requestSort = (key) => {
+  const requestSort = (key: any) => {
     let direction = "asc";
     if (sortConfig.key === key && sortConfig.direction === "asc") {
       direction = "desc";
@@ -458,7 +469,7 @@ export default function Table() {
     setSearchQuery(""); // إعادة تعيين مربع البحث
   };
 
-  const handleNewHomeMaidChange = (e) => {
+  const handleNewHomeMaidChange = (e: any) => {
     const { name, value, type, checked } = e.target;
     setExternalHomemaid((prev) => ({
       ...prev,
@@ -469,11 +480,12 @@ export default function Table() {
   const handleSaveNewHomeMaid = async () => {
     setLoading(true);
     try {
-      const decoded = jwtDecode(localStorage.getItem("token"));
-      console.log(decoded);
-
-      setEmployee(decoded.username);
-      // if (reason.length < 1) return alert("يرجى ادخال سبب التسكين");
+      const token = typeof window !== 'undefined' ? localStorage.getItem("token") : null;
+      if (token) {
+        const decoded: any = jwtDecode(token);
+        console.log(decoded);
+        setEmployee(decoded.username);
+      }
     } catch (error) {
       setLoading(false);
 
@@ -545,7 +557,7 @@ export default function Table() {
     }
   };
 
-  const newSearchedHomeMaid = (e) => {
+  const newSearchedHomeMaid = (e: any) => {
     setNewHomeMaid(e);
     setIsPassportVerified(true);
     setFindResults(false);
@@ -554,7 +566,7 @@ export default function Table() {
   const [nameQuery, setNameQuery] = useState("");
   const [idQuery, setIdQuery] = useState("");
 
-  const [results, setResults] = useState([]);
+  const [results, setResults] = useState<any[]>([]);
   const [findResults, setFindResults] = useState(false);
   // const [employee, setEmployee] = useState("");
   const [isPasportVerified, setIsPassportVerified] = useState(false);
@@ -965,14 +977,14 @@ export default function Table() {
             {data.length === 0 ? (
               <tr>
                 <td
-                  colSpan="9"
+                  colSpan={9}
                   className="p-3 text-center text-sm text-gray-500"
                 >
                   No results found
                 </td>
               </tr>
             ) : (
-              data.map((item) => (
+              data.map((item: any) => (
                 <React.Fragment key={item.id}>
                   <tr className="border-t">
                     {/* <td>
@@ -1081,7 +1093,7 @@ export default function Table() {
                   </tr>
                   {expandedRow === item.id && (
                     <tr className="bg-gray-100">
-                      <td colSpan="9" className="p-3 text-center">
+                      <td colSpan={9} className="p-3 text-center">
                         <div>
                           <p>{item?.Details}</p>
                         </div>
@@ -1321,15 +1333,14 @@ export default function Table() {
                     className="rounded-md"
                     onChange={(e) => setReason(e.target.value)}
                   >
-                    <option value="">...</option>
-
-                    <option value="نقل كفالة">نقل كفالة</option>
-                    <option value="انتظار الترحيل">انتظار الترحيل</option>
-                    <option value="مشكلة مكتب العمل">مشكلة مكتب العمل</option>
-                    <option value="رفض العمل للسفر">رفض العامل للسفر</option>
-                    <option value="رفض العم لنقل الكفالة">
-                      رفض العامل لنقل الكفالة
-                    </option>
+                    <option value="">-- اختر سبب التسكين --</option>
+                    <option value="رفض الكفيل للعاملة">رفض الكفيل للعاملة</option>
+                    <option value="رفض العاملة للكفيل">رفض العاملة للكفيل</option>
+                    <option value="استلام من إيواء الوزارة (سلسك -slesk)">استلام من إيواء الوزارة (سلسك -slesk)</option>
+                    <option value="حالة مرضية">حالة مرضية</option>
+                    <option value="حمل">حمل</option>
+                    <option value="تغييب عن العمل (هروب )">تغييب عن العمل (هروب )</option>
+                    <option value="عدم استلام الكفيل للعاملة بعد الوصول">عدم استلام الكفيل للعاملة بعد الوصول</option>
                   </select>
                 </div>
 
@@ -1431,8 +1442,9 @@ export default function Table() {
                     className=" left-0 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-md "
                   >
                     <ul>
-                      {results.map((e) => (
+                      {results.map((e: any) => (
                         <li
+                          key={e.id}
                           className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
                           onClick={() => newSearchedHomeMaid(e)}
                         >
@@ -1510,19 +1522,14 @@ export default function Table() {
                         className="rounded-md"
                         onChange={(e) => setReason(e.target.value)}
                       >
-                        <option value="">...</option>
-
-                        <option value="نقل كفالة">نقل كفالة</option>
-                        <option value="انتظار الترحيل">انتظار الترحيل</option>
-                        <option value="مشكلة مكتب العمل">
-                          مشكلة مكتب العمل
-                        </option>
-                        <option value="رفض العمل للسفر">
-                          رفض العامل للسفر
-                        </option>
-                        <option value="رفض العم لنقل الكفالة">
-                          رفض العمل لنقل الكفالة
-                        </option>
+                        <option value="">-- اختر سبب التسكين --</option>
+                        <option value="رفض الكفيل للعاملة">رفض الكفيل للعاملة</option>
+                        <option value="رفض العاملة للكفيل">رفض العاملة للكفيل</option>
+                        <option value="استلام من إيواء الوزارة (سلسك -slesk)">استلام من إيواء الوزارة (سلسك -slesk)</option>
+                        <option value="حالة مرضية">حالة مرضية</option>
+                        <option value="حمل">حمل</option>
+                        <option value="تغييب عن العمل (هروب )">تغييب عن العمل (هروب )</option>
+                        <option value="عدم استلام الكفيل للعاملة بعد الوصول">عدم استلام الكفيل للعاملة بعد الوصول</option>
                       </select>
                     </div>
 
@@ -1634,7 +1641,7 @@ export default function Table() {
                   fullWidth
                   label="اسم المكتب"
                   name="officeName"
-                  value={newHomeMaid.officeName}
+                  value={newExternalHomemaid.officeName}
                   onChange={handleNewHomeMaidChange}
                   margin="normal"
                 />
@@ -1680,15 +1687,14 @@ export default function Table() {
                     className="rounded-md"
                     onChange={handleNewHomeMaidChange}
                   >
-                    <option value="">...</option>
-
-                    <option value="نقل كفالة">نقل كفالة</option>
-                    <option value="انتظار الترحيل">انتظار الترحيل</option>
-                    <option value="مشكلة مكتب العمل">مشكلة مكتب العمل</option>
-                    <option value="رفض العمل للسفر">رفض العمل للسفر</option>
-                    <option value="رفض العم لنقل الكفالة">
-                      رفض العمل لنقل الكفالة
-                    </option>
+                    <option value="">-- اختر سبب التسكين --</option>
+                    <option value="رفض الكفيل للعاملة">رفض الكفيل للعاملة</option>
+                    <option value="رفض العاملة للكفيل">رفض العاملة للكفيل</option>
+                    <option value="استلام من إيواء الوزارة (سلسك -slesk)">استلام من إيواء الوزارة (سلسك -slesk)</option>
+                    <option value="حالة مرضية">حالة مرضية</option>
+                    <option value="حمل">حمل</option>
+                    <option value="تغييب عن العمل (هروب )">تغييب عن العمل (هروب )</option>
+                    <option value="عدم استلام الكفيل للعاملة بعد الوصول">عدم استلام الكفيل للعاملة بعد الوصول</option>
                   </select>
                 </div>
                 <TextField
@@ -1781,12 +1787,12 @@ export default function Table() {
 }
 
 
-export async function getServerSideProps({ req }) {
+export async function getServerSideProps({ req }: { req: any }) {
   try {
     const cookieHeader = req.headers.cookie;
     let cookies: { [key: string]: string } = {};
     if (cookieHeader) {
-      cookieHeader.split(";").forEach((cookie) => {
+      cookieHeader.split(";").forEach((cookie: string) => {
         const [key, value] = cookie.trim().split("=");
         cookies[key] = decodeURIComponent(value);
       });
@@ -1798,13 +1804,14 @@ export async function getServerSideProps({ req }) {
       };
     }
 
-    const token = jwtDecode(cookies.authToken);
+    const token: any = jwtDecode(cookies.authToken);
     const findUser = await prisma.user.findUnique({
       where: { id: token.id },
       include: { role: true },
     });
 
-    const hasPermission = findUser && findUser.role?.permissions?.["إدارة الوصول و المغادرة"]?.["عرض"];
+    const permissions = findUser?.role?.permissions as any;
+    const hasPermission = findUser && permissions?.["إدارة الوصول و المغادرة"]?.["عرض"];
 
     return {
       props: {

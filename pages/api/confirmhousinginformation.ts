@@ -1,6 +1,7 @@
 import { jwtDecode } from "jwt-decode";
 import prisma from "./globalprisma";
 import { getPageTitleArabic } from "lib/pageTitleHelper";
+import { processDueScheduledDepartures } from "lib/housingDepartureHelper";
 
 // Helper function to get user info from cookies
 const getUserFromCookies = (req: any) => {
@@ -81,6 +82,20 @@ export default async function handler(req: any, res: any) {
       isHasEntitlements,
       entitlementsCost,
       entitlementReason,
+      actionTaken,
+      medicalReportFile,
+      salaryReceived,
+      salaryRemainingAmount,
+      hasPhone,
+      phoneReason,
+      hasIqama,
+      iqamaReason,
+      hasPassport,
+      passportReason,
+      hasPersonalItems,
+      personalItemsDetails,
+      medicalCheckDone,
+      visaType,
     } = req.body;
 
     if (!req.body.reason)
@@ -167,7 +182,7 @@ if (req.body.location) {
           .json({ error: "سجل التسكين موجود بالفعل، استخدم PUT للتحديث" });
       }
 
-      await prisma.housedworker.create({
+      const createdHousedWorker = await prisma.housedworker.create({
         data: {
           checkIns: {
             create: {
@@ -181,6 +196,8 @@ if (req.body.location) {
           location_id: Number(req.body.location),
           employee: req.body.employee,
           Reason: req.body.reason,
+          actionTaken: req.body.actionTaken || null,
+          medicalReportFile: medicalReportFile || null,
           Details: req.body.details,
           houseentrydate: newObj.houseentrydate
             ? new Date(newObj.houseentrydate as string)
@@ -191,11 +208,43 @@ if (req.body.location) {
           homeMaid_id: homeMaidId,
           deparatureHousingDate: null,
           isHasEntitlements:
-            isHasEntitlements !== undefined ? isHasEntitlements : true,
-          entitlementsCost: entitlementsCost ? Number(entitlementsCost) : null,
-          entitlementReason: entitlementReason || null,
-        },
+            salaryReceived !== undefined ? !Boolean(salaryReceived) : (isHasEntitlements !== undefined ? isHasEntitlements : false),
+          entitlementsCost:
+            salaryReceived === false && salaryRemainingAmount ? Number(salaryRemainingAmount) : (entitlementsCost ? Number(entitlementsCost) : null),
+          entitlementReason: salaryReceived === false ? (entitlementReason || null) : null,
+          salaryReceived: salaryReceived !== undefined ? Boolean(salaryReceived) : true,
+          salaryRemainingAmount:
+            salaryReceived === false && salaryRemainingAmount !== undefined && salaryRemainingAmount !== null && salaryRemainingAmount !== ""
+              ? Number(salaryRemainingAmount)
+              : null,
+          hasPhone: hasPhone !== undefined ? Boolean(hasPhone) : true,
+          phoneReason: phoneReason || null,
+          hasIqama: hasIqama !== undefined ? Boolean(hasIqama) : true,
+          iqamaReason: iqamaReason || null,
+          hasPassport: hasPassport !== undefined ? Boolean(hasPassport) : true,
+          passportReason: passportReason || null,
+          hasPersonalItems: hasPersonalItems !== undefined ? Boolean(hasPersonalItems) : false,
+          personalItemsDetails: personalItemsDetails || null,
+          medicalCheckDone: medicalCheckDone !== undefined ? Boolean(medicalCheckDone) : false,
+          visaType: visaType || 'مدفوعة',
+        } as any,
       });
+
+      // حفظ ملاحظة التسكين الأولية
+      if (req.body.details || req.body.reason) {
+        try {
+          const initialNoteText = `[ملاحظة التسكين] سبب التسكين: ${req.body.reason}${req.body.details ? ` | التفاصيل: ${req.body.details}` : ''}${req.body.actionTaken ? ` | الإجراء: ${req.body.actionTaken}` : ''}`;
+          await prisma.housedWorkerNotes.create({
+            data: {
+              notes: initialNoteText,
+              housedWorkerId: createdHousedWorker.id,
+              employee: req.body.employee || 'غير محدد',
+            },
+          });
+        } catch (noteErr) {
+          console.error('Error creating initial housedWorkerNote:', noteErr);
+        }
+      }
 
       try{ 
              await prisma.logs.create({
@@ -257,6 +306,8 @@ if (req.body.location) {
       housedWorkerId,
       employee,
       reason,
+      actionTaken,
+      medicalReportFile,
       details,
       houseentrydate,
       deliveryDate,
@@ -264,6 +315,18 @@ if (req.body.location) {
       isHasEntitlements,
       entitlementsCost,
       entitlementReason,
+      salaryReceived,
+      salaryRemainingAmount,
+      hasPhone,
+      phoneReason,
+      hasIqama,
+      iqamaReason,
+      hasPassport,
+      passportReason,
+      hasPersonalItems,
+      personalItemsDetails,
+      medicalCheckDone,
+      visaType,
       maidName,
       maidPhone,
       maidDateOfBirth,
@@ -312,6 +375,8 @@ if (req.body.location) {
           ...(location_id && location_id !== 0 && { location_id }),
           employee,
           Reason: reason,
+          ...(actionTaken !== undefined && { actionTaken: actionTaken || null }),
+          ...(medicalReportFile !== undefined && { medicalReportFile: medicalReportFile || null }),
           Details: details,
           houseentrydate: houseentrydate
             ? new Date(houseentrydate).toISOString()
@@ -319,40 +384,101 @@ if (req.body.location) {
           deliveryDate: deliveryDate
             ? new Date(deliveryDate).toISOString()
             : search.deliveryDate,
-          ...(isRehousing && { deparatureHousingDate: null }),
+          ...(isRehousing && {
+            deparatureHousingDate: null,
+            isActive: true,
+            actionTaken: null,
+            deparatureReason: null,
+            deportationData: null,
+            medicalDepartureData: null,
+            transferSponsorshipData: null,
+          }),
           isHasEntitlements:
-            isHasEntitlements !== undefined
-              ? isHasEntitlements
-              : (search as any).isHasEntitlements,
+            salaryReceived !== undefined
+              ? !Boolean(salaryReceived)
+              : (isHasEntitlements !== undefined ? isHasEntitlements : (search as any).isHasEntitlements),
           entitlementsCost:
-            entitlementsCost !== undefined
-              ? entitlementsCost !== null && entitlementsCost !== "" ? Number(entitlementsCost) : null
-              : (search as any).entitlementsCost,
+            salaryReceived !== undefined
+              ? (Boolean(salaryReceived) ? null : (salaryRemainingAmount ? Number(salaryRemainingAmount) : null))
+              : (entitlementsCost !== undefined ? (entitlementsCost !== null && entitlementsCost !== "" ? Number(entitlementsCost) : null) : (search as any).entitlementsCost),
           entitlementReason:
-            entitlementReason !== undefined
-              ? entitlementReason
-              : (search as any).entitlementReason,
+            salaryReceived !== undefined
+              ? (Boolean(salaryReceived) ? null : (entitlementReason || null))
+              : (entitlementReason !== undefined ? entitlementReason : (search as any).entitlementReason),
+          ...(salaryReceived !== undefined && {
+            salaryReceived: Boolean(salaryReceived),
+            salaryRemainingAmount: Boolean(salaryReceived)
+              ? null
+              : (salaryRemainingAmount !== null && salaryRemainingAmount !== "" ? Number(salaryRemainingAmount) : null),
+          }),
+          ...(hasPhone !== undefined && { hasPhone: Boolean(hasPhone) }),
+          ...(phoneReason !== undefined && { phoneReason: phoneReason || null }),
+          ...(hasIqama !== undefined && { hasIqama: Boolean(hasIqama) }),
+          ...(iqamaReason !== undefined && { iqamaReason: iqamaReason || null }),
+          ...(hasPassport !== undefined && { hasPassport: Boolean(hasPassport) }),
+          ...(passportReason !== undefined && { passportReason: passportReason || null }),
+          ...(hasPersonalItems !== undefined && { hasPersonalItems: Boolean(hasPersonalItems) }),
+          ...(personalItemsDetails !== undefined && { personalItemsDetails: personalItemsDetails || null }),
+          ...(medicalCheckDone !== undefined && { medicalCheckDone: Boolean(medicalCheckDone) }),
+          ...(req.body.expectedStayDuration !== undefined && { expectedStayDuration: req.body.expectedStayDuration || null }),
         },
       });
 
       if (search.homeMaid_id) {
+        const maidData: any = {
+          ...(maidName !== undefined && { Name: maidName || null }),
+          ...(maidPhone !== undefined && { phone: maidPhone || null }),
+          ...(maidDateOfBirth !== undefined && {
+            dateofbirth: maidDateOfBirth
+              ? new Date(maidDateOfBirth as string)
+              : null,
+          }),
+        };
+
+        if (isRehousing) {
+          maidData.bookingstatus = "";
+          maidData.isApproved = true;
+        }
+
         await prisma.homemaid.update({
           where: { id: search.homeMaid_id },
-          data: {
-            ...(maidName !== undefined && { Name: maidName || null }),
-            ...(maidPhone !== undefined && { phone: maidPhone || null }),
-            ...(maidDateOfBirth !== undefined && {
-              dateofbirth: maidDateOfBirth
-                ? new Date(maidDateOfBirth as string)
-                : null,
-            }),
-          },
+          data: maidData,
         });
+
+        if (isRehousing) {
+          // Unhide orders and make available
+          await prisma.neworder.updateMany({
+            where: { HomemaidId: search.homeMaid_id },
+            data: {
+              isHidden: false,
+              isAvailable: true,
+            },
+          });
+
+          // Reset external departure data in arrivallist
+          await prisma.arrivallist.updateMany({
+            where: { HomemaIdnumber: search.homeMaid_id },
+            data: {
+              externaldeparatureDate: null,
+              externaldeparatureTime: null,
+              externaldeparatureCity: null,
+              externalArrivalCity: null,
+              externalArrivalCityDate: null,
+              externalArrivalCityTime: null,
+              externalTicketFile: null,
+              externalReason: null,
+              deliveryOfficer: null,
+            },
+          });
+        }
       } else if (search.externalHomedmaidId) {
         await prisma.externalHomedmaid.update({
           where: { id: search.externalHomedmaidId },
           data: {
             ...(maidName !== undefined && { name: maidName || null }),
+            ...(req.body.maidImage !== undefined && { image: req.body.maidImage || null }),
+            ...(req.body.image !== undefined && { image: req.body.image || null }),
+            ...(req.body.passportNumber !== undefined && { passportNumber: req.body.passportNumber || null }),
             ...(maidPhone !== undefined && { phone: maidPhone || null }),
             ...(maidDateOfBirth !== undefined && {
               dateofbirth: maidDateOfBirth
@@ -363,18 +489,20 @@ if (req.body.location) {
           },
         });
       }
-try {
-      await prisma.logs.create({
-        data: {
-          Status: `تم تعديل بيانات التسكين `,
-          userId: employee,
-          Details: `تم تعديل بيانات التسكين للعاملة المنزلية بتاريخ `,
-          homemaidId: search.homeMaid_id,
-        } as any,
-      });
-} catch (error) {
-  console.log(error)
-}
+      try {
+        await prisma.logs.create({
+          data: {
+            Status: isRehousing ? `إعادة تسكين` : `تم تعديل بيانات التسكين `,
+            userId: employee,
+            Details: isRehousing
+              ? `إعادة تسكين العاملة في السكن بتاريخ ${houseentrydate || ''} وإلغاء المغادرة / إعادة تنشيط الملف`
+              : `تم تعديل بيانات التسكين للعاملة المنزلية بتاريخ `,
+            homemaidId: search.homeMaid_id,
+          } as any,
+        });
+      } catch (error) {
+        console.log(error)
+      }
       const userInfo = getUserFromCookies(req);
       if (userInfo.userId) {
         const workerName =
@@ -416,11 +544,16 @@ try {
       });
     }
 
-    const token = jwtDecode(cookies.authToken) as any;
-    const findUser = await prisma.user.findUnique({
+    let token: any = null;
+    if (cookies.authToken && typeof cookies.authToken === 'string') {
+      try {
+        token = jwtDecode(cookies.authToken) as any;
+      } catch (e) {}
+    }
+    const findUser = token?.id ? await prisma.user.findUnique({
       where: { id: token.id },
       include: { role: true },
-    });
+    }) : null;
 
     // تسجيل عملية العرض في systemlogs
     const userInfo = getUserFromCookies(req);
@@ -435,14 +568,27 @@ try {
       );
     }
 
+    try {
+      // Auto-execute any scheduled departures whose flight departure time has arrived
+      await processDueScheduledDepartures();
+    } catch (autoDepErr) {
+      console.error('Error running processDueScheduledDepartures:', autoDepErr);
+    }
+
     const {
       Name,
       age,
       reason,
+      actionTaken,
+      warrantyStatus,
+      profession,
+      job,
+      Nationality,
+      nationality,
       Passportnumber,
       id,
-      Nationality,
-      page,houseentrydate,
+      page,
+      houseentrydate,
       sortKey,
       sortDirection,
       contractType,
@@ -450,13 +596,66 @@ try {
       location,
     } = req.query;
 
+    const targetProfession = (profession as string) || (job as string) || "";
+    const targetNationality = (Nationality as string) || (nationality as string) || "";
+    const nationalityParts = targetNationality
+      ? Array.from(new Set([targetNationality, ...targetNationality.split(/[-–—/]/).map((s) => s.trim())])).filter(Boolean)
+      : [];
+
+    const nationalityOrderCondition = nationalityParts.length > 0
+      ? {
+          OR: nationalityParts.map((part) => ({
+            Nationalitycopy: { contains: part },
+          })),
+        }
+      : undefined;
+
+    const nationalityExternalCondition = nationalityParts.length > 0
+      ? {
+          OR: nationalityParts.map((part) => ({
+            nationality: { contains: part },
+          })),
+        }
+      : undefined;
+
     const pageSize = parseInt(size as string, 10) || 10;
     const pageNumber = parseInt(page as string, 10) || 1;
 
     // تضمين العاملات الداخلية (من homemaids) والخارجية (من externalHomedmaid)
     const searchString = (Name as string) || (Passportnumber as string) || "";
     
-    const orderFilters: any = searchString || id || contractType
+    // شروط الضمان
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    const now = new Date();
+    const warrantyOrderCondition: any = warrantyStatus === 'valid'
+      ? {
+          some: {
+            arrivals: {
+              some: {
+                OR: [
+                  { GuaranteeDurationEnd: { gte: now } },
+                  { KingdomentryDate: { gte: ninetyDaysAgo } },
+                ],
+              },
+            },
+          },
+        }
+      : warrantyStatus === 'expired'
+      ? {
+          some: {
+            arrivals: {
+              some: {
+                OR: [
+                  { GuaranteeDurationEnd: { lt: now } },
+                  { KingdomentryDate: { lt: ninetyDaysAgo } },
+                ],
+              },
+            },
+          },
+        }
+      : undefined;
+
+    const orderFilters: any = searchString || id || contractType || nationalityOrderCondition || targetProfession || warrantyOrderCondition
       ? {
           ...(searchString && {
             OR: [
@@ -465,13 +664,27 @@ try {
               { phone: { contains: searchString } },
               { NewOrder: { some: { ClientName: { contains: searchString } } } },
               { NewOrder: { some: { client: { fullname: { contains: searchString } } } } },
+              { NewOrder: { some: { client: { nationalId: { contains: searchString } } } } },
+              { NewOrder: { some: { nationalId: { contains: searchString } } } },
+              { NewOrder: { some: { clientphonenumber: { contains: searchString } } } },
+              { NewOrder: { some: { PhoneNumber: { contains: searchString } } } },
             ]
           }),
           ...(id && { id: { equals: Number(id) } }),
+          ...(nationalityOrderCondition && nationalityOrderCondition),
+          ...(targetProfession && {
+            OR: [
+              { profession: { name: { contains: targetProfession } } },
+              { job: { contains: targetProfession } },
+            ],
+          }),
           ...(contractType && {
             NewOrder: {
               some: { typeOfContract: contractType as string },
             },
+          }),
+          ...(warrantyOrderCondition && {
+            NewOrder: warrantyOrderCondition,
           }),
         }
       : undefined;
@@ -479,7 +692,12 @@ try {
     const filters: any = {
       ...(location && { location_id: { equals: Number(location) } }),
       ...(houseentrydate && { houseentrydate: { equals: new Date(houseentrydate as string) } }),
-      Reason: { contains: reason || "" },
+      ...(reason && { Reason: { contains: String(reason).trim() } }),
+      ...(actionTaken && {
+        ...(actionTaken === 'قيد الانتظار'
+          ? { OR: [{ actionTaken: 'قيد الانتظار' }, { actionTaken: null }, { actionTaken: '' }] }
+          : { actionTaken: { equals: String(actionTaken).trim() } }),
+      }),
       deparatureHousingDate: null,
       OR: [
         orderFilters
@@ -487,15 +705,18 @@ try {
           : { homeMaid_id: { not: null } },
         {
           externalHomedmaidId: { not: null },
-          ...((contractType || searchString) && {
+          ...((contractType || searchString || nationalityExternalCondition) && {
             externalHomedmaid: {
               ...(contractType && { type: contractType as string }),
+              ...(nationalityExternalCondition && nationalityExternalCondition),
               ...(searchString && {
                 OR: [
                   { name: { contains: searchString } },
                   { passportNumber: { contains: searchString } },
                   { phone: { contains: searchString } },
                   { Client: { fullname: { contains: searchString } } },
+                  { Client: { nationalId: { contains: searchString } } },
+                  { Client: { phonenumber: { contains: searchString } } },
                 ]
               }),
             },
@@ -519,6 +740,12 @@ try {
         case "Nationalitycopy":
           orderBy = { Order: { Nationalitycopy: sortDirection || "asc" } };
           break;
+        case "id":
+          orderBy = { id: sortDirection || "asc" };
+          break;
+        case "houseentrydate":
+          orderBy = { houseentrydate: sortDirection || "asc" };
+          break;
         default:
           orderBy = { id: "desc" };
       }
@@ -537,18 +764,23 @@ try {
                 orderBy: { createdAt: "desc" },
                 take: 1,
                 select: {
-                  arrivals: { select: { KingdomentryDate: true, KingdomentryTime: true, DeliveryDate: true, GuaranteeDurationEnd: true } },
+                  id: true,
+                  arrivals: { select: { id: true, KingdomentryDate: true, KingdomentryTime: true, GuaranteeDurationEnd: true, InternalmusanedContract: true, externalmusanedContract: true } },
                   typeOfContract: true,
                   ClientName: true,
+                  PhoneNumber: true,
+                  clientphonenumber: true,
+                  nationalId: true,
+                  clientID: true,
                   createdAt: true,
-                  client: { select: { fullname: true } },
+                  client: { select: { id: true, fullname: true, nationalId: true, phonenumber: true } },
                 },
               },
             },
           },
           externalHomedmaid: {
             include: {
-              Client: { select: { fullname: true } },
+              Client: { select: { id: true, fullname: true, nationalId: true, phonenumber: true } },
             },
           },
           HousedWorkerNotes: true,
@@ -561,7 +793,12 @@ try {
         where: filters,
       });
 
-      return res.status(200).json({ housing, totalCount });
+      const sanitizedHousing = housing.map((item: any) => {
+        const { deliveryDate, ...rest } = item;
+        return rest;
+      });
+
+      return res.status(200).json({ housing: sanitizedHousing, totalCount });
     } catch (error) {
       console.error(error);
       return res.status(500).json({ error: "خطأ في جلب بيانات التسكين" });

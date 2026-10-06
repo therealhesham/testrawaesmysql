@@ -3,6 +3,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import eventBus from 'lib/eventBus';
 import { jwtDecode } from 'jwt-decode';
 import { logAccountingAction } from 'lib/accountingLogger';
+import { recalculateStatementRunningBalances } from 'lib/accountingBalanceHelper';
 
 const prisma = new PrismaClient();
 
@@ -223,12 +224,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
         });
 
-        // ✅ Recalculate all balances after the earliest affected date
-        const earliestDate = entryDate < oldDate ? entryDate : oldDate;
-        await recalculateBalancesAfterDate(currentEntry.statementId, earliestDate, tx);
-
-        // Recalculate totals
-        await recalculateStatementTotals(currentEntry.statementId, tx);
+        // Recalculate all statement running balances and totals
+        await recalculateStatementRunningBalances(currentEntry.statementId, tx);
 
         return updatedEntry;
       });
@@ -289,18 +286,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         const statementId = entryToDelete.statementId;
-        const deletedDate = entryToDelete.date;
 
         // Delete the entry
         await tx.clientAccountEntry.delete({
           where: { id: Number(id) }
         });
 
-        // ✅ Recalculate all balances after the deleted entry's date
-        await recalculateBalancesAfterDate(statementId, deletedDate, tx);
-
-        // Recalculate totals
-        await recalculateStatementTotals(statementId, tx);
+        // Recalculate all statement running balances and totals
+        await recalculateStatementRunningBalances(statementId, tx);
 
         return entryToDelete;
       });

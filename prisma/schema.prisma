@@ -312,7 +312,9 @@ notes_date        DateTime?
   createdAt      DateTime?  @default(now())
   nationalId      String? @db.VarChar(30)
   city             String? @db.VarChar(100)
-  address         String? @db.VarChar(100)     
+  address         String? @db.VarChar(100)
+  dateofbirth     DateTime? @db.Date
+  alternativePhone String? @db.VarChar(15)
   HomeMaid       homemaid?  @relation(fields: [HomeMaidRecod], references: [id])
   orders         neworder[]
   arrivals       arrivallist[]
@@ -693,6 +695,12 @@ NationalID     String?
 TransferingDate   String?
   TransferOperationNumber String?
 file        String?
+salaryCertificateFile String?
+nationalAddressFile String?
+paymentReceiptFile String?
+promissoryNoteFile String?
+dailyCost         Decimal?
+remainingCost     Decimal?
 transferStage   String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -798,6 +806,7 @@ model cancelledOrders{
 model externalHomedmaid{
   id Int @id @default(autoincrement())
   name String? @db.VarChar(100)
+  image String? @db.LongText
   nationality String? @db.VarChar(100)
   /// مصدر الجنسية (قائمة مشتركة مع الجنسية أو نص حر)
   nationalitySource String? @db.VarChar(100)
@@ -820,6 +829,8 @@ model housedworker {
 deparatureReason  String?   @db.VarChar(100) 
 deparatureHousingDate  DateTime? 
 transferSponsorshipData Json?
+medicalDepartureData Json?
+deportationData Json?
 isExternal Boolean? @default(false)
 HousedWorkerNotes HousedWorkerNotes[]
  externalHomedmaid externalHomedmaid? @relation(fields: [externalHomedmaidId], references: [id])
@@ -828,9 +839,12 @@ HousedWorkerNotes HousedWorkerNotes[]
   updatedAt       DateTime  @updatedAt
   homeMaid_id       Int?       @unique
   Reason         String?   @db.VarChar(100)
+  actionTaken    String?   @db.VarChar(100)
+  medicalReportFile String? @db.VarChar(255)
   employee       String?   @db.VarChar(100)
   isActive        Boolean? @default(true)
   Details        String?   @db.VarChar(255)
+  expectedStayDuration String? @db.VarChar(100)
   houseentrydate DateTime?
   transaction_type String?
   deliveryDate   DateTime?
@@ -841,6 +855,18 @@ HousedWorkerNotes HousedWorkerNotes[]
 isHasEntitlements     Boolean? @default(true)
 entitlementsCost     Decimal?
 entitlementReason   String?
+salaryReceived      Boolean? @default(true)
+salaryRemainingAmount Decimal?
+hasPhone            Boolean? @default(true)
+phoneReason         String?   @db.VarChar(255)
+hasIqama            Boolean? @default(true)
+iqamaReason         String?   @db.VarChar(255)
+hasPassport         Boolean? @default(true)
+passportReason      String?   @db.VarChar(255)
+hasPersonalItems    Boolean? @default(false)
+personalItemsDetails String?  @db.Text
+medicalCheckDone    Boolean? @default(false)
+visaType            String?   @db.VarChar(50)
   Order          homemaid?  @relation(fields: [homeMaid_id], references: [id])
 }
 model HousedWorkerNotes {

@@ -9,7 +9,15 @@ import React, { useState } from "react";
 
 // }
 
-const RegistrationHousingModal = ({
+interface RegistrationHousingModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  id?: any;
+  filteredSuggestions?: any;
+  setDate?: (val?: any) => void;
+}
+
+const RegistrationHousingModal: React.FC<RegistrationHousingModalProps> = ({
   isOpen,
   onClose,
   id,
@@ -32,7 +40,7 @@ const [employee,setEmployee]=useState("")
   const router = useRouter();
   const [errormodaopen, setIserrorModalOpen] = useState(false);
   const [errormessage, seterrormessage] = useState("");
-  const postData = async (e) => {
+  const postData = async (e: React.FormEvent) => {
     try {
     } catch (e) {}
     e.preventDefault();
@@ -140,13 +148,14 @@ const [employee,setEmployee]=useState("")
             <label className="block text-gray-700">سبب التسكين</label>
             <select className="rounded-md" onChange={(e)=>setReason(e.target.value)}>
 
-              <option value="">...</option>
-
-              <option value="نقل كفالة">نقل كفالة</option>
-              <option value="انتظار الترحيل">انتظار الترحيل</option>
-              <option value="مشكلة مكتب العمل">مشكلة مكتب العمل</option>
-              <option value="رفض العمل للسفر">رفض العمل للسفر</option>
-              <option value="رفض العم لنقل الكفالة">رفض العمل لنقل الكفالة</option>
+              <option value="">-- اختر سبب التسكين --</option>
+              <option value="رفض الكفيل للعاملة">رفض الكفيل للعاملة</option>
+              <option value="رفض العاملة للكفيل">رفض العاملة للكفيل</option>
+              <option value="استلام من إيواء الوزارة (سلسك -slesk)">استلام من إيواء الوزارة (سلسك -slesk)</option>
+              <option value="حالة مرضية">حالة مرضية</option>
+              <option value="حمل">حمل</option>
+              <option value="تغييب عن العمل (هروب )">تغييب عن العمل (هروب )</option>
+              <option value="عدم استلام الكفيل للعاملة بعد الوصول">عدم استلام الكفيل للعاملة بعد الوصول</option>
 
 
 

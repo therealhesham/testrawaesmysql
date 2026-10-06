@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import prisma from '../globalprisma';
+import { processDueScheduledDepartures } from 'lib/housingDepartureHelper';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -7,6 +8,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    await processDueScheduledDepartures();
+
     // Get counts for both contract types
     const [recruitmentCount, rentalCount] = await Promise.all([
       // Count for recruitment contract type

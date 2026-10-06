@@ -59,7 +59,7 @@ const scrollToTop = () => {
     <main className="flex-1 overflow-y-auto scrollbar-hide">
       {/* <input></input> */}
 
-      <div className="w-full min-w-0 px-6">{children}</div>
+      <div className="w-full min-w-0 px-1 sm:px-2 lg:px-3">{children}</div>
    <div dir="rtl">
 <button
   className={`fixed bottom-8  flex flex-start left-8  z-[9999] bg-teal-800 text-white p-3 rounded-full shadow-lg transition-opacity duration-300 opacity-100 ${

@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { logAccountingActionFromRequest } from 'lib/accountingLogger';
+import { recalculateStatementRunningBalances } from 'lib/accountingBalanceHelper';
 
 const prisma = new PrismaClient();
 
@@ -13,29 +13,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const { orderedIds } = req.body;
 
-    if (!Array.isArray(orderedIds)) {
-      return res.status(400).json({ error: 'Invalid input: orderedIds must be an array' });
+    if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+      return res.status(400).json({ error: 'Invalid input: orderedIds must be a non-empty array' });
     }
 
-    // Use a transaction to ensure all updates succeed or fail together
-    await prisma.$transaction(
-      orderedIds.map((id: number, index: number) =>
-        prisma.clientAccountEntry.update({
-          where: { id },
+    await prisma.$transaction(async (tx) => {
+      // 1. Update displayOrder for all entries in the ordered array
+      for (let index = 0; index < orderedIds.length; index++) {
+        await tx.clientAccountEntry.update({
+          where: { id: Number(orderedIds[index]) },
           data: { displayOrder: index },
-        })
-      )
-    );
+        });
+      }
 
-    // Optional: Log this action
-    // await logAccountingActionFromRequest(req, {
-    //   action: 'Reordered client account entries',
-    //   actionType: 'update_client_account_order',
-    //   actionStatus: 'success',
-    //   actionNotes: `Reordered ${orderedIds.length} entries`,
-    // });
+      // 2. Find the statementId from the first entry
+      const firstEntry = await tx.clientAccountEntry.findUnique({
+        where: { id: Number(orderedIds[0]) },
+        select: { statementId: true }
+      });
 
-    res.status(200).json({ message: 'Entries reordered successfully' });
+      if (firstEntry?.statementId) {
+        // 3. Recalculate running balances for all entries in this statement in the new order
+        await recalculateStatementRunningBalances(firstEntry.statementId, tx);
+      }
+    });
+
+    res.status(200).json({ message: 'Entries reordered and balances recalculated successfully' });
   } catch (error) {
     console.error('Error reordering entries:', error);
     res.status(500).json({ error: 'Failed to reorder entries' });
@@ -43,3 +46,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     await prisma.$disconnect();
   }
 }
+

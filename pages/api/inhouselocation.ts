@@ -1,8 +1,6 @@
-import { PrismaClient } from '@prisma/client';
+import prisma from './globalprisma';
 import { jwtDecode } from 'jwt-decode';
 import { getPageTitleArabic } from 'lib/pageTitleHelper';
-
-const prisma = new PrismaClient();
 
 // Helper function to get user info from cookies
 const getUserFromCookies = (req: any) => {
@@ -66,7 +64,7 @@ async function logToSystemLogs(
   }
 }
 
-export default async function handler(req, res) {
+export default async function handler(req: any, res: any) {
   // Handle GET request - Retrieve all inHouseLocations
   if (req.method === 'GET') {
     // تسجيل عملية العرض في systemlogs
@@ -119,9 +117,9 @@ export default async function handler(req, res) {
 
       // console.log(result)
       res.status(200).json(result);
-    } catch (error) {
+    } catch (error: any) {
       console.log(error)
-      res.status(500).json({ error: 'Error fetching locations', details: error.message });
+      res.status(500).json({ error: 'Error fetching locations', details: error?.message });
     }
   }
   // Handle POST request - Create new inHouseLocation
@@ -162,9 +160,9 @@ export default async function handler(req, res) {
       }
 
       res.status(201).json(newLocation);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      res.status(500).json({ error: 'Error creating location', details: error.message });
+      res.status(500).json({ error: 'Error creating location', details: error?.message });
     }
   }
   // Handle PUT request - Update inHouseLocation
@@ -212,9 +210,9 @@ export default async function handler(req, res) {
       }
 
       res.status(200).json(updatedLocation);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      res.status(500).json({ error: 'Error updating location', details: error.message });
+      res.status(500).json({ error: 'Error updating location', details: error?.message });
     }
   }
   // Handle unsupported methods

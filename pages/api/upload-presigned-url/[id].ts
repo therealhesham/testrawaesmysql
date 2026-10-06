@@ -54,12 +54,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const allowedMime: Record<string, string> = {
       'application/pdf': 'pdf',
       'image/jpeg': 'jpg',
+      'image/jpg': 'jpg',
       'image/png': 'png',
+      'image/webp': 'webp',
     };
 
     const contentType =
-      ctRaw && typeof ctRaw === 'string' && allowedMime[ctRaw] ? ctRaw : 'application/pdf';
-    const ext = allowedMime[contentType];
+      ctRaw && typeof ctRaw === 'string' && allowedMime[ctRaw] ? ctRaw : (ctRaw && typeof ctRaw === 'string' && ctRaw.startsWith('image/') ? 'image/jpeg' : 'application/pdf');
+    const ext = allowedMime[contentType] || 'pdf';
 
     // Initialize S3 client
     const s3 = initializeS3();

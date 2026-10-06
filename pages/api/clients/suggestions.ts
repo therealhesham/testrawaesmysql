@@ -42,7 +42,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         fullname: true,
         phonenumber: true,
         city: true,
-        nationalId: true
+        nationalId: true,
+        alternativePhone: true,
+        dateofbirth: true,
       },
       // take: 10,
       orderBy: {
@@ -55,7 +57,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       fullname: client.fullname,
       phonenumber: client.phonenumber,
       city: client.city,
-      nationalId: client.nationalId
+      nationalId: client.nationalId,
+      alternativePhone: client.alternativePhone,
+      dateofbirth: client.dateofbirth,
     }));
 console.log(suggestions);
     res.status(200).json({ suggestions });

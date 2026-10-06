@@ -71,8 +71,12 @@ interface ClientAccountStatement {
       id: number;
       Name: string;
       Nationality: any;
+      Passportnumber?: string | null;
+      phone?: string | null;
       Experience: string;
       officeName: string;
+      oldClientName?: string | null;
+      oldClientPhone?: string | null;
       office?: {
         id: number;
         office: string;
@@ -260,33 +264,41 @@ const ClientStatementPage = () => {
     const { active, over } = event;
 
     if (active.id !== over?.id && statement) {
-      setStatement((prev: any) => {
-        const oldIndex = prev.entries.findIndex((item: any) => item.id === active.id);
-        const newIndex = prev.entries.findIndex((item: any) => item.id === over?.id);
-        
-        const newEntries = arrayMove(prev.entries, oldIndex, newIndex);
-        
-        return {
-          ...prev,
-          entries: newEntries
-        };
+      const oldIndex = statement.entries.findIndex((item) => item.id === active.id);
+      const newIndex = statement.entries.findIndex((item) => item.id === over?.id);
+      if (oldIndex === -1 || newIndex === -1) return;
+
+      const newEntries = arrayMove(statement.entries, oldIndex, newIndex);
+      
+      // Recalculate running balances immediately in local state
+      let runningBal = 0;
+      const newEntriesWithBalances = newEntries.map((e: any) => {
+        runningBal += Number(e.debit || 0) - Number(e.credit || 0);
+        return { ...e, balance: runningBal };
       });
 
-       const oldIndex = statement.entries.findIndex((item) => item.id === active.id);
-       const newIndex = statement.entries.findIndex((item) => item.id === over?.id);
-       const newEntries = arrayMove(statement.entries, oldIndex, newIndex);
-       const orderedIds = newEntries.map(e => e.id);
+      setStatement((prev: any) => ({
+        ...prev,
+        entries: newEntriesWithBalances
+      }));
 
-       try {
-         await fetch('/api/client-accounts/reorder-entries', {
-           method: 'POST',
-           headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({ orderedIds }),
-         });
-       } catch (error) {
-         console.error('Failed to save order:', error);
-         showMessage('error', 'فشل حفظ الترتيب');
-       }
+      const orderedIds = newEntries.map(e => e.id);
+
+      try {
+        const res = await fetch('/api/client-accounts/reorder-entries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderedIds }),
+        });
+        if (res.ok) {
+          fetchStatement();
+        } else {
+          showMessage('error', 'فشل حفظ الترتيب');
+        }
+      } catch (error) {
+        console.error('Failed to save order:', error);
+        showMessage('error', 'فشل حفظ الترتيب');
+      }
     }
   };
 
@@ -765,50 +777,64 @@ const ClientStatementPage = () => {
                 <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
                     <div className="flex items-center gap-2 mb-6 border-b border-slate-100 dark:border-slate-700 pb-4">
                         <OfficeBuildingIcon className="w-6 h-6 text-primary" />
-                        <h2 className="text-lg font-bold">معلومات المكتب</h2>
+                        <h2 className="text-lg font-bold">
+                            {statement.contractNumber?.startsWith('TRF-') || statement.order?.typeOfContract === 'transfer' ? 'معلومات القسم والعاملة' : 'معلومات المكتب'}
+                        </h2>
                     </div>
                     <div className="grid grid-cols-2 gap-y-4 text-md">
                         <div className="space-y-1">
-                            <p className="text-slate-400 dark:text-slate-500">الدولة</p>
-                            <p className="font-medium">{statement.order?.HomeMaid?.office?.Country || 'غير محدد'}</p>
+                            <p className="text-slate-400 dark:text-slate-500">الدولة / الجنسية</p>
+                            <p className="font-medium">{statement.order?.HomeMaid?.office?.Country || statement.order?.HomeMaid?.Nationality || 'غير محدد'}</p>
                         </div>
                         <div className="space-y-1">
-                            <p className="text-slate-400 dark:text-slate-500">اسم المكتب</p>
-                            <p className="font-medium">{statement.order?.HomeMaid?.office?.office || statement.officeName || 'غير محدد'}</p>
+                            <p className="text-slate-400 dark:text-slate-500">اسم المكتب / القسم</p>
+                            <p className="font-medium">{statement.order?.HomeMaid?.office?.office || statement.officeName || 'معاملات نقل الكفالة'}</p>
                         </div>
                         <div className="space-y-1">
                             <p className="text-slate-400 dark:text-slate-500">اسم العاملة</p>
-                            <p className="font-medium cursor-pointer" onClick={() => router.push(`/admin/homemaidinfo?id=${statement.order?.HomeMaid?.id}`)}>{statement.order?.HomeMaid?.Name || 'غير محدد'}</p>
+                            <p className="font-medium cursor-pointer text-teal-700 hover:underline" onClick={() => statement.order?.HomeMaid?.id && router.push(`/admin/homemaidinfo?id=${statement.order?.HomeMaid?.id}`)}>
+                                {statement.order?.HomeMaid?.Name || 'غير محدد'}
+                            </p>
                         </div>
                         <div className="space-y-1">
-                            <p className="text-slate-400 dark:text-slate-500">رقم هاتف المكتب</p>
-                            <p className="font-medium text-slate-400 italic">{statement.order?.HomeMaid?.office?.phoneNumber || 'غير محدد'}</p>
+                            <p className="text-slate-400 dark:text-slate-500">
+                                {statement.contractNumber?.startsWith('TRF-') || statement.order?.typeOfContract === 'transfer' ? 'رقم جواز العاملة' : 'رقم هاتف المكتب'}
+                            </p>
+                            <p className="font-medium text-slate-700 dark:text-slate-300">
+                                {statement.contractNumber?.startsWith('TRF-') || statement.order?.typeOfContract === 'transfer'
+                                    ? (statement.order?.HomeMaid?.Passportnumber || 'غير محدد')
+                                    : (statement.order?.HomeMaid?.office?.phoneNumber || 'غير محدد')}
+                            </p>
                         </div>
                     </div>
                 </div>
 
-                {/* Order Info Card */}
+                {/* Order / Transfer Info Card */}
                 <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
                     <div className="flex items-center gap-2 mb-6 border-b border-slate-100 dark:border-slate-700 pb-4">
                         <DocumentTextIcon className="w-6 h-6 text-primary" />
-                        <h2 className="text-lg font-bold">معلومات الطلب</h2>
+                        <h2 className="text-lg font-bold">
+                            {statement.contractNumber?.startsWith('TRF-') || statement.order?.typeOfContract === 'transfer' ? 'معلومات المعاملة والعقد' : 'معلومات الطلب'}
+                        </h2>
                     </div>
                     <div className="grid grid-cols-2 gap-y-4 text-md">
                         <div className="space-y-1">
-                            <p className="text-slate-400 dark:text-slate-500">تاريخ الطلب</p>
+                            <p className="text-slate-400 dark:text-slate-500">
+                                {statement.contractNumber?.startsWith('TRF-') ? 'تاريخ المعاملة' : 'تاريخ الطلب'}
+                            </p>
                             <p className="font-medium">
-                                {statement.order ? getDate(statement.order.createdAt) : getDate(statement.client?.createdAt)}
+                                {statement.order?.createdAt ? getDate(statement.order.createdAt) : getDate(statement.createdAt)}
                             </p>
                         </div>
                         <div className="space-y-1">
                             <p className="text-slate-400 dark:text-slate-500">حالة العقد</p>
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-md font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
-                                {translateBookingStatus(statement.order?.bookingstatus || '')}
+                                {translateBookingStatus(statement.order?.bookingstatus || statement.contractStatus || 'تم نقل الكفالة')}
                             </span>
                         </div>
                         <div className="space-y-1">
-                            <p className="text-slate-400 dark:text-slate-500">تاريخ الوصول</p>
-                            <p className="font-medium text-slate-400 italic">
+                            <p className="text-slate-400 dark:text-slate-500">تاريخ الدخول / الوصول</p>
+                            <p className="font-medium text-slate-600 dark:text-slate-300">
                                 {statement.order?.arrivals?.[0]?.KingdomentryDate ? getDate(statement.order.arrivals[0].KingdomentryDate) : 'غير محدد'}
                             </p>
                         </div>
@@ -827,7 +853,7 @@ const ClientStatementPage = () => {
                                                 </span>
                                             )}
                                         </p>
-                                        <p className="font-medium text-slate-400 italic">
+                                        <p className="font-medium text-slate-600 dark:text-slate-300">
                                             {endDate ? getDate(endDate) : 'غير محدد'}
                                         </p>
                                     </>
@@ -837,13 +863,18 @@ const ClientStatementPage = () => {
                         <div className="space-y-1 col-span-1 mt-2 pt-2 border-t border-slate-50 dark:border-slate-700/50">
                             <p className="text-slate-400 dark:text-slate-500">إجمالي قيمة العقد</p>
                             <p className="text-lg font-bold text-slate-700 dark:text-slate-200">
-                                {statement.order?.Total != null ? formatCurrency(statement.order.Total) : 'ـــ'} <span className="text-sm font-normal text-slate-500">ر.س</span>
+                                {statement.order?.Total != null ? formatCurrency(statement.order.Total) : (statement.totalRevenue ? formatCurrency(Number(statement.totalRevenue)) : 'ـــ')} <span className="text-sm font-normal text-slate-500">ر.س</span>
                             </p>
                         </div>
                         <div className="space-y-1 col-span-1 mt-2 pt-2 border-t border-slate-50 dark:border-slate-700/50">
                             <p className="text-slate-400 dark:text-slate-500">المبلغ المطلوب (المتبقي)</p>
-                            <p className="text-lg font-bold text-primary">
-                                {statement.order?.Total != null ? formatCurrency(Math.max(0, (statement.order.Total || 0) - (statement.order.paid || 0))) : '0'} <span className="text-sm font-normal text-slate-500">ر.س</span>
+                            <p className={`text-lg font-bold ${
+                                (statement.totals?.netAmount ?? 0) > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'
+                            }`}>
+                                {statement.totals?.netAmount != null 
+                                    ? formatCurrency(statement.totals.netAmount) 
+                                    : (statement.order?.Total != null ? formatCurrency(Math.max(0, (statement.order.Total || 0) - (statement.order.paid || 0))) : '0')
+                                } <span className="text-sm font-normal text-slate-500">ر.س</span>
                             </p>
                         </div>
                     </div>

@@ -1469,14 +1469,16 @@ export default function Home() {
     }],
   };
 
-  /** أسباب ثابتة للترتيب؛ أي سبب إضافي من الـ API يُعرض بعدها (مثل المشرفة أو لم يحدد سبب) */
   const DEFAULT_HOUSING_REASON_ORDER = [
+    'رفض الكفيل للعاملة',
+    'رفض العاملة للكفيل',
+    'استلام من إيواء الوزارة (سلسك -slesk)',
+    'حالة مرضية',
+    'حمل',
+    'تغييب عن العمل (هروب )',
+    'عدم استلام الكفيل للعاملة بعد الوصول',
     'نقل كفالة',
-    'مشكلة مكتب العمل',
     'انتظار الترحيل',
-    'رفض العامل لنقل الكفالة',
-    'هروب العاملة',
-    'رفض العامل للسفر',
     'لم يحدد سبب',
   ];
   const apiHousingReasons =
@@ -2047,34 +2049,74 @@ export default function Home() {
                       return (
                       <tr key={idx} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {order.client?.fullname || 'غير معروف'}
+                          {(() => {
+                            const clientId = order.client?.id || order.clientID || order.NewClientId;
+                            const clientName = order.client?.fullname || 'غير معروف';
+                            if (clientId) {
+                              return (
+                                <a
+                                  href={`/admin/clientdetails?id=${clientId}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-teal-700 hover:text-teal-900 hover:underline font-semibold transition-colors"
+                                  title="عرض ملف تفاصيل العميل"
+                                >
+                                  {clientName}
+                                </a>
+                              );
+                            }
+                            return clientName;
+                          })()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {order.client?.phonenumber || 'غير متوفر'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-teal-600">
-                          <a href={`/admin/track_order/${order.id}`} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                            طلب #{order.id}
-                          </a>
+                          {order.isTransfer ? (
+                            <a
+                              href={order.link ? `${order.link}${order.link.includes('?') ? '&mode=view' : '?mode=view'}` : `/admin/AddTransactionForm?id=${order.id}&mode=view`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="hover:underline font-bold text-teal-800"
+                            >
+                              معاملة نقل كفالة #{order.id}
+                            </a>
+                          ) : (
+                            <a
+                              href={`/admin/track_order/${order.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="hover:underline"
+                            >
+                              طلب #{order.id}
+                            </a>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {statusTranslations[order.bookingstatus] || order.bookingstatus || 'غير متوفر'}
+                          {order.isTransfer
+                            ? (order.bookingstatus || 'تم نقل الكفالة')
+                            : (statusTranslations[order.bookingstatus] || order.bookingstatus || 'غير متوفر')}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-500">
                           {(() => {
-                            const statement = order.clientAccountStatement?.[0];
-                            if (!statement) return 'لا يوجد';
-                            
                             let remainingBalance = 0;
                             let totalDebit = 0;
-                            
-                            if (statement.entries && statement.entries.length > 0) {
-                              totalDebit = statement.entries.reduce((sum: number, entry: any) => sum + Number(entry.debit || 0), 0);
-                              const totalCredit = statement.entries.reduce((sum: number, entry: any) => sum + Number(entry.credit || 0), 0);
-                              remainingBalance = totalDebit - totalCredit;
+
+                            if (order.isTransfer && order.financial) {
+                              remainingBalance = order.financial.remaining;
+                              totalDebit = order.financial.totalCost;
                             } else {
-                              remainingBalance = Number(statement.netAmount || 0);
-                              totalDebit = Number(statement.totalRevenue || 0);
+                              const statement = order.clientAccountStatement?.[0];
+                              if (!statement) return 'لا يوجد';
+                              
+                              if (statement.entries && statement.entries.length > 0) {
+                                totalDebit = statement.entries.reduce((sum: number, entry: any) => sum + Number(entry.debit || 0), 0);
+                                const totalCredit = statement.entries.reduce((sum: number, entry: any) => sum + Number(entry.credit || 0), 0);
+                                remainingBalance = totalDebit - totalCredit;
+                              } else {
+                                remainingBalance = Number(statement.netAmount || 0);
+                                totalDebit = Number(statement.totalRevenue || 0);
+                              }
                             }
 
                             const formatNumber = (num: number) => {

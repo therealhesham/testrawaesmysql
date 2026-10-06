@@ -67,7 +67,7 @@ const menuItems: MenuItem[] = [
       { id: 22, label: "الطلبات تحت الاجراء", link: "/admin/currentorderstest" },
       { id: 23, label: "الطلبات المكتملة", link: "/admin/endedorders" },
       { id: 24, label: "الطلبات الملغية", link: "/admin/rejectedorders" },
-
+      { id: 25, label: "معاملات نقل الكفالة", link: "/admin/transfersponsorship" },
     ],
   },
   {
@@ -96,8 +96,8 @@ const menuItems: MenuItem[] = [
     label: "شؤون الاقامة",
     icon: FaBuilding,
     subItems: [
-      { id: 51, label: "التسكين", link: "/admin/housedarrivals" },
-      // { id: 511, label: "مغادرات نقل كفالة", link: "/admin/housing_departed_transfer_sponsorship" },
+      { id: 51, label: "التسكين (المتواجدات)", link: "/admin/housedarrivals" },
+      { id: 511, label: "مغادرات السكن", link: "/admin/housing-departures" },
       { id: 10121, label: "الجلسات", link: "/admin/sessions" },
       
       { id: 52, label: "الاعاشات", link: "/admin/checkedtable" },
@@ -197,6 +197,7 @@ const Sidebar = (props: any) => {
   const [canResolveComplaints, setCanResolveComplaints] = useState(false);
   const [canViewControlCenter, setCanViewControlCenter] = useState(false);
   const [canViewAccountingReview, setCanViewAccountingReview] = useState(false);
+  const [canViewTransferSponsorship, setCanViewTransferSponsorship] = useState(true);
   const [hoveredMenu, setHoveredMenu] = useState<{ id: number, top: number, label: string, subItems: any[] } | null>(null);
 
   const activeMenu = useMemo(
@@ -306,7 +307,9 @@ const Sidebar = (props: any) => {
           setCanViewControlCenter(canViewCC);
           const canViewAccReview = isOwner || !!permissions?.["إدارة المحاسبة"]?.["عرض صفحة المراجعة"] || !!permissions?.["إدارة المحاسبة"]?.["عرض صفحة المراجعة "];
           setCanViewAccountingReview(canViewAccReview);
-          console.log('Sidebar permissions loaded:', { role: data.user?.role, isOwner, canViewAccReview });
+          const canViewTransfers = isOwner || !!permissions?.["معاملات نقل الكفالة"]?.["عرض"];
+          setCanViewTransferSponsorship(canViewTransfers);
+          console.log('Sidebar permissions loaded:', { role: data.user?.role, isOwner, canViewAccReview, canViewTransfers });
         }
       } catch (error) {
         console.error("Error fetching user permissions:", error);
@@ -403,6 +406,7 @@ const Sidebar = (props: any) => {
           const { icon: Icon, subItems, ...menu } = menuItem;
           const validSubItems = subItems?.filter((subItem) => {
             if (subItem.link === '/admin/accounting-review' && !canViewAccountingReview) return false;
+            if (subItem.link === '/admin/transfersponsorship' && !canViewTransferSponsorship) return false;
             return true;
           });
           const classes = getNavItemClasses(menuItem as MenuItem);
