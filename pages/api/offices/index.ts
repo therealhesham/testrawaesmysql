@@ -3,6 +3,25 @@ import prisma from 'lib/prisma';
 import { jwtDecode } from 'jwt-decode';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method === 'GET') {
+    try {
+      const items = await prisma.offices.findMany({
+        select: {
+          id: true,
+          office: true,
+          Country: true,
+          phoneNumber: true,
+        },
+        orderBy: { office: 'asc' }
+      });
+
+      return res.status(200).json({ success: true, items, finder: items });
+    } catch (error) {
+      console.error('Offices API error:', error);
+      return res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+  }
+
   try {
     const cookies = req.cookies;
     if (!cookies.authToken) {
@@ -12,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const token = jwtDecode(cookies.authToken) as any;
 
     const findUser = await prisma.user.findUnique({
-      where: { id: token.id },
+      where: { id: Number(token.id) },
       include: { role: true },
     });
 

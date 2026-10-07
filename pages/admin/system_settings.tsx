@@ -27,7 +27,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Plus, Edit, Trash2, Save, X, CheckCircle, XCircle, Eye, EyeOff, Upload, MessageSquare, Pencil, Settings, ChevronRight } from 'lucide-react';
+import { GripVertical, Plus, Edit, Trash2, Save, X, CheckCircle, XCircle, Eye, EyeOff, Upload, MessageSquare, Pencil, Settings, ChevronRight, Globe } from 'lucide-react';
 import type { TimelineStage, StageFormState } from 'lib/timelineStage';
 import {
   emptyStageForm,
@@ -38,6 +38,30 @@ import {
   isStageEditableForOffices,
 } from 'lib/timelineStage';
 import { FaStethoscope } from 'react-icons/fa';
+
+const COMMON_RECRUITMENT_COUNTRIES = [
+  { arabic: 'الهند', english: 'India', value: 'India - الهند' },
+  { arabic: 'الفلبين', english: 'Philippines', value: 'Philippines - الفلبين' },
+  { arabic: 'إندونيسيا', english: 'Indonesia', value: 'Indonesia - إندونيسيا' },
+  { arabic: 'سيرلانكا', english: 'Sri Lanka', value: 'Sri Lanka - سيرلانكا' },
+  { arabic: 'كينيا', english: 'Kenya', value: 'Kenya - كينيا' },
+  { arabic: 'إثيوبيا', english: 'Ethiopia', value: 'Ethiopia - إثيوبيا' },
+  { arabic: 'أوغندا', english: 'Uganda', value: 'Uganda - أوغندا' },
+  { arabic: 'بنغلاديش', english: 'Bangladesh', value: 'Bangladesh - بنغلاديش' },
+  { arabic: 'بوروندي', english: 'Burundi', value: 'Burundi - بوروندي' },
+  { arabic: 'باكستان', english: 'Pakistan', value: 'Pakistan - باكستان' },
+  { arabic: 'نيجيريا', english: 'Nigeria', value: 'Nigeria - نيجيريا' },
+  { arabic: 'مدغشقر', english: 'Madagascar', value: 'Madagascar - مدغشقر' },
+  { arabic: 'سيراليون', english: 'Sierra Leone', value: 'Sierra Leone - سيراليون' },
+  { arabic: 'فيتنام', english: 'Vietnam', value: 'Vietnam - فيتنام' },
+  { arabic: 'تنزانيا', english: 'Tanzania', value: 'Tanzania - تنزانيا' },
+  { arabic: 'رواندا', english: 'Rwanda', value: 'Rwanda - رواندا' },
+  { arabic: 'مصر', english: 'Egypt', value: 'Egypt - مصر' },
+  { arabic: 'المغرب', english: 'Morocco', value: 'Morocco - المغرب' },
+  { arabic: 'السودان', english: 'Sudan', value: 'Sudan - السودان' },
+  { arabic: 'اليمن', english: 'Yemen', value: 'Yemen - اليمن' },
+  { arabic: 'الأردن', english: 'Jordan', value: 'Jordan - الأردن' }
+];
 interface UserData {
   id: string;
   jobTitle: string;
@@ -319,7 +343,15 @@ export default function SystemSettings({ id, permissions }: { id: number, permis
   // Office management states
   const [isOfficeModalOpen, setIsOfficeModalOpen] = useState(false);
   const [editingOffice, setEditingOffice] = useState<{ id?: number, name: string, country: string, phoneNumber: string } | null>(null);
+  const [isCustomCountry, setIsCustomCountry] = useState(false);
   const [isSubmittingOffice, setIsSubmittingOffice] = useState(false);  
+
+  // New Country Modal states
+  const [isCountryModalOpen, setIsCountryModalOpen] = useState(false);
+  const [countryForm, setCountryForm] = useState({ countryArabic: '', countryEnglish: '' });
+  const [isSubmittingCountry, setIsSubmittingCountry] = useState(false);
+  const [addedCustomCountries, setAddedCustomCountries] = useState<string[]>([]);  
+  const [activeCountries, setActiveCountries] = useState<string[]>([]);
   // Custom Timeline states
   const [customTimelines, setCustomTimelines] = useState<CustomTimeline[]>([]);
   const [countryTimelines, setCountryTimelines] = useState<CountryTimeline[]>([]);
@@ -392,15 +424,36 @@ export default function SystemSettings({ id, permissions }: { id: number, permis
     try {
       const res = await fetch('/api/nationalities');
       const data = await res.json();
-      if (data.success && data.nationalities) {
-        const countries = data.nationalities.map((nat: any) => ({
-          value: nat.Country || nat.value,
-          label: nat.Country || nat.label,
-        }));
-        setUniqueCountries(countries);
+      const existingValues = new Set<string>();
+      const combined: Array<{ value: string; label: string }> = [];
+
+      if (data.success) {
+        if (Array.isArray(data.activeCountries)) {
+          setActiveCountries(data.activeCountries);
+        }
+        if (data.nationalities) {
+          data.nationalities.forEach((nat: any) => {
+            const val = (nat.value || nat.Country || '').trim();
+            const lbl = (nat.label || val).trim();
+            if (val && !existingValues.has(val)) {
+              existingValues.add(val);
+              combined.push({ value: val, label: lbl });
+            }
+          });
+        }
       }
+
+      COMMON_RECRUITMENT_COUNTRIES.forEach((c) => {
+        if (!existingValues.has(c.value) && !existingValues.has(c.arabic)) {
+          existingValues.add(c.value);
+          combined.push({ value: c.value, label: c.value });
+        }
+      });
+
+      setUniqueCountries(combined);
     } catch (e) {
       console.error('فشل جلب الدول');
+      setUniqueCountries(COMMON_RECRUITMENT_COUNTRIES.map(c => ({ value: c.value, label: c.value })));
     }
   };
 
@@ -417,14 +470,74 @@ export default function SystemSettings({ id, permissions }: { id: number, permis
     setCountryTimelines(mapping);
   };
 
+  const handleSaveCountry = async () => {
+    if (!countryForm.countryArabic.trim()) {
+      setError('يرجى إدخال اسم الدولة بالعربي');
+      return;
+    }
+    setIsSubmittingCountry(true);
+    try {
+      const res = await fetch('/api/nationalities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(countryForm)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const ar = countryForm.countryArabic.trim();
+        const en = countryForm.countryEnglish.trim();
+        const standardName = en ? `${en} - ${ar}` : ar;
+        
+        setAddedCustomCountries(prev => [...prev, standardName]);
+        setActiveCountries(prev => prev.includes(standardName) ? prev : [...prev, standardName]);
+        setUniqueCountries(prev => {
+          if (prev.some(c => c.value === standardName)) return prev;
+          return [{ value: standardName, label: standardName }, ...prev];
+        });
+
+        setSuccess(`تمت إضافة دولة "${standardName}" بنجاح`);
+        setIsCountryModalOpen(false);
+        setCountryForm({ countryArabic: '', countryEnglish: '' });
+        fetchUniqueCountries();
+      } else {
+        setError(data.message || 'فشل في إضافة الدولة');
+      }
+    } catch (err) {
+      setError('حدث خطأ أثناء حفظ الدولة');
+    } finally {
+      setIsSubmittingCountry(false);
+    }
+  };
+
   // Office Management functions
   const handleOpenAddOfficeModal = (country: string = '') => {
-    setEditingOffice({ name: '', country, phoneNumber: '' });
+    let selectedCountry = country;
+    if (country) {
+      const match = uniqueCountries.find(c => 
+        c.value === country || 
+        c.label === country || 
+        c.value.split(' - ').map((s: string) => s.trim()).includes(country.trim())
+      );
+      if (match) {
+        selectedCountry = match.value;
+      }
+    }
+    setEditingOffice({ name: '', country: selectedCountry, phoneNumber: '' });
+    setIsCustomCountry(false);
     setIsOfficeModalOpen(true);
   };
 
   const handleOpenEditOfficeModal = (office: any) => {
-    setEditingOffice({ id: office.id, name: office.office, country: office.Country, phoneNumber: office.phoneNumber || '' });
+    const rawCountry = (office.Country || '').trim();
+    const match = uniqueCountries.find(c => 
+      c.value === rawCountry || 
+      c.label === rawCountry || 
+      (rawCountry && c.value.split(' - ').map((s: string) => s.trim()).includes(rawCountry.trim()))
+    );
+    const resolvedCountry = match ? match.value : rawCountry;
+    const isCustom = !match && !!rawCountry;
+    setEditingOffice({ id: office.id, name: office.office, country: resolvedCountry, phoneNumber: office.phoneNumber || '' });
+    setIsCustomCountry(isCustom);
     setIsOfficeModalOpen(true);
   };
 
@@ -466,15 +579,19 @@ export default function SystemSettings({ id, permissions }: { id: number, permis
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editingOffice),
       });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setSuccess(editingOffice.id ? 'تم تعديل المكتب بنجاح' : 'تم إضافة المكتب بنجاح');
         setIsOfficeModalOpen(false);
         fetchOffices();
+        setTimeout(() => setSuccess(null), 3000);
       } else {
-        setError('فشل في حفظ المكتب');
+        setError(data.message || 'فشل في حفظ المكتب');
+        setTimeout(() => setError(null), 4000);
       }
     } catch (e) {
-      setError('حدث خطأ');
+      setError('حدث خطأ أثناء حفظ المكتب');
+      setTimeout(() => setError(null), 4000);
     } finally {
       setIsSubmittingOffice(false);
     }
@@ -1083,24 +1200,40 @@ export default function SystemSettings({ id, permissions }: { id: number, permis
   };
 
   const groupedOffices = useMemo(() => {
-    const groups = offices.reduce((acc: any, office: any) => {
-      const country = office.Country || 'غير محدد';
-      if (!acc[country]) {
-        acc[country] = [];
-      }
-      acc[country].push(office);
-      return acc;
-    }, {});
+    const groups: { [key: string]: any[] } = {};
 
-    // Ensure all existing nationalities have an entry
-    uniqueCountries.forEach(c => {
-      if (!groups[c.value]) {
-        groups[c.value] = [];
+    // 1. Initialize groups for all active recruitment countries from DB (NationalityCard)
+    activeCountries.forEach(c => {
+      if (c) groups[c] = [];
+    });
+
+    // 2. Also initialize for added custom countries
+    addedCustomCountries.forEach(c => {
+      if (c && !groups[c]) groups[c] = [];
+    });
+
+    // 3. Place offices into matching country group
+    offices.forEach((office: any) => {
+      const country = (office.Country || 'غير محدد').trim();
+      let matchedKey = Object.keys(groups).find((key: string) => {
+        if (key === country) return true;
+        if (country !== 'غير محدد') {
+          const keyParts = key.split(' - ').map((s: string) => s.trim());
+          const rawParts = country.split(' - ').map((s: string) => s.trim());
+          return keyParts.some((kp: string) => rawParts.includes(kp));
+        }
+        return false;
+      });
+
+      const finalKey = matchedKey || country;
+      if (!groups[finalKey]) {
+        groups[finalKey] = [];
       }
+      groups[finalKey].push(office);
     });
 
     return groups;
-  }, [offices, uniqueCountries]);
+  }, [offices, activeCountries, addedCustomCountries]);
 
   return (
     <Layout>
@@ -1457,9 +1590,23 @@ export default function SystemSettings({ id, permissions }: { id: number, permis
           <div className="bg-white rounded-2xl p-8 shadow-lg border border-teal-100">
             {!selectedExternalOffice ? (
               <>
-                <div className="mb-8">
-                  <h3 className="text-3xl font-bold text-teal-800 mb-2">إدارة المكاتب الخارجية</h3>
-                  <p className="text-sm text-gray-600">اختر المكتب للبدء في تخصيص إعداداته</p>
+                <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div>
+                    <h3 className="text-3xl font-bold text-teal-800 mb-2">إدارة المكاتب الخارجية</h3>
+                    <p className="text-sm text-gray-600">اختر المكتب للبدء في تخصيص إعداداته، أو أضف دولة جديدة</p>
+                  </div>
+                  {permissions.canManageOffices && (
+                    <button
+                      onClick={() => {
+                        setCountryForm({ countryArabic: '', countryEnglish: '' });
+                        setIsCountryModalOpen(true);
+                      }}
+                      className="bg-teal-700 hover:bg-teal-800 text-white px-5 py-2.5 rounded-xl font-semibold transition-all shadow-md hover:shadow-lg flex items-center gap-2 text-sm"
+                    >
+                      <Plus size={18} />
+                      إضافة دولة جديدة
+                    </button>
+                  )}
                 </div>
                 {Object.keys(groupedOffices).length === 0 ? (
                    <div className="text-center py-16 bg-gray-50 rounded-xl border border-dashed border-gray-300">
@@ -1845,6 +1992,81 @@ export default function SystemSettings({ id, permissions }: { id: number, permis
         )}
       </main>
     </div>
+      {/* Country Modal */}
+      {isCountryModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] backdrop-blur-xs">
+          <div className="bg-white p-6 rounded-2xl w-full max-w-md shadow-2xl border border-teal-100">
+            <div className="flex justify-between items-center mb-5 pb-3 border-b border-gray-100">
+              <h3 className="text-xl font-bold text-teal-900 flex items-center gap-2">
+                <Globe className="text-teal-700 w-5 h-5" />
+                إضافة دولة جديدة
+              </h3>
+              <button 
+                onClick={() => setIsCountryModalOpen(false)} 
+                className="text-gray-400 hover:text-gray-600 rounded-lg p-1 hover:bg-gray-100 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5 text-right">
+                  اسم الدولة بالعربي <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={countryForm.countryArabic}
+                  onChange={(e) => setCountryForm({ ...countryForm, countryArabic: e.target.value })}
+                  className="w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-right outline-none font-medium"
+                  placeholder="مثال: الهند"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5 text-right">
+                  اسم الدولة بالإنجليزي
+                </label>
+                <input
+                  type="text"
+                  value={countryForm.countryEnglish}
+                  onChange={(e) => setCountryForm({ ...countryForm, countryEnglish: e.target.value })}
+                  className="w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-left outline-none font-medium"
+                  placeholder="e.g. India"
+                  dir="ltr"
+                />
+              </div>
+            </div>
+            
+            <div className="mt-6 pt-4 border-t border-gray-100 flex justify-end gap-3">
+              <button
+                onClick={() => setIsCountryModalOpen(false)}
+                className="px-5 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors font-medium text-sm"
+                disabled={isSubmittingCountry}
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={handleSaveCountry}
+                disabled={isSubmittingCountry || !countryForm.countryArabic.trim()}
+                className="px-6 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl transition-all font-semibold shadow-md disabled:opacity-50 flex items-center gap-2 text-sm"
+              >
+                {isSubmittingCountry ? (
+                  <>
+                    <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                    جاري الحفظ...
+                  </>
+                ) : (
+                  'حفظ الدولة'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Office Modal */}
       {isOfficeModalOpen && editingOffice && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
           <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-xl">
@@ -1870,7 +2092,7 @@ export default function SystemSettings({ id, permissions }: { id: number, permis
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">الدولة *</label>
                 <select
-                  value={editingOffice.country}
+                  value={editingOffice.country || ''}
                   onChange={(e) => setEditingOffice({ ...editingOffice, country: e.target.value })}
                   disabled={!editingOffice.id && !!editingOffice.country}
                   className={`w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500 ${!editingOffice.id && !!editingOffice.country ? 'bg-gray-100 cursor-not-allowed' : ''}`}
