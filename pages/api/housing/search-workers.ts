@@ -34,12 +34,12 @@ export default async function handler(
               { Passportnumber: { contains: search } },
               { phone: { contains: search } },
               { clientphonenumber: { contains: search } },
-              // البحث عن طريق بيانات العميل في NewOrder
+              // البحث عن طريق بيانات العميل والطلب في NewOrder
               {
                 NewOrder: {
                   some: {
                     OR: [
-                      ...(isValidNumber ? [{ clientID: parsedSearchNumber }] : []),
+                      ...(isValidNumber ? [{ id: parsedSearchNumber }, { clientID: parsedSearchNumber }] : []),
                       { ClientName: { contains: search } },
                       { PhoneNumber: { contains: search } },
                       { clientphonenumber: { contains: search } },
@@ -103,11 +103,14 @@ export default async function handler(
             createdAt: true,
             arrivals: {
               select: {
+                id: true,
                 KingdomentryDate: true,
                 KingdomentryTime: true,
                 GuaranteeDurationEnd: true
               },
-              take: 1
+              orderBy: {
+                id: 'desc'
+              }
             },
             client: {
               select: {
@@ -131,6 +134,18 @@ export default async function handler(
       }
     });
 
+    // Helper function to safely format date to YYYY-MM-DD
+    const formatToYMD = (val: any): string => {
+      if (!val) return '';
+      try {
+        const d = new Date(val);
+        if (isNaN(d.getTime())) return '';
+        return d.toISOString().split('T')[0];
+      } catch {
+        return '';
+      }
+    };
+
     // Format the response
     const formattedHomemaids = homemaids.map(homemaid => {
       // Get the most recent order
@@ -152,9 +167,23 @@ export default async function handler(
         address
       } : null;
 
-      const arrival = latestOrder?.arrivals?.[0] || null;
-      const arrivalDate = arrival?.KingdomentryDate ? String(arrival.KingdomentryDate).split('T')[0] : '';
-      const guaranteeEndDate = arrival?.GuaranteeDurationEnd ? String(arrival.GuaranteeDurationEnd).split('T')[0] : '';
+      // Find arrival with KingdomentryDate from latest order, or fallback across other orders
+      const arrival = latestOrder?.arrivals?.find((a: any) => a.KingdomentryDate) || latestOrder?.arrivals?.[0] || null;
+      let arrivalDate = formatToYMD(arrival?.KingdomentryDate);
+      let guaranteeEndDate = formatToYMD(arrival?.GuaranteeDurationEnd);
+
+      if (!arrivalDate && homemaid.NewOrder) {
+        for (const ord of homemaid.NewOrder) {
+          const arr = ord.arrivals?.find((a: any) => a.KingdomentryDate);
+          if (arr?.KingdomentryDate) {
+            arrivalDate = formatToYMD(arr.KingdomentryDate);
+            if (!guaranteeEndDate) {
+              guaranteeEndDate = formatToYMD(arr.GuaranteeDurationEnd);
+            }
+            break;
+          }
+        }
+      }
 
       return {
         id: homemaid.id,

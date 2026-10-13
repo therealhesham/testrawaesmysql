@@ -64,12 +64,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.log("rules", rules.length);
     if (rules.length === 0) return res.status(200).json({ success: true, generated: 0 });
 
+    const stageLabels: { [key: string]: string } = {
+      officeLinkInfo: 'الربط مع إدارة المكاتب',
+      externalOfficeInfo: 'المكتب الخارجي',
+      externalOfficeApproval: 'موافقة المكتب الخارجي',
+      medicalCheck: 'الفحص الطبي',
+      foreignLaborApproval: 'موافقة وزارة العمل الأجنبية',
+      agencyPayment: 'دفع الوكالة',
+      saudiEmbassyApproval: 'موافقة السفارة السعودية',
+      visaIssuance: 'إصدار التأشيرة',
+      travelPermit: 'تصريح السفر',
+      destinations: 'الوجهات',
+      receipt: 'الاستلام',
+      documentUpload: 'رفع المستندات',
+    };
+
     // fetch relevant arrivals joined with order and office name
     const arrivals = await prisma.arrivallist.findMany({
       select: {
         id: true,
         OrderId: true,
         office: true,
+        InternalmusanedContract: true,
         externalOfficeStatus: true,
         ExternalOFficeApproval: true,
         ExternalDateLinking: true,
@@ -87,9 +103,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           select: {
             id: true,
             Name: true,
+            ClientName: true,
+            client: {
+              select: {
+                fullname: true,
+              },
+            },
             HomeMaid: {
               select: {
                 Name: true,
+                Passportnumber: true,
                 office: {
                   select: {
                     office: true,
@@ -118,11 +141,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         console.log(`  Order #${rec.OrderId}: Days diff = ${daysDiff}, Limit = ${rule.days}`);
         
         if (daysDiff > rule.days) {
+          const daysOverdue = daysDiff - rule.days;
+          const stageName = stageLabels[rule.stage] || rule.stage;
+          const workerName = rec.Order?.HomeMaid?.Name || rec.Order?.Name || 'غير محدد';
+          const passport = rec.Order?.HomeMaid?.Passportnumber ? ` (جواز: ${rec.Order.HomeMaid.Passportnumber})` : '';
+          const clientName = rec.Order?.client?.fullname || rec.Order?.ClientName || 'غير محدد';
+          const contractNum = rec.InternalmusanedContract ? ` | مساند: ${rec.InternalmusanedContract}` : '';
+
+          const notifMessage = `
+            <div style="display:flex;flex-direction:column;gap:5px;text-align:right;direction:rtl;">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid #fee2e2;padding-bottom:5px;">
+                <span style="font-weight:700;color:#b91c1c;font-size:13px;">⚠️ تأخير في ${stageName} (طلب #${rec.OrderId})</span>
+                <span style="background-color:#fef2f2;color:#dc2626;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;border:1px solid #fecaca;">متأخر ${daysOverdue} يوم</span>
+              </div>
+              <div style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 9px;font-size:12px;color:#334155;line-height:1.6;">
+                <div>👤 <strong>العميل:</strong> <span style="font-weight:600;color:#0f172a;">${clientName}</span>${contractNum}</div>
+                <div>👩‍💼 <strong>العاملة:</strong> <span style="font-weight:600;color:#0f172a;">${workerName}</span>${passport}</div>
+                <div>🏢 <strong>المكتب الخارجي:</strong> ${rule.officeName} <span style="color:#64748b;font-size:11px;">(المهلة: ${rule.days} يوم | انقضى: ${daysDiff} يوم)</span></div>
+              </div>
+              <div style="margin-top:2px;">
+                <a href="/admin/track_order/${rec.OrderId}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;color:#b91c1c;font-weight:700;font-size:11px;text-decoration:none;background:#fff1f2;padding:3px 9px;border-radius:5px;border:1px solid #fecdd3;">
+                  <span>متابعة الطلب</span>
+                  <span>←</span>
+                </a>
+              </div>
+            </div>
+          `.trim();
+
           // Create notification
           await prisma.notifications.create({
             data: {
-              title: 'تأخير مرحلة',
-              message: `تأخير في مرحلة ${rule.stage} للطلب #${rec.OrderId} (المكتب: ${rule.officeName})` ,
+              title: `تأخير في ${stageName} - طلب #${rec.OrderId}`,
+              message: notifMessage,
               isRead: false,
             },
           });
@@ -133,12 +183,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             officeDelays[rule.officeName] = { orders: [] };
           }
           
-          const workerName = rec.Order?.HomeMaid?.Name || rec.Order?.Name || 'غير محدد';
           officeDelays[rule.officeName].orders.push({
             orderId: rec.OrderId || 0,
             workerName: workerName,
             stage: rule.stage,
-            daysOverdue: daysDiff - rule.days,
+            daysOverdue: daysOverdue,
           });
         }
       }

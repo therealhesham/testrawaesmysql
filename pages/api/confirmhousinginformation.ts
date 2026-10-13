@@ -260,18 +260,104 @@ if (req.body.location) {
     }catch(error){
       console.log(error)
     }
+      // جلب بيانات العاملة والطلب والعميل
       const homeMaidData = await prisma.homemaid.findUnique({
         where: {
           id: homeMaidId,
         },
+        include: {
+          NewOrder: {
+            include: {
+              client: true,
+              arrivals: {
+                select: {
+                  InternalmusanedContract: true,
+                },
+                orderBy: { id: 'desc' },
+                take: 1,
+              },
+            },
+            orderBy: {
+              createdAt: 'desc',
+            },
+            take: 1,
+          },
+          transferSponsorShips: {
+            include: {
+              NewClient: true,
+            },
+          },
+        },
       });
+
+      // جلب اسم موقع السكن
+      const locationData = req.body.location
+        ? await prisma.inHouseLocation.findUnique({
+            where: { id: Number(req.body.location) },
+            select: { location: true },
+          })
+        : null;
+      const locationName = locationData?.location || 'غير محدد';
+
+      // استخراج بيانات العقد والعميل
+      const latestOrder = homeMaidData?.NewOrder?.[0];
+      const latestTransfer = homeMaidData?.transferSponsorShips;
+
+      let clientName = 'غير محدد';
+      let contractDetails = '';
+      let contractTypeBadge = 'استقدام';
+
+      if (latestOrder) {
+        clientName = latestOrder.client?.fullname || latestOrder.ClientName || 'غير محدد';
+        const musanedNum = latestOrder.arrivals?.[0]?.InternalmusanedContract;
+        contractDetails = `طلب #${latestOrder.id}${musanedNum ? ` | مساند: ${musanedNum}` : ''}`;
+        contractTypeBadge = 'عقد استقدام';
+      } else if (latestTransfer) {
+        clientName = latestTransfer.NewClient?.fullname || 'غير محدد';
+        contractDetails = `طلب نقل كفالة #${latestTransfer.id}`;
+        contractTypeBadge = 'نقل كفالة';
+      } else if (req.body.clientName) {
+        clientName = req.body.clientName;
+      }
+
+      const workerName = homeMaidData?.Name || 'عاملة منزلية';
+      const passportNumber = homeMaidData?.Passportnumber ? ` (جواز: ${homeMaidData.Passportnumber})` : '';
+      const nationality = homeMaidData?.Nationality || homeMaidData?.Nationalitycopy || '';
+      const reason = req.body.reason || 'غير محدد';
+      const actionTaken = req.body.actionTaken || '';
+      const details = req.body.details || '';
+      const employeeName = req.body.employee || '';
+      const formattedHousingDate = houseentrydate
+        ? new Date(houseentrydate).toLocaleDateString('ar-SA')
+        : new Date().toLocaleDateString('ar-SA');
+
+      const notificationMessage = `
+        <div style="display:flex;flex-direction:column;gap:6px;text-align:right;direction:rtl;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid #e2e8f0;padding-bottom:5px;">
+            <span style="font-weight:700;color:#0f766e;font-size:14px;">🏠 تم تسكين العاملة: ${workerName}${passportNumber}</span>
+            <span style="background-color:#f0fdf4;color:#166534;font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;border:1px solid #bbf7d0;">${contractTypeBadge}</span>
+          </div>
+          <div style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:12px;color:#334155;line-height:1.7;">
+            <div>👤 <strong>العميل:</strong> <span style="color:#0f172a;font-weight:600;">${clientName}</span> ${contractDetails ? `(${contractDetails})` : ''}</div>
+            ${nationality ? `<div>🌍 <strong>الجنسية:</strong> ${nationality}</div>` : ''}
+            <div>📍 <strong>مكان السكن:</strong> <span style="font-weight:600;color:#0f766e;">${locationName}</span> | <strong>تاريخ التسكين:</strong> ${formattedHousingDate}</div>
+            <div>📋 <strong>سبب التسكين:</strong> <span style="color:#b45309;font-weight:600;">${reason}</span>${actionTaken ? ` | <strong>الإجراء:</strong> ${actionTaken}` : ''}</div>
+            ${employeeName ? `<div>👨‍💼 <strong>الموظف المسؤول:</strong> ${employeeName}</div>` : ''}
+            ${details ? `<div style="margin-top:3px;color:#64748b;font-size:11px;border-top:1px dashed #cbd5e1;padding-top:3px;">📝 <strong>ملاحظات:</strong> ${details}</div>` : ''}
+          </div>
+          <div style="margin-top:2px;">
+            <a href="/admin/housedarrivals" target="_blank" style="display:inline-flex;align-items:center;gap:4px;color:#0f766e;font-weight:700;font-size:12px;text-decoration:none;background:#f0fdfa;padding:4px 10px;border-radius:6px;border:1px solid #ccfbf1;">
+              <span>عرض التفاصيل في قسم السكن</span>
+              <span>←</span>
+            </a>
+          </div>
+        </div>
+      `.trim();
 
       await prisma.notifications.create({
         data: {
-          title: `تسكين عاملة  ${homeMaidData?.Name} منزلية`,
-          message: `تم تسكين العاملة بنجاح <br/>
-              يمكنك فحص المعلومات في قسم التسكين ......  <a href="/admin/housedarrivals" target="_blank" className="text-blue-500">اضغط هنا</a>`,
-          // userId: req.body.employee,
+          title: `تسكين عاملة: ${workerName} | سكن ${locationName}`,
+          message: notificationMessage,
           isRead: false,
         },
       });

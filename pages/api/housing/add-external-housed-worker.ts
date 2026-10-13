@@ -262,11 +262,44 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
+    const locationInfo = await prisma.inHouseLocation.findUnique({
+      where: { id: locationId },
+      select: { location: true },
+    });
+    const locName = locationInfo?.location || "غير محدد";
+
+    const formattedHousingDate = houseentrydate
+      ? new Date(houseentrydate).toLocaleDateString('ar-SA')
+      : new Date().toLocaleDateString('ar-SA');
+
+    const externalNotificationMessage = `
+      <div style="display:flex;flex-direction:column;gap:6px;text-align:right;direction:rtl;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid #e2e8f0;padding-bottom:5px;">
+          <span style="font-weight:700;color:#0f766e;font-size:14px;">🏠 تسكين عاملة خارجية (مؤقت): ${externalHomemaid.name}${externalHomemaid.passportNumber ? ` (جواز: ${externalHomemaid.passportNumber})` : ''}</span>
+          <span style="background-color:#fef3c7;color:#92400e;font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;border:1px solid #fde68a;">تسكين مؤقت</span>
+        </div>
+        <div style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:12px;color:#334155;line-height:1.7;">
+          ${clientName ? `<div>👤 <strong>العميل:</strong> <span style="color:#0f172a;font-weight:600;">${clientName}</span> ${clientPhone ? `(${clientPhone})` : ''}</div>` : ''}
+          ${externalHomemaid.nationality ? `<div>🌍 <strong>الجنسية:</strong> ${externalHomemaid.nationality}</div>` : ''}
+          <div>📍 <strong>مكان السكن:</strong> <span style="font-weight:600;color:#0f766e;">${locName}</span> | <strong>تاريخ التسكين:</strong> ${formattedHousingDate}</div>
+          <div>⏳ <strong>المدة المتوقعة للإقامة:</strong> ${expectedStayDuration}</div>
+          <div>📋 <strong>سبب التسكين:</strong> <span style="color:#b45309;font-weight:600;">${reason || 'تسكين مؤقت'}</span></div>
+          ${employee ? `<div>👨‍💼 <strong>الموظف المسؤول:</strong> ${employee}</div>` : ''}
+          ${details ? `<div style="margin-top:3px;color:#64748b;font-size:11px;border-top:1px dashed #cbd5e1;padding-top:3px;">📝 <strong>ملاحظات:</strong> ${details}</div>` : ''}
+        </div>
+        <div style="margin-top:2px;">
+          <a href="/admin/housedarrivals" target="_blank" style="display:inline-flex;align-items:center;gap:4px;color:#0f766e;font-weight:700;font-size:12px;text-decoration:none;background:#f0fdfa;padding:4px 10px;border-radius:6px;border:1px solid #ccfbf1;">
+            <span>عرض التفاصيل في قسم السكن</span>
+            <span>←</span>
+          </a>
+        </div>
+      </div>
+    `.trim();
+
     await prisma.notifications.create({
       data: {
-        title: `تسكين خارجي مؤقت: ${externalHomemaid.name}`,
-        message: `تم تسكين العاملة الخارجية (${externalHomemaid.name}) بنجاح (مدة متوقعة: ${expectedStayDuration}) <br/>
-            يمكنك فحص المعلومات في قسم التسكين ......  <a href="/admin/housedarrivals" target="_blank" className="text-blue-500">اضغط هنا</a>`,
+        title: `تسكين خارجي مؤقت: ${externalHomemaid.name} | سكن ${locName}`,
+        message: externalNotificationMessage,
         isRead: false,
       },
     });

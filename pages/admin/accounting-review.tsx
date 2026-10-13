@@ -263,6 +263,7 @@ export default function AccountingReviewPage() {
     else if (lower.includes('best migrant') || lower.includes('بيست')) keyword = 'بيست';
     else if (lower.includes('earth') || lower.includes('ايرث')) keyword = 'ايرث';
     else if (lower.includes('palma') || lower.includes('بالما')) keyword = 'بالما';
+    else if (lower.includes('moulavi') || lower.includes('مولافي') || lower.includes('مولوي') || lower.includes('الهند') || lower.includes('india')) keyword = 'مولوي';
 
     if (keyword) {
       const normKeyword = normalizeArabic(keyword);
@@ -638,6 +639,7 @@ export default function AccountingReviewPage() {
     if (o.includes('adel') || o.includes('عادل')) return 'عادل';
     if (o.includes('best') || o.includes('بيست')) return 'بيست';
     if (o.includes('earth') || o.includes('ايرث')) return 'ايرث';
+    if (o.includes('moulavi') || o.includes('مولافي') || o.includes('مولوي') || o.includes('الهند') || o.includes('india')) return 'مولوي';
     return '';
   };
 
@@ -758,13 +760,19 @@ export default function AccountingReviewPage() {
       const officeKw = getOfficeArabicKeyword(targetOffice);
       if (officeKw) {
         const normKw = normalizeArabic(officeKw);
-        // Direct matching for Palma by code 4114001 or keywords
+        // Direct matching for Palma by code 4114001 or Moulavi by code 4115001 or keywords
         let directCodeAcc: any = null;
         if (normKw === 'بالما') {
           directCodeAcc = postingAccounts.find((acc: any) => {
             const a = acc.JournalAccount || acc;
             const code = String(a.code || '');
             return code === '4114001' || code === '4114';
+          });
+        } else if (normKw === 'مولوي') {
+          directCodeAcc = postingAccounts.find((acc: any) => {
+            const a = acc.JournalAccount || acc;
+            const code = String(a.code || '');
+            return code === '4115001' || code === '4115';
           });
         }
 
@@ -939,8 +947,22 @@ export default function AccountingReviewPage() {
         const officeKw = getOfficeArabicKeyword(selectedOrder.officeName);
         if (officeKw) {
           const normKw = normalizeArabic(officeKw);
+          let directCodeAcc: any = null;
+          if (normKw === 'بالما') {
+            directCodeAcc = postingAccounts.find((acc: any) => {
+              const a = acc.JournalAccount || acc;
+              const code = String(a.code || '');
+              return code === '4114001' || code === '4114';
+            });
+          } else if (normKw === 'مولوي') {
+            directCodeAcc = postingAccounts.find((acc: any) => {
+              const a = acc.JournalAccount || acc;
+              const code = String(a.code || '');
+              return code === '4115001' || code === '4115';
+            });
+          }
           // Prioritize accounts that explicitly start with or contain "ايراد" and NEVER "مردود" or "مصروف"
-          const matchedRevenueAcc = postingAccounts.find((acc: any) => {
+          const matchedRevenueAcc = directCodeAcc || postingAccounts.find((acc: any) => {
             const a = acc.JournalAccount || acc;
             const name = (a.name || '').trim();
             const normName = normalizeArabic(name);

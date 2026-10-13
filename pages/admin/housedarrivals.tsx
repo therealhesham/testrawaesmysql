@@ -6430,7 +6430,7 @@ const confirmDeleteNote = async () => {
                               <label className="block text-xs font-semibold text-gray-500 mb-1">تاريخ دخول المملكة</label>
                               <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg p-2.5 text-sm font-medium text-gray-800">
                                 <Calendar className="w-4 h-4 text-teal-700 shrink-0" />
-                                <span>{selectedWorker?.arrivalDate ? getDate(selectedWorker.arrivalDate) : 'غير مسجل'}</span>
+                                <span>{selectedWorker?.arrivalDate ? (getDate(selectedWorker.arrivalDate) || selectedWorker.arrivalDate) : 'غير مسجل'}</span>
                               </div>
                             </div>
 

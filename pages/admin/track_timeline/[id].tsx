@@ -5,6 +5,7 @@
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import InfoCard from 'components/InfoCard';
+import OrderNotFound from 'components/OrderNotFound';
 import ContractElapsedBadge from 'components/ContractElapsedBadge';
 import Head from 'next/head';
 import ErrorModal from 'components/ErrorModal';
@@ -331,9 +332,11 @@ export default function TrackTimeline() {
   if (error || !orderData) {
     return (
       <Layout>
-        <div className="min-h-screen font-tajawal" dir="rtl">
-          {error || 'الطلب غير موجود'}
-        </div>
+        <OrderNotFound 
+          orderId={id} 
+          errorMessage={error} 
+          onRetry={fetchOrderData} 
+        />
       </Layout>
     );
   }

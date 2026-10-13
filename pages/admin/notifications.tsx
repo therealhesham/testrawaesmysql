@@ -296,7 +296,7 @@ export default function NotificationsPage() {
                     }}
                   ></p>
                   <p className="text-xs text-gray-500 flex items-center gap-2">
-                    منذ {dayjs(n.createdAt).fromNow()} <FieldTimeOutlined />
+                    {dayjs(n.createdAt).fromNow()} <FieldTimeOutlined />
                   </p>
                 </div>
               </div>

@@ -11,6 +11,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useEffect, useState, useRef } from 'react';
 import InfoCard from 'components/InfoCard';
+import OrderNotFound from 'components/OrderNotFound';
 import ContractElapsedBadge from 'components/ContractElapsedBadge';
 import VisaModal, { VisaData } from 'components/VisaModal';
 import Head from 'next/head';
@@ -2004,9 +2005,11 @@ export default function TrackOrder() {
   if (error || !orderData) {
     return (
       <Layout>
-        <div className="min-h-screen font-tajawal" dir="rtl">
-          {error || 'الطلب غير موجود'}
-        </div>
+        <OrderNotFound 
+          orderId={id} 
+          errorMessage={error} 
+          onRetry={fetchOrderData} 
+        />
       </Layout>
     );
   }

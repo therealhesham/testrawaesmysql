@@ -37,7 +37,7 @@ export default async function handler(
                 NewOrder: {
                   some: {
                     OR: [
-                      ...(isValidNumber ? [{ clientID: parsedSearchNumber }] : []),
+                      ...(isValidNumber ? [{ id: parsedSearchNumber }, { clientID: parsedSearchNumber }] : []),
                       { ClientName: { contains: search } },
                       { PhoneNumber: { contains: search } },
                       { clientphonenumber: { contains: search } },
@@ -119,6 +119,17 @@ export default async function handler(
             PhoneNumber: true,
             clientphonenumber: true,
             nationalId: true,
+            arrivals: {
+              select: {
+                id: true,
+                KingdomentryDate: true,
+                KingdomentryTime: true,
+                GuaranteeDurationEnd: true
+              },
+              orderBy: {
+                id: 'desc'
+              }
+            },
             client: {
               select: {
                 id: true,
@@ -143,6 +154,18 @@ export default async function handler(
       }
     });
 
+    // Helper function to safely format date to YYYY-MM-DD
+    const formatToYMD = (val: any): string => {
+      if (!val) return '';
+      try {
+        const d = new Date(val);
+        if (isNaN(d.getTime())) return '';
+        return d.toISOString().split('T')[0];
+      } catch {
+        return '';
+      }
+    };
+
     // Format the response
     const formattedHomemaids = homemaids.map(worker => {
       const order = worker.NewOrder && worker.NewOrder.length > 0 ? worker.NewOrder[0] : null;
@@ -165,6 +188,10 @@ export default async function handler(
         address
       } : null;
 
+      const arrival = order?.arrivals?.find((a: any) => a.KingdomentryDate) || order?.arrivals?.[0] || null;
+      const arrivalDate = formatToYMD(worker.transferSponsorShips?.EntryDate || arrival?.KingdomentryDate);
+      const guaranteeEndDate = formatToYMD(arrival?.GuaranteeDurationEnd);
+
       return {
         id: worker.id,
         name: worker.Name,
@@ -174,6 +201,8 @@ export default async function handler(
         age: worker.age,
         office: worker.office?.office || 'غير محدد',
         country: worker.office?.Country || 'غير محدد',
+        arrivalDate,
+        guaranteeEndDate,
         hasTransferSponsorship: worker.transferSponsorShips !== null,
         transferSponsorShips: worker.transferSponsorShips || null,
         clientData,
