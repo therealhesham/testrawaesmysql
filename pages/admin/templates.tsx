@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Component, ErrorInfo, ReactNode } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
 import Layout from 'example/containers/Layout';
-import { Plus, FileText, Upload, Calendar, ChevronLeft, ChevronRight, Search, Edit, Trash2, Layout as LayoutIcon, X, Printer, RefreshCw } from 'lucide-react';
+import { Plus, FileText, Upload, Calendar, ChevronLeft, ChevronRight, Search, Edit, Trash2, Layout as LayoutIcon, X, Printer, RefreshCw, Code } from 'lucide-react';
 import { DocumentTextIcon } from '@heroicons/react/outline';
 import { jsPDF } from 'jspdf';
 import Style from 'styles/Home.module.css';
@@ -14,6 +14,41 @@ const ReactQuill = dynamic(() => import('react-quill'), {
   ssr: false,
 });
 import 'react-quill/dist/quill.snow.css';
+
+interface ErrorBoundaryProps {
+  children: ReactNode;
+  fallback?: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+}
+
+class QuillErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(_: Error): ErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('Quill error caught:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback || (
+        <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded">
+          تعذر تحميل المحرر المرئي لهذا القالب. يرجى استخدام محرر كود HTML.
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 interface Template {
   id: number;
@@ -28,6 +63,79 @@ interface Notification {
   message: string;
   type: 'success' | 'error';
 }
+
+const fieldTranslations: { [key: string]: string } = {
+  hijri_date: 'التاريخ الهجري',
+  gregorian_date: 'التاريخ الميلادي',
+  date: 'التاريخ',
+  trial_days: 'أيام التجربة',
+  daily_penalty_amount: 'مبلغ اليومية خلال التجربة',
+  amount_text: 'مبلغ العقد كتابةً / رقماً',
+  contract_amount: 'مبلغ العقد',
+  amount: 'المبلغ',
+  refund_amount: 'المبلغ المسترد',
+  start_date_h: 'تاريخ البداية (هجري)',
+  end_date_h: 'تاريخ النهاية (هجري)',
+  start_date_g: 'تاريخ البداية (ميلادي)',
+  end_date_g: 'تاريخ النهاية (ميلادي)',
+  start_date: 'تاريخ البداية',
+  end_date: 'تاريخ النهاية',
+  employer_name: 'اسم صاحب العمل',
+  employer_name1: 'اسم صاحب العمل (1)',
+  employer_name2: 'اسم صاحب العمل (2)',
+  employer_name3: 'اسم صاحب العمل (3)',
+  employer_id: 'هوية صاحب العمل',
+  employer_id1: 'هوية صاحب العمل (1)',
+  employer_id2: 'هوية صاحب العمل (2)',
+  client_name: 'اسم العميل',
+  client_name1: 'اسم العميل (1)',
+  client_name2: 'اسم العميل (2)',
+  id_number: 'رقم الهوية',
+  id_number1: 'رقم الهوية (1)',
+  id_number2: 'رقم الهوية (2)',
+  birth_date: 'تاريخ الميلاد',
+  mobile: 'رقم الجوال',
+  mobile1: 'رقم الجوال (1)',
+  mobile2: 'رقم الجوال (2)',
+  mobile_1: 'رقم الجوال',
+  worker_name: 'اسم العاملة',
+  worker_name1: 'اسم العاملة (1)',
+  worker_name2: 'اسم العاملة (2)',
+  worker_name3: 'اسم العاملة (3)',
+  worker_nationality: 'جنسية العاملة',
+  nationality: 'الجنسية',
+  nationality1: 'الجنسية (1)',
+  nationality2: 'الجنسية (2)',
+  passport_number: 'رقم الجواز',
+  visa_number: 'رقم التأشيرة',
+  visa_date: 'تاريخ التأشيرة',
+  worker_profession: 'مهنة العاملة',
+  worker_religion: 'ديانة العاملة',
+  coming_from: 'جهة القدوم',
+  address: 'العنوان',
+  contract_number: 'رقم العقد',
+  handover_date: 'تاريخ التسليم',
+  handover_day: 'يوم التسليم',
+  receive_date: 'تاريخ الاستلام',
+  arrival_date: 'تاريخ الوصول',
+  escape_date: 'تاريخ الهروب',
+  external_office_name: 'اسم المكتب الخارجي',
+  period_from: 'فترة العمل من تاريخ',
+  period_to: 'فترة العمل إلى تاريخ',
+  notes: 'ملاحظات',
+};
+
+const getFieldArabicName = (field: string): string => {
+  if (fieldTranslations[field]) {
+    return fieldTranslations[field];
+  }
+  const baseName = field.replace(/\d+$/, '');
+  const num = field.match(/\d+$/)?.[0];
+  if (fieldTranslations[baseName]) {
+    return `${fieldTranslations[baseName]}${num ? ` (${num})` : ''}`;
+  }
+  return field;
+};
 
 // Custom Date Picker Component
 const CustomDatePicker: React.FC<{
@@ -231,6 +339,7 @@ const CustomDatePicker: React.FC<{
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [editorMode, setEditorMode] = useState<'code' | 'visual'>('code');
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
@@ -512,12 +621,14 @@ export default function Home() {
   const showAddTemplateModal = () => {
     setIsEditMode(false);
     setEditorContent('');
+    setEditorMode('code');
     setIsModalOpen(true);
   };
 
   const showEditTemplateModal = () => {
     setIsEditMode(true);
     setEditorContent(selectedTemplate?.content || '');
+    setEditorMode('code');
     setIsModalOpen(true);
   };
 
@@ -765,7 +876,20 @@ export default function Home() {
         // Reload templates
         const templatesRes = await fetch('/api/templates');
         const templatesData = await templatesRes.json();
-        setTemplates(templatesData);
+        const templatesWithFields = templatesData.map((template: Template) => {
+          const fields = extractDynamicFields(template.content);
+          return {
+            ...template,
+            dynamicFields: fields,
+          };
+        });
+        setTemplates(templatesWithFields);
+        if (selectedTemplate) {
+          const refreshed = templatesWithFields.find((t: Template) => t.id === selectedTemplate.id || t.title === selectedTemplate.title);
+          if (refreshed) {
+            handleTemplateSelect(refreshed);
+          }
+        }
       } else {
         showNotification(data.error || 'فشل في المزامنة', 'error');
       }
@@ -1083,23 +1207,27 @@ export default function Home() {
 
                       <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
                         {Array.isArray(selectedTemplate?.dynamicFields) && selectedTemplate.dynamicFields.length > 0 ? (
-                          selectedTemplate.dynamicFields.map((field) => (
-                            <div key={field} className="flex flex-col gap-1.5">
-                              <label htmlFor={`dynamic-${field}`} className="text-sm font-semibold text-gray-700">
-                                {field}
-                              </label>
-                              <input
-                                type="text"
-                                id={`dynamic-${field}`}
-                                value={dynamicFieldValues[field] || ''}
-                                onChange={(e) =>
-                                  handleDynamicFieldChange(field, e.target.value)
-                                }
-                                className="w-full bg-white border border-gray-300 rounded-md p-2.5 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all shadow-sm"
-                                placeholder={`أدخل ${field}...`}
-                              />
-                            </div>
-                          ))
+                          selectedTemplate.dynamicFields.map((field) => {
+                            const arabicName = getFieldArabicName(field);
+                            return (
+                              <div key={field} className="flex flex-col gap-1.5">
+                                <label htmlFor={`dynamic-${field}`} className="flex items-center justify-between text-xs">
+                                  <span className="font-bold text-gray-800 text-sm">{arabicName}</span>
+                                  <span className="text-[11px] text-gray-400 font-mono" dir="ltr">{field}</span>
+                                </label>
+                                <input
+                                  type="text"
+                                  id={`dynamic-${field}`}
+                                  value={dynamicFieldValues[field] || ''}
+                                  onChange={(e) =>
+                                    handleDynamicFieldChange(field, e.target.value)
+                                  }
+                                  className="w-full bg-white border border-gray-300 rounded-md p-2.5 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all shadow-sm"
+                                  placeholder={`أدخل ${arabicName}...`}
+                                />
+                              </div>
+                            );
+                          })
                         ) : (
                           <div className="text-center py-8 text-gray-400 italic text-sm">
                             لا توجد حقول ديناميكية في هذا القالب
@@ -1163,30 +1291,95 @@ export default function Home() {
                   </div>
                   
                   <div className="flex flex-col gap-2">
-                    <label className="text-sm font-bold text-gray-700 flex justify-between items-center">
-                      <span>محتوى القالب</span>
-                      <span className="text-xs font-normal text-gray-400">استخدم {'{field_name}'} لإضافة حقول متغيرة</span>
-                    </label>
-                    <div className="quill-wrapper border border-gray-300 rounded-lg overflow-hidden shadow-sm">
-                      <ReactQuill
-                        theme="snow"
-                        value={editorContent}
-                        onChange={setEditorContent}
-                        modules={{
-                          toolbar: [
-                            [{ header: [1, 2, 3, false] }],
-                            ['bold', 'italic', 'underline', 'strike'],
-                            [{ list: 'ordered' }, { list: 'bullet' }],
-                            [{ align: ['center', 'right', 'justify'] }],
-                            ['link', 'image'],
-                            ['clean'],
-                          ],
-                        }}
-                        style={{ direction: 'rtl' }}
-                        className="h-[350px] bg-white"
-                        placeholder="اكتب محتوى القالب هنا..."
-                      />
+                    <div className="flex justify-between items-center">
+                      <label className="text-sm font-bold text-gray-700">
+                        محتوى القالب
+                      </label>
+                      <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg border border-gray-200">
+                        <button
+                          type="button"
+                          onClick={() => setEditorMode('code')}
+                          className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+                            editorMode === 'code'
+                              ? 'bg-teal-900 text-white shadow-sm'
+                              : 'text-gray-600 hover:text-gray-900'
+                          }`}
+                        >
+                          <Code className="w-3.5 h-3.5" />
+                          <span>محرر HTML (آمن للقوالب)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditorMode('visual')}
+                          className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+                            editorMode === 'visual'
+                              ? 'bg-teal-900 text-white shadow-sm'
+                              : 'text-gray-600 hover:text-gray-900'
+                          }`}
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          <span>محرر نصوص مرئي</span>
+                        </button>
+                      </div>
                     </div>
+                    <span className="text-xs font-normal text-gray-400">
+                      استخدم {'{field_name}'} لإضافة حقول متغيرة (مثال: {'{daily_penalty_amount}'})
+                    </span>
+
+                    {editorMode === 'code' ? (
+                      <div className="border border-gray-300 rounded-lg overflow-hidden shadow-sm">
+                        <div className="bg-gray-100 px-4 py-2.5 text-xs text-gray-700 flex justify-between items-center border-b border-gray-200">
+                          <span className="font-mono font-bold text-teal-900">HTML Source Code</span>
+                          <span className="text-gray-600 text-[11px]">كود القالب كامل - واضح وقابل للتعديل المباشر</span>
+                        </div>
+                        <textarea
+                          value={editorContent}
+                          onChange={(e) => setEditorContent(e.target.value)}
+                          dir="ltr"
+                          rows={16}
+                          style={{
+                            backgroundColor: '#ffffff',
+                            color: '#111827',
+                            fontFamily: 'Consolas, "Courier New", monospace',
+                            fontSize: '13px',
+                            lineHeight: '1.6',
+                            padding: '16px',
+                            width: '100%',
+                            border: 'none',
+                            outline: 'none',
+                          }}
+                          className="focus:ring-0 resize-y"
+                          placeholder="<!-- كود HTML للقالب -->"
+                        />
+                      </div>
+                    ) : (
+                      <QuillErrorBoundary fallback={
+                        <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg">
+                          يحتوي هذا القالب على وسوم تنسيق وجداول متقدمة لا تدعمها أداة التحرير المرئي. يرجى التبديل إلى <strong>"محرر HTML"</strong> في الأعلى لتعديله بدون مشاكل.
+                        </div>
+                      }>
+                        <div className="quill-wrapper border border-gray-300 rounded-lg overflow-hidden shadow-sm">
+                          <ReactQuill
+                            theme="snow"
+                            value={editorContent}
+                            onChange={setEditorContent}
+                            modules={{
+                              toolbar: [
+                                [{ header: [1, 2, 3, false] }],
+                                ['bold', 'italic', 'underline', 'strike'],
+                                [{ list: 'ordered' }, { list: 'bullet' }],
+                                [{ align: ['center', 'right', 'justify'] }],
+                                ['link', 'image'],
+                                ['clean'],
+                              ],
+                            }}
+                            style={{ direction: 'rtl' }}
+                            className="h-[350px] bg-white"
+                            placeholder="اكتب محتوى القالب هنا..."
+                          />
+                        </div>
+                      </QuillErrorBoundary>
+                    )}
                   </div>
                 </form>
               </div>
