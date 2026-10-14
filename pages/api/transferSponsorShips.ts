@@ -342,7 +342,32 @@ case 'GET':
           if (!transfer) {
             return res.status(404).json({ error: 'معاملة نقل الكفالة غير موجودة' });
           }
-          return res.status(200).json(transfer);
+
+          // تنظيف الملاحظات القديمة إذا كانت بصيغة JSON القديمة واستخراج الحقول المفيدة
+          let cleanNotes = transfer.Notes;
+          let parsedLegacy: any = null;
+          if (cleanNotes && typeof cleanNotes === 'string' && cleanNotes.trim().startsWith('{') && cleanNotes.trim().endsWith('}')) {
+            try {
+              const p = JSON.parse(cleanNotes);
+              if (p && typeof p === 'object' && ('newSponsorDateOfBirth' in p || 'medicalCheckValid' in p || 'sponsorHasViolations' in p)) {
+                cleanNotes = p.notes || p.Notes || p.note || null;
+                parsedLegacy = p;
+              }
+            } catch {}
+          }
+
+          const responseObj: any = { ...transfer, Notes: cleanNotes };
+          if (parsedLegacy?.trialDailyCost && !transfer.dailyCost) {
+            responseObj.dailyCost = Number(parsedLegacy.trialDailyCost);
+          }
+          if (parsedLegacy?.newSponsorDateOfBirth && !transfer.NewClient?.dateofbirth && responseObj.NewClient) {
+            responseObj.NewClient = {
+              ...responseObj.NewClient,
+              dateofbirth: parsedLegacy.newSponsorDateOfBirth,
+            };
+          }
+
+          return res.status(200).json(responseObj);
         }
 
         // بناء الفلاتر
@@ -472,8 +497,21 @@ case 'GET':
 
         const totalPages = Math.ceil(total / limitNum);
 
+        const sanitizedTransfers = transfers.map((t) => {
+          let cleanNotes = t.Notes;
+          if (cleanNotes && typeof cleanNotes === 'string' && cleanNotes.trim().startsWith('{') && cleanNotes.trim().endsWith('}')) {
+            try {
+              const p = JSON.parse(cleanNotes);
+              if (p && typeof p === 'object' && ('newSponsorDateOfBirth' in p || 'medicalCheckValid' in p)) {
+                cleanNotes = p.notes || p.Notes || p.note || null;
+              }
+            } catch {}
+          }
+          return { ...t, Notes: cleanNotes };
+        });
+
         return res.status(200).json({
-          transfers,
+          transfers: sanitizedTransfers,
           tabCounts: {
             trials: trialsCount,
             completed: completedCount,
@@ -982,13 +1020,66 @@ case 'GET':
         }
 
         // تسجيل في سجل عمليات النظام العام
-        const userId = getUserIdFromReq(req);
-        if (userId) {
-          eventBus.emit('ACTION', {
-            type: `إنشاء معاملة نقل كفالة #${transfer?.id} للعاملة (${transfer?.HomeMaid?.Name || ''}) للكفيل (${transfer?.NewClient?.fullname || ''})`,
-            actionType: 'create',
-            userId: userId,
-          });
+        const postUserInfo = getUserInfoFromReq(req);
+        if (postUserInfo.id) {
+          try {
+            await prisma.systemUserLogs.create({
+              data: {
+                userId: postUserInfo.id,
+                actionType: 'create',
+                action: `إنشاء معاملة نقل كفالة #${transfer?.id}${transfer?.HomeMaid?.Name ? ` (${transfer.HomeMaid.Name})` : ''}`.slice(0, 250),
+                beneficiary: (transfer?.HomeMaid?.Name || transfer?.NewClient?.fullname || 'معاملة نقل كفالة').slice(0, 250),
+                BeneficiaryId: transfer?.HomeMaidId || transfer?.id,
+                pageRoute: '/admin/transfersponsorship',
+                details: `إنشاء معاملة نقل كفالة - القيمة: ${transfer?.Cost || 0} ر.س | مدة التجربة: ${transfer?.ExperimentDuration || 'غير محدد'} | الكفيل: ${transfer?.NewClient?.fullname || 'غير محدد'}`.slice(0, 1000),
+              },
+            });
+          } catch (sysErr) {
+            console.error('Error in systemUserLogs on transfer create:', sysErr);
+          }
+        }
+
+        // مزامنة وعكس التغيير على صفحة مغادرات السكن (housedworker)
+        if (transfer?.HomeMaidId) {
+          try {
+            const housedWorker = await prisma.housedworker.findFirst({
+              where: {
+                homeMaid_id: Number(transfer.HomeMaidId),
+              },
+            });
+
+            if (housedWorker) {
+              const existingTsd = (housedWorker.transferSponsorshipData as any) || {};
+              const durationDays = transfer.ExperimentDuration ? parseInt(String(transfer.ExperimentDuration).replace(/[^\d]/g, ''), 10) || null : null;
+              const updatedTsd = {
+                ...existingTsd,
+                id: transfer.id,
+                totalCost: transfer.Cost ? Number(transfer.Cost) : null,
+                paidAmount: transfer.Paid ? Number(transfer.Paid) : null,
+                remainingAmount: transfer.remainingCost !== null && transfer.remainingCost !== undefined ? Number(transfer.remainingCost) : null,
+                dailyCost: transfer.dailyCost ? Number(transfer.dailyCost) : null,
+                trialPeriodDays: durationDays || existingTsd.trialPeriodDays || null,
+                trialStartDate: transfer.ExperimentStart ? new Date(transfer.ExperimentStart).toISOString() : existingTsd.trialStartDate,
+                trialEndDate: transfer.ExperimentEnd ? new Date(transfer.ExperimentEnd).toISOString() : existingTsd.trialEndDate,
+                notes: transfer.Notes || existingTsd.notes || null,
+                newSponsorName: transfer.NewClient?.fullname || existingTsd.newSponsorName,
+                newSponsorPhone: transfer.NewClient?.phonenumber || existingTsd.newSponsorPhone,
+                newSponsorId: transfer.NewClient?.nationalId || existingTsd.newSponsorId,
+                newSponsorCity: transfer.NewClient?.city || existingTsd.newSponsorCity,
+                lastUpdatedFromTransferId: transfer.id,
+                lastUpdatedAt: new Date().toISOString(),
+              };
+
+              await prisma.housedworker.update({
+                where: { id: housedWorker.id },
+                data: {
+                  transferSponsorshipData: updatedTsd as any,
+                },
+              });
+            }
+          } catch (hwErr) {
+            console.error('Error syncing transfer create to housed worker:', hwErr);
+          }
         }
 
         // مزامنة وتحديث كشف الحساب المالي والقيود للكفيل الجديد
@@ -1061,20 +1152,73 @@ case 'GET':
           return res.status(400).json({ error: 'معرف المعاملة مطلوب' });
         }
 
+        const existing: any = await prisma.transferSponsorShips.findUnique({
+          where: { id: Number(id) },
+          include: {
+            HomeMaid: { select: { id: true, Name: true, Passportnumber: true } },
+            NewClient: { select: { id: true, fullname: true, phonenumber: true, nationalId: true, city: true } },
+            OldClient: { select: { id: true, fullname: true } },
+          },
+        });
+
+        if (!existing) {
+          return res.status(404).json({ error: 'معاملة نقل الكفالة غير موجودة' });
+        }
+
         let computedRemaining = remainingCost !== undefined ? (remainingCost ? parseFloat(remainingCost) : null) : undefined;
         if (computedRemaining === undefined && (Cost !== undefined || Paid !== undefined)) {
-          const existing = await prisma.transferSponsorShips.findUnique({ where: { id: Number(id) } });
-          if (existing) {
-            const finalCost = Cost !== undefined ? (Cost ? parseFloat(Cost) : 0) : Number(existing.Cost || 0);
-            const finalPaid = Paid !== undefined ? (Paid ? parseFloat(Paid) : 0) : Number(existing.Paid || 0);
-            computedRemaining = Math.max(0, finalCost - finalPaid);
-          }
+          const finalCost = Cost !== undefined ? (Cost ? parseFloat(Cost) : 0) : Number(existing.Cost || 0);
+          const finalPaid = Paid !== undefined ? (Paid ? parseFloat(Paid) : 0) : Number(existing.Paid || 0);
+          computedRemaining = Math.max(0, finalCost - finalPaid);
+        }
+
+        // رصد التغييرات بدقة لتسجيلها في سجل العمليات (systemUserLogs)
+        const changesList: string[] = [];
+
+        if (Cost !== undefined && Number(Cost || 0) !== Number(existing.Cost || 0)) {
+          changesList.push(`القيمة المالية لنقل الكفالة: من (${Number(existing.Cost || 0).toLocaleString()} ر.س) إلى (${Number(Cost || 0).toLocaleString()} ر.س)`);
+        }
+        if (Paid !== undefined && Number(Paid || 0) !== Number(existing.Paid || 0)) {
+          changesList.push(`المبلغ المسدد: من (${Number(existing.Paid || 0).toLocaleString()} ر.س) إلى (${Number(Paid || 0).toLocaleString()} ر.س)`);
+        }
+        if (computedRemaining !== undefined && Number(computedRemaining || 0) !== Number(existing.remainingCost || 0)) {
+          changesList.push(`المتبقي: من (${Number(existing.remainingCost || 0).toLocaleString()} ر.س) إلى (${Number(computedRemaining || 0).toLocaleString()} ر.س)`);
+        }
+        if (dailyCost !== undefined && Number(dailyCost || 0) !== Number(existing.dailyCost || 0)) {
+          changesList.push(`التكلفة اليومية: من (${Number(existing.dailyCost || 0).toLocaleString()} ر.س) إلى (${Number(dailyCost || 0).toLocaleString()} ر.س)`);
+        }
+        if (ExperimentDuration !== undefined && String(ExperimentDuration || '').trim() !== String(existing.ExperimentDuration || '').trim()) {
+          changesList.push(`مدة التجربة: من (${existing.ExperimentDuration || 'غير محدد'}) إلى (${ExperimentDuration || 'غير محدد'})`);
+        }
+
+        const oldStart = existing.ExperimentStart ? new Date(existing.ExperimentStart).toISOString().split('T')[0] : '';
+        const newStart = ExperimentStart ? new Date(ExperimentStart).toISOString().split('T')[0] : '';
+        if (ExperimentStart !== undefined && oldStart !== newStart) {
+          changesList.push(`بداية التجربة: من (${oldStart || 'غير محدد'}) إلى (${newStart || 'غير محدد'})`);
+        }
+
+        const oldEnd = existing.ExperimentEnd ? new Date(existing.ExperimentEnd).toISOString().split('T')[0] : '';
+        const newEnd = ExperimentEnd ? new Date(ExperimentEnd).toISOString().split('T')[0] : '';
+        if (ExperimentEnd !== undefined && oldEnd !== newEnd) {
+          changesList.push(`نهاية التجربة: من (${oldEnd || 'غير محدد'}) إلى (${newEnd || 'غير محدد'})`);
+        }
+
+        if (Notes !== undefined && String(Notes || '').trim() !== String(existing.Notes || '').trim()) {
+          changesList.push(`ملاحظات التجربة: من (${existing.Notes || 'بدون'}) إلى (${Notes || 'بدون'})`);
+        }
+
+        if (transferStage !== undefined && transferStage !== existing.transferStage) {
+          changesList.push(`المرحلة: من (${existing.transferStage || 'غير محدد'}) إلى (${transferStage})`);
+        }
+
+        if (TransferOperationNumber !== undefined && TransferOperationNumber !== existing.TransferOperationNumber) {
+          changesList.push(`رقم عملية النقل: من (${existing.TransferOperationNumber || 'غير محدد'}) إلى (${TransferOperationNumber || 'غير محدد'})`);
         }
 
         const transfer: any = await prisma.transferSponsorShips.update({
           where: { id: Number(id) },
           data: {
-            TransferOperationNumber:TransferOperationNumber?TransferOperationNumber:null,
+            TransferOperationNumber: TransferOperationNumber ? TransferOperationNumber : null,
             HomeMaidId: HomeMaidId ? Number(HomeMaidId) : undefined,
             NewClientId: resolvedPutNewClientId ? resolvedPutNewClientId : undefined,
             OldClientId: resolvedPutOldClientId ? resolvedPutOldClientId : undefined,
@@ -1089,7 +1233,7 @@ case 'GET':
             ExperimentStart: ExperimentStart ? new Date(ExperimentStart) : undefined,
             ExperimentEnd: ExperimentEnd ? new Date(ExperimentEnd) : undefined,
             ExperimentRate,
-            ContractDate:ContractDate?new Date(ContractDate):undefined,
+            ContractDate: ContractDate ? new Date(ContractDate) : undefined,
             ExperimentDuration: ExperimentDuration ? ExperimentDuration : undefined,
             WorkDuration,
             Notes,
@@ -1106,36 +1250,121 @@ case 'GET':
           },
         });
 
-        // تسجيل في سجل عمليات العاملة
+        const putUserInfo = getUserInfoFromReq(req);
+        const changesSummary = changesList.length > 0 ? changesList.join(' | ') : 'تحديث بيانات المعاملة';
+
+        // 1) تسجيل العملية في سجل العمليات (systemUserLogs)
+        if (putUserInfo.id) {
+          try {
+            await prisma.systemUserLogs.create({
+              data: {
+                userId: putUserInfo.id,
+                actionType: 'update',
+                action: `تعديل معاملة نقل كفالة #${id}${transfer.HomeMaid?.Name ? ` (${transfer.HomeMaid.Name})` : ''}`.slice(0, 250),
+                beneficiary: (transfer.HomeMaid?.Name || transfer.NewClient?.fullname || 'معاملة نقل كفالة').slice(0, 250),
+                BeneficiaryId: transfer.HomeMaidId || Number(id),
+                pageRoute: '/admin/transfersponsorship',
+                details: changesSummary.slice(0, 1000),
+              },
+            });
+          } catch (sysLogErr) {
+            console.error('Error creating systemUserLogs entry on transfer update:', sysLogErr);
+          }
+        }
+
+        // 2) تسجيل في سجل عمليات العاملة العام (logs)
         try {
           await prisma.logs.create({
             data: {
               homemaidId: transfer?.HomeMaidId ? Number(transfer.HomeMaidId) : undefined,
-              Details: `تحديث معاملة نقل كفالة #${transfer?.id} للعاملة (${transfer?.HomeMaid?.Name || 'عاملة'}) - مرحلة: ${transferStage || 'نقل الخدمات'}`,
+              Details: `تعديل معاملة نقل كفالة #${transfer?.id} (${changesSummary.slice(0, 200)})`,
               reason: "تحديث نقل كفالة",
-              Status: transferStage || "نقل الخدمات",
+              Status: transferStage || transfer.transferStage || "نقل الخدمات",
             }
           });
         } catch (logErr) {
           console.error('Error creating homemaid log on transfer update:', logErr);
         }
 
-        // تسجيل في سجل عمليات النظام العام
-        const putUserId = getUserIdFromReq(req);
-        if (putUserId) {
-          eventBus.emit('ACTION', {
-            type: `تعديل معاملة نقل كفالة #${transfer?.id} للعاملة (${transfer?.HomeMaid?.Name || ''})`,
-            actionType: 'update',
-            userId: putUserId,
-          });
-        }
-
-        // مزامنة وتحديث كشف الحساب المالي والقيود للكفيل الجديد
+        // 4) مزامنة وتحديث كشف الحساب المالي والقيود للكفيل الجديد
         if (transfer?.id) {
           try {
             await syncTransferFinancialStatement(transfer.id);
           } catch (syncErr) {
             console.error('Error syncing transfer financial statement on update:', syncErr);
+          }
+        }
+
+        // 5) عكس التغيير وانعكاسه على صفحة مغادرات السكن (housedworker)
+        const targetHomeMaidId = transfer?.HomeMaidId || existing?.HomeMaidId;
+        if (targetHomeMaidId) {
+          try {
+            const housedWorker = await prisma.housedworker.findFirst({
+              where: {
+                homeMaid_id: Number(targetHomeMaidId),
+              },
+              include: {
+                Order: true,
+                externalHomedmaid: true,
+              },
+            });
+
+            if (housedWorker) {
+              const existingTsd = (housedWorker.transferSponsorshipData as any) || {};
+
+              const durationDays = ExperimentDuration !== undefined
+                ? (ExperimentDuration ? parseInt(String(ExperimentDuration).replace(/[^\d]/g, ''), 10) || null : null)
+                : (existingTsd.trialPeriodDays || null);
+
+              const updatedTsd = {
+                ...existingTsd,
+                id: transfer.id,
+                ...(Cost !== undefined ? { totalCost: Cost ? Number(Cost) : null } : {}),
+                ...(Paid !== undefined ? { paidAmount: Paid ? Number(Paid) : null } : {}),
+                ...(computedRemaining !== undefined ? { remainingAmount: computedRemaining } : {}),
+                ...(dailyCost !== undefined ? { dailyCost: dailyCost ? Number(dailyCost) : null } : {}),
+                ...(ExperimentDuration !== undefined ? { trialPeriodDays: durationDays } : {}),
+                ...(ExperimentStart !== undefined ? { trialStartDate: ExperimentStart ? new Date(ExperimentStart).toISOString() : null } : {}),
+                ...(ExperimentEnd !== undefined ? { trialEndDate: ExperimentEnd ? new Date(ExperimentEnd).toISOString() : null } : {}),
+                ...(Notes !== undefined ? { notes: Notes || null } : {}),
+                ...(transfer.NewClient?.fullname ? { newSponsorName: transfer.NewClient.fullname } : {}),
+                ...(transfer.NewClient?.phonenumber ? { newSponsorPhone: transfer.NewClient.phonenumber } : {}),
+                ...(transfer.NewClient?.nationalId ? { newSponsorId: transfer.NewClient.nationalId } : {}),
+                ...(transfer.NewClient?.city ? { newSponsorCity: transfer.NewClient.city } : {}),
+                ...(paymentReceiptFile ? { paymentReceiptFile } : {}),
+                ...(salaryCertificateFile ? { salaryCertificateFile } : {}),
+                ...(nationalAddressFile ? { nationalAddressFile } : {}),
+                ...(promissoryNoteFile ? { promissoryNoteFile } : {}),
+                lastUpdatedFromTransferId: transfer.id,
+                lastUpdatedAt: new Date().toISOString(),
+              };
+
+              const isCompleted = transferStage === 'تم نقل الكفالة' || transferStage === 'نقل الخدمات';
+
+              await prisma.housedworker.update({
+                where: { id: housedWorker.id },
+                data: {
+                  transferSponsorshipData: updatedTsd as any,
+                  ...(isCompleted ? { deparatureReason: 'مغادرة لنقل الكفالة - تم نقل الكفالة' } : {}),
+                },
+              });
+
+              // تسجيل في ملاحظات العاملة بالسكن
+              try {
+                const noteDetails = changesList.length > 0 ? changesList.join(' | ') : 'تحديث بيانات التجربة ونقل الكفالة';
+                await prisma.housedWorkerNotes.create({
+                  data: {
+                    notes: `[تحديث بيانات التجربة ونقل الكفالة من معاملة #${transfer.id}]\n${noteDetails}`.slice(0, 500),
+                    housedWorkerId: housedWorker.id,
+                    employee: putUserInfo.username || 'النظام',
+                  },
+                });
+              } catch (hwNoteErr) {
+                console.warn('Could not add note to housed worker:', hwNoteErr);
+              }
+            }
+          } catch (hwErr) {
+            console.error('Error syncing transfer update to housed worker:', hwErr);
           }
         }
 

@@ -69,6 +69,7 @@ export default function Home({ permissions = { canView: true, canCreate: true, c
     return (
       <AddTransactionForm
         transactionId={transactionId}
+        initialMode={transactionId ? 'edit' : undefined}
         permissions={permissions}
         onBack={() => {
           setShowForm(false);

@@ -373,7 +373,18 @@ export default function AddTransactionForm({
         ExperimentDuration: String(d.experimentDuration || d.experimentDurationSummary || prev.ExperimentDuration || '').replace(/أيام\s*(\d+)/g, '$1 أيام'),
         ExperimentStart: d.experimentStart || prev.ExperimentStart,
         ExperimentEnd: d.experimentEnd || prev.ExperimentEnd,
-        Notes: d.notes || d.trialNotes || prev.Notes,
+        Notes: (() => {
+          let n = d.notes || d.trialNotes || prev.Notes || '';
+          if (n && typeof n === 'string' && n.trim().startsWith('{') && n.trim().endsWith('}')) {
+            try {
+              const p = JSON.parse(n);
+              if (p && typeof p === 'object' && ('newSponsorDateOfBirth' in p || 'medicalCheckValid' in p)) {
+                return p.notes || p.Notes || p.note || '';
+              }
+            } catch {}
+          }
+          return n;
+        })(),
         TransferingDate: d.transferingDate || d.experimentEnd || prev.TransferingDate,
         TransferOperationNumber: d.transferOperationNumber || prev.TransferOperationNumber,
         NationalID: d.residencyNumber || d.workerResidencyNumber || '',
@@ -646,6 +657,30 @@ export default function AddTransactionForm({
       setLoading(true);
       const response = await axios.get(`/api/transferSponsorShips?id=${transactionId}`);
       const data = response.data;
+
+      // معالجة السجلات القديمة: كان النظام يحفظ حقول التحقق من الكفيل كـ JSON داخل Notes
+      let cleanNotes = data.Notes || '';
+      let extractedDob = '';
+      let extractedDailyCost = '';
+      if (cleanNotes && typeof cleanNotes === 'string' && cleanNotes.trim().startsWith('{') && cleanNotes.trim().endsWith('}')) {
+        try {
+          const parsed = JSON.parse(cleanNotes);
+          if (parsed && typeof parsed === 'object') {
+            if ('newSponsorDateOfBirth' in parsed || 'medicalCheckValid' in parsed || 'sponsorHasViolations' in parsed) {
+              cleanNotes = parsed.notes || parsed.Notes || parsed.note || '';
+              if (parsed.newSponsorDateOfBirth) {
+                extractedDob = parsed.newSponsorDateOfBirth;
+              }
+              if (parsed.trialDailyCost) {
+                extractedDailyCost = String(parsed.trialDailyCost);
+              }
+            }
+          }
+        } catch {
+          // ليس JSON صالحاً، يترك كما هو
+        }
+      }
+
       setFormData({
         HomeMaidId: data.HomeMaidId?.toString() || '',
         HomeMaidName: data.HomeMaid?.Name || '',
@@ -663,12 +698,14 @@ export default function AddTransactionForm({
         NewClientNationalId: data.NewClient?.nationalId || '',
         NewClientCity: formatSaudiCity(data.NewClient?.city || data.NewClientCity || ''),
         NewClientAltPhone: data.NewClient?.alternativePhone || '',
-        NewClientDateOfBirth: data.NewClient?.dateofbirth ? new Date(data.NewClient.dateofbirth).toISOString().split('T')[0] : '',
+        NewClientDateOfBirth: data.NewClient?.dateofbirth 
+          ? new Date(data.NewClient.dateofbirth).toISOString().split('T')[0] 
+          : (extractedDob || ''),
         salaryCertificateFile: data.salaryCertificateFile || '',
         nationalAddressFile: data.nationalAddressFile || '',
         paymentReceiptFile: data.paymentReceiptFile || '',
         promissoryNoteFile: data.promissoryNoteFile || '',
-        dailyCost: data.dailyCost?.toString() || '',
+        dailyCost: data.dailyCost?.toString() || extractedDailyCost || '',
         ContractDate: data.ContractDate ? new Date(data.ContractDate).toISOString().split('T')[0] : '',
         Cost: data.Cost?.toString() || '',
         stage: data.transferStage || '',
@@ -677,7 +714,7 @@ export default function AddTransactionForm({
         ExperimentDuration: data.ExperimentDuration || '',
         ExperimentStart: data.ExperimentStart ? new Date(data.ExperimentStart).toISOString().split('T')[0] : '',
         ExperimentEnd: data.ExperimentEnd ? new Date(data.ExperimentEnd).toISOString().split('T')[0] : '',
-        Notes: data.Notes || '',
+        Notes: cleanNotes,
         NationalID: data.NationalID || '',
         TransferOperationNumber: data.TransferOperationNumber || '',
         TransferingDate: data.TransferingDate ? new Date(data.TransferingDate).toISOString().split('T')[0] : '',
@@ -916,6 +953,10 @@ export default function AddTransactionForm({
       value = value.replace(/\D/g, '').slice(0, 10);
     }
 
+    if (['Cost', 'Paid', 'dailyCost'].includes(name)) {
+      value = value.replace(/[^\d.]/g, '');
+    }
+
     setFormData((prev) => {
       const updated = {
         ...prev,
@@ -932,6 +973,20 @@ export default function AddTransactionForm({
         } else {
           const paidVal = parseFloat(name === 'Paid' ? value : (prev.Paid || '0')) || 0;
           updated.Remaining = Math.max(0, costVal - paidVal).toString();
+        }
+      }
+      if (name === 'ExperimentDuration' || name === 'ExperimentStart') {
+        const startVal = name === 'ExperimentStart' ? value : prev.ExperimentStart;
+        const durVal = name === 'ExperimentDuration' ? value : prev.ExperimentDuration;
+        const days = parseInt(String(durVal || '').replace(/[^\d]/g, ''), 10);
+        if (startVal && days > 0) {
+          try {
+            const sDate = new Date(startVal);
+            if (!isNaN(sDate.getTime())) {
+              sDate.setDate(sDate.getDate() + days);
+              updated.ExperimentEnd = sDate.toISOString().split('T')[0];
+            }
+          } catch {}
         }
       }
       return updated;
@@ -1041,8 +1096,9 @@ export default function AddTransactionForm({
         await axios.post('/api/transferSponsorShips', data);
       }
 
-      // إذا كانت المعاملة قادمة من سكن العاملات أو مرتبطة بعاملة سكن
-      if (linkedHousedWorkerId || data.HomeMaidId) {
+      // إذا كانت المعاملة قادمة من سكن العاملات أو مرتبطة بعاملة سكن وانتهت بنقل الكفالة فعلياً
+      const isCompletedStage = currentStage === 'نقل الخدمات' || currentStage === 'تم نقل الكفالة' || Boolean(data.TransferOperationNumber && data.TransferingDate);
+      if (isCompletedStage && (linkedHousedWorkerId || data.HomeMaidId)) {
         try {
           await axios.put('/api/housingdeparature', {
             action: 'complete_transfer_sponsorship',
@@ -1239,6 +1295,30 @@ export default function AddTransactionForm({
               </h1>
               <p className="text-xs text-gray-500 mt-1">توثيق عقد نقل الخدمات، إدارة بيانات الكفلاء، ومتابعة فترة التجربة</p>
             </div>
+          </div>
+
+          {/* أزرار التبديل السريع بين العرض والتعديل */}
+          <div className="flex items-center gap-2">
+            {isViewMode && permissions?.canEdit !== false && (
+              <button
+                type="button"
+                onClick={() => setIsViewMode(false)}
+                className="px-4 py-2 bg-teal-800 hover:bg-teal-900 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer allow-in-view"
+              >
+                <Edit className="w-4 h-4" />
+                <span>تعديل المعاملة</span>
+              </button>
+            )}
+            {!isViewMode && transactionId && (
+              <button
+                type="button"
+                onClick={() => setIsViewMode(true)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer allow-in-view"
+              >
+                <Eye className="w-4 h-4" />
+                <span>وضع العرض</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -1777,28 +1857,27 @@ export default function AddTransactionForm({
                   name="ExperimentDuration"
                   value={formData.ExperimentDuration}
                   onChange={handleInputChange}
-                  disabled={isFromHousingTrial}
-                  placeholder="مثال: 2 أيام"
+                  placeholder="مثال: 7 أو 7 أيام"
                   dir="rtl"
-                  className={`w-full border rounded-xl p-3 text-sm text-right outline-none transition-all force-en-num ${
-                    isFromHousingTrial
-                      ? 'bg-gray-100/90 border-gray-200 text-gray-700 cursor-not-allowed font-medium'
-                      : 'bg-gray-50 focus:bg-white border-gray-300 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/10 text-gray-800'
-                  }`}
+                  className="w-full bg-gray-50 focus:bg-white border border-gray-300 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/10 rounded-xl p-3 text-sm text-gray-800 text-right outline-none transition-all force-en-num"
                 />
               </div>
 
               {/* التكلفة اليومية */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-gray-700 text-right">التكلفة اليومية (ر.س/يوم)</label>
-                <div className="w-full bg-gray-100/90 border border-gray-200 rounded-xl p-3 text-sm text-right flex items-center justify-between min-h-[46px]">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-teal-900 text-sm en-num-text">
-                      {formData.dailyCost || '0'}
-                    </span>
-                    <span className="font-bold text-teal-900 text-xs">ر.س</span>
-                  </div>
-                  <span className="text-[11px] text-gray-400 font-normal">يومياً</span>
+                <div className="relative flex items-center">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    name="dailyCost"
+                    value={formData.dailyCost}
+                    onChange={handleInputChange}
+                    placeholder="0.00"
+                    dir="ltr"
+                    className="w-full bg-gray-50 focus:bg-white border border-gray-300 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/10 rounded-xl p-3 pl-10 text-sm text-gray-900 font-bold text-right outline-none transition-all force-en-num"
+                  />
+                  <span className="absolute left-3 text-xs text-teal-800 font-bold pointer-events-none">ر.س</span>
                 </div>
               </div>
 
@@ -1813,7 +1892,7 @@ export default function AddTransactionForm({
                     <span className="font-bold text-teal-900 text-xs">ر.س</span>
                   </div>
                   <span className="text-[11px] text-gray-400 font-normal">
-                    {formData.ExperimentDuration && formData.dailyCost ? 'محسوب' : '0.00'}
+                    {formData.ExperimentDuration && formData.dailyCost ? 'محسوب تلقائياً' : '0.00'}
                   </span>
                 </div>
               </div>
@@ -1822,9 +1901,23 @@ export default function AddTransactionForm({
               <DateInputField
                 label="تاريخ بداية التجربة"
                 value={formData.ExperimentStart || ''}
-                onChange={(val) => setFormData((prev) => ({ ...prev, ExperimentStart: val }))}
+                onChange={(val) => {
+                  setFormData((prev) => {
+                    const updated = { ...prev, ExperimentStart: val };
+                    const days = parseInt(String(prev.ExperimentDuration || '').replace(/[^\d]/g, ''), 10);
+                    if (val && days > 0) {
+                      try {
+                        const sDate = new Date(val);
+                        if (!isNaN(sDate.getTime())) {
+                          sDate.setDate(sDate.getDate() + days);
+                          updated.ExperimentEnd = sDate.toISOString().split('T')[0];
+                        }
+                      } catch {}
+                    }
+                    return updated;
+                  });
+                }}
                 name="ExperimentStart"
-                disabled={isFromHousingTrial}
               />
 
               {/* نهاية التجربة */}
@@ -1833,7 +1926,6 @@ export default function AddTransactionForm({
                 value={formData.ExperimentEnd || ''}
                 onChange={(val) => setFormData((prev) => ({ ...prev, ExperimentEnd: val }))}
                 name="ExperimentEnd"
-                disabled={isFromHousingTrial}
               />
 
               {/* ملاحظات التجربة */}
@@ -1844,13 +1936,8 @@ export default function AddTransactionForm({
                   name="Notes"
                   value={formData.Notes}
                   onChange={handleInputChange}
-                  disabled={isFromHousingTrial}
-                  placeholder={isFromHousingTrial ? 'ملاحظات التجربة المعتمدة' : 'أدخل أي ملاحظات خاصة بالتجربة والاتفاق...'}
-                  className={`w-full border rounded-xl p-3 text-sm text-right outline-none transition-all ${
-                    isFromHousingTrial
-                      ? 'bg-gray-100/90 border-gray-200 text-gray-700 cursor-not-allowed font-medium'
-                      : 'bg-gray-50 focus:bg-white border-gray-300 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/10 text-gray-800'
-                  }`}
+                  placeholder="أدخل أي ملاحظات خاصة بالتجربة والاتفاق..."
+                  className="w-full bg-gray-50 focus:bg-white border border-gray-300 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/10 rounded-xl p-3 text-sm text-right outline-none transition-all text-gray-800"
                 />
               </div>
             </div>
@@ -1894,10 +1981,23 @@ export default function AddTransactionForm({
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         {/* إجمالي تكلفة نقل الكفالة */}
                         <div className="bg-white border border-gray-200 rounded-xl p-3 flex flex-col justify-between">
-                          <span className="text-xs text-gray-500 font-medium">إجمالي تكلفة نقل الكفالة</span>
-                          <span className="text-base font-bold text-gray-900 en-num-text mt-1">
-                            {parseFloat(formData.Cost || '0').toLocaleString('en-US')} ر.س
-                          </span>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs text-gray-700 font-bold">إجمالي تكلفة نقل الكفالة <span className="text-red-500">*</span></span>
+                            <span className="text-[10px] text-teal-700 font-bold bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">تعديل القيمة</span>
+                          </div>
+                          <div className="relative flex items-center">
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              name="Cost"
+                              value={formData.Cost}
+                              onChange={handleInputChange}
+                              placeholder="0.00"
+                              dir="ltr"
+                              className="w-full bg-teal-50/20 focus:bg-white border border-teal-600/40 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/10 rounded-lg p-2 pl-9 text-sm text-gray-900 font-black text-right outline-none transition-all force-en-num"
+                            />
+                            <span className="absolute left-2.5 text-xs text-teal-800 font-bold pointer-events-none">ر.س</span>
+                          </div>
                         </div>
 
                         {/* المسدد في التجربة */}

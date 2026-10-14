@@ -1176,8 +1176,11 @@ export default function SystemLogs() {
                         <td className="p-4">
                           {getActionBadge(log.action, log.actionType)}
                         </td>
-                        <td className="p-4">
-                          <span className="text-sm font-medium text-gray-700 bg-gray-50 px-3 py-1.5 rounded-lg inline-block">
+                        <td className="p-4 max-w-xl">
+                          <span 
+                            className="text-sm font-medium text-gray-700 bg-gray-50 px-3 py-1.5 rounded-lg inline-block break-words leading-relaxed"
+                            title={log.details || undefined}
+                          >
                             {log.details || 'غير متوفر'}
                           </span>
                         </td>
