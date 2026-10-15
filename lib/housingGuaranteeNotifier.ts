@@ -15,6 +15,10 @@ export interface GuaranteeAlertWorker {
   houseEntryDate: string;
   guaranteeEndDate: string;
   remainingDays: number;
+  locationStatus: 'in_housing' | 'trial_transfer';
+  trialNewClientName?: string;
+  trialNewClientPhone?: string;
+  trialEndDate?: string;
 }
 
 export interface GuaranteeCheckResult {
@@ -34,7 +38,7 @@ export interface GuaranteeCheckResult {
 }
 
 /**
- * دالة مركزية لفحص تواريخ انتهاء ضمان العاملات في السكن وإرسال تنبيهات مجمعة على الموقع والإيميل
+ * دالة مركزية لفحص تواريخ انتهاء ضمان العاملات في السكن وتجارب نقل الكفالة وإرسال تنبيهات مجمعة على الموقع والإيميل
  * المواعيد المحددة: 15 يوم، 10 أيام، 5 أيام، ويومان
  */
 export async function checkAndSendHousingGuaranteeNotifications(options?: {
@@ -45,13 +49,21 @@ export async function checkAndSendHousingGuaranteeNotifications(options?: {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  // 1. جلب جميع العاملات الداخليات المتواجدات حالياً في السكن فقط (استبعاد العاملات الخارجيات)
-  const activeWorkers = await prisma.housedworker.findMany({
+  // 1. جلب العاملات الداخليات: إما متواجدة بالسكن حالياً أو خرجت في تجربة نقل كفالة نشطة
+  const candidateWorkers = await prisma.housedworker.findMany({
     where: {
-      deparatureHousingDate: null,
       homeMaid_id: { not: null },
       externalHomedmaidId: null,
       isExternal: { not: true },
+      OR: [
+        { deparatureHousingDate: null },
+        {
+          deparatureHousingDate: { not: null },
+          NOT: {
+            deparatureReason: { contains: 'تم نقل الكفالة' },
+          },
+        },
+      ],
     },
     include: {
       Order: {
@@ -79,11 +91,23 @@ export async function checkAndSendHousingGuaranteeNotifications(options?: {
     other: [],
   };
 
-  for (const hw of activeWorkers) {
+  for (const hw of candidateWorkers) {
     if (!hw.Order) continue;
+
+    const isDeparted = Boolean(hw.deparatureHousingDate);
+    const deparatureReason = hw.deparatureReason || '';
+    const isCompleted = deparatureReason.includes('تم نقل الكفالة');
+    if (isCompleted) continue;
+
+    const tsd = hw.transferSponsorshipData as any;
+    const isTrialTransfer = isDeparted && Boolean(tsd);
+
+    // إذا كانت العاملة مسجلة كمغادرة ولكن ليست في تجربة نقل كفالة نشطة (مثل ترحيل نهائي)، نتجاهلها
+    if (isDeparted && !isTrialTransfer) continue;
+
     const arrival = hw.Order.NewOrder?.[0]?.arrivals?.[0];
     
-    // شرط صارم: الضمان يشمل فقط العاملات الداخليات اللاتي لديهن تاريخ وصول للمملكة أو تاريخ نهاية ضمان مسجل
+    // شرط صارم: الضمان يشمل العاملات اللاتي لديهن تاريخ وصول للمملكة أو تاريخ نهاية ضمان مسجل
     if (!arrival) continue;
 
     let guaranteeEndDateObj: Date | null = null;
@@ -124,6 +148,10 @@ export async function checkAndSendHousingGuaranteeNotifications(options?: {
         houseEntryDate: hw.houseentrydate ? new Date(hw.houseentrydate).toISOString().split('T')[0] : 'غير محدد',
         guaranteeEndDate: guaranteeDateNormalized.toISOString().split('T')[0],
         remainingDays,
+        locationStatus: isTrialTransfer ? 'trial_transfer' : 'in_housing',
+        trialNewClientName: isTrialTransfer ? (tsd?.newSponsorName || 'غير محدد') : undefined,
+        trialNewClientPhone: isTrialTransfer ? (tsd?.newSponsorPhone || '') : undefined,
+        trialEndDate: isTrialTransfer ? (tsd?.trialEndDate || '') : undefined,
       };
 
       matchingWorkers.push(workerItem);
@@ -140,7 +168,7 @@ export async function checkAndSendHousingGuaranteeNotifications(options?: {
     return {
       success: true,
       checkedAt: now.toISOString(),
-      totalActiveHoused: activeWorkers.length,
+      totalActiveHoused: candidateWorkers.length,
       matchingCount: 0,
       thresholds,
       notificationsSent: 0,
@@ -150,6 +178,12 @@ export async function checkAndSendHousingGuaranteeNotifications(options?: {
 
   // 2. إعداد نص ورسائل التنبيه المجمعة
   const totalAlertCount = matchingWorkers.length;
+  let housedCount = 0;
+  let trialCount = 0;
+  for (const w of matchingWorkers) {
+    if (w.locationStatus === 'trial_transfer') trialCount++;
+    else housedCount++;
+  }
   
   // بناء ملخص موجز
   const summaryParts: string[] = [];
@@ -162,10 +196,12 @@ export async function checkAndSendHousingGuaranteeNotifications(options?: {
   const summaryText = summaryParts.join(' • ');
 
   const shortMessage = totalAlertCount === 1
-    ? `تنبيه ضمان السكن: العاملة ${matchingWorkers[0].maidName} (جواز: ${matchingWorkers[0].passportNumber}) متبقي على انتهاء ضمانها ${matchingWorkers[0].remainingDays} يوم (تاريخ الانتهاء: ${matchingWorkers[0].guaranteeEndDate}).`
-    : `تنبيه ضمان السكن: يوجد ${totalAlertCount} عاملات في السكن اقترب موعد انتهاء ضمانهن [${summaryText}]. يرجى اتخاذ الإجراءات اللازمة.`;
+    ? (matchingWorkers[0].locationStatus === 'trial_transfer'
+        ? `تنبيه ضمان (تجربة نقل كفالة): العاملة ${matchingWorkers[0].maidName} (جواز: ${matchingWorkers[0].passportNumber}) لدى الكفيل التجريبي ${matchingWorkers[0].trialNewClientName || ''} متبقي على انتهاء ضمانها ${matchingWorkers[0].remainingDays} يوم (نهاية الضمان: ${matchingWorkers[0].guaranteeEndDate}).`
+        : `تنبيه ضمان السكن: العاملة ${matchingWorkers[0].maidName} (جواز: ${matchingWorkers[0].passportNumber}) متبقي على انتهاء ضمانها ${matchingWorkers[0].remainingDays} يوم (تاريخ الانتهاء: ${matchingWorkers[0].guaranteeEndDate}).`)
+    : `تنبيه الضمان: يوجد ${totalAlertCount} عاملات (${housedCount > 0 ? `${housedCount} بالسكن` : ''}${housedCount > 0 && trialCount > 0 ? ' و ' : ''}${trialCount > 0 ? `${trialCount} في تجربة نقل كفالة` : ''}) اقترب موعد انتهاء ضمانهن [${summaryText}]. يرجى المتابعة لاتخاذ الإجراء قبل سقوط الضمان.`;
 
-  // 3. جلب المستخدمين المخولين باستلام التنبيهات عبر البريد الإلكتروني والموقع بناءً على تفعيل الصلاحية حصراً (حتى المالك)
+  // 3. جلب المستخدمين المخولين باستلام التنبيهات عبر البريد الإلكتروني والموقع بناءً على تفعيل الصلاحية حصراً
   const users = await prisma.user.findMany({ include: { role: true } });
 
   const authorizedUsers = users.filter((u) => {
@@ -225,6 +261,19 @@ export async function checkAndSendHousingGuaranteeNotifications(options?: {
       <tr style="border-bottom: 1px solid #e2e8f0; ${idx % 2 === 1 ? 'background-color: #f8fafc;' : 'background-color: #ffffff;'}">
         <td style="padding: 12px 10px; font-weight: bold; color: #1e293b;">${w.maidName}</td>
         <td style="padding: 12px 10px; font-family: monospace; color: #475569;"><span dir="ltr">${w.passportNumber}</span></td>
+        <td style="padding: 12px 10px;">
+          ${w.locationStatus === 'trial_transfer' ? `
+            <span style="display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; background-color: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0;">
+              🤝 تجربة نقل كفالة
+            </span>
+            ${w.trialNewClientName ? `<br><small style="color: #047857; font-weight: bold;">الكفيل الجديد: ${w.trialNewClientName}</small>` : ''}
+            ${w.trialNewClientPhone ? `<br><small style="color: #64748b;" dir="ltr">${w.trialNewClientPhone}</small>` : ''}
+          ` : `
+            <span style="display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; background-color: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;">
+              🏢 متواجدة بالسكن
+            </span>
+          `}
+        </td>
         <td style="padding: 12px 10px; color: #334155;">${w.clientName}<br><small style="color: #64748b;" dir="ltr">${w.clientPhone}</small></td>
         <td style="padding: 12px 10px; font-family: monospace; color: #0f766e;">${w.guaranteeEndDate}</td>
         <td style="padding: 12px 10px; text-align: center;">
@@ -238,7 +287,7 @@ export async function checkAndSendHousingGuaranteeNotifications(options?: {
     .join('');
 
   const emailHtml = `
-    <div dir="rtl" style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 24px; background-color: #f4f7f6; border-radius: 12px; max-width: 720px; margin: 0 auto; color: #333; border: 1px solid #e0e7e5;">
+    <div dir="rtl" style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 24px; background-color: #f4f7f6; border-radius: 12px; max-width: 760px; margin: 0 auto; color: #333; border: 1px solid #e0e7e5;">
       ${hasLogo ? `
         <div style="text-align: center; margin-bottom: 20px;">
           <img src="cid:rawaeslogo" alt="روائع الاستقدام" style="max-height: 75px;" />
@@ -246,7 +295,7 @@ export async function checkAndSendHousingGuaranteeNotifications(options?: {
       ` : ''}
       
       <div style="background: linear-gradient(135deg, #1A4D4F 0%, #164044 100%); color: #ffffff; padding: 20px 24px; border-radius: 10px; text-align: center; margin-bottom: 24px;">
-        <h2 style="margin: 0; font-size: 22px; font-weight: bold;">تنبيه انتهاء فترة ضمان عاملات السكن</h2>
+        <h2 style="margin: 0; font-size: 22px; font-weight: bold;">تنبيه انتهاء ضمان عاملات السكن وتجارب نقل الكفالة</h2>
         <p style="margin: 8px 0 0 0; font-size: 14px; opacity: 0.95;">
           ${summaryText}
         </p>
@@ -258,7 +307,8 @@ export async function checkAndSendHousingGuaranteeNotifications(options?: {
             <tr style="background-color: #f1f5f9; border-bottom: 2px solid #cbd5e1;">
               <th style="padding: 10px; color: #475569; font-size: 13px;">اسم العاملة</th>
               <th style="padding: 10px; color: #475569; font-size: 13px;">رقم الجواز</th>
-              <th style="padding: 10px; color: #475569; font-size: 13px;">العميل / الهاتف</th>
+              <th style="padding: 10px; color: #475569; font-size: 13px;">الموقع / الحالة</th>
+              <th style="padding: 10px; color: #475569; font-size: 13px;">الكفيل القديم / الهاتف</th>
               <th style="padding: 10px; color: #475569; font-size: 13px;">نهاية الضمان</th>
               <th style="padding: 10px; color: #475569; font-size: 13px; text-align: center;">المدة المتبقية</th>
             </tr>
@@ -269,8 +319,11 @@ export async function checkAndSendHousingGuaranteeNotifications(options?: {
         </table>
       </div>
 
-      <div style="text-align: center; margin-top: 24px;">
-        <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://admins.rawaes.com'}/admin/housedarrivals" target="_blank" style="display: inline-block; background-color: #1A4D4F; color: #ffffff; padding: 14px 36px; border-radius: 8px; font-weight: bold; text-decoration: none; font-size: 15px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+      <div style="text-align: center; margin-top: 24px; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;">
+        <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://admins.rawaes.com'}/admin/housing-departures" target="_blank" style="display: inline-block; background-color: #0f766e; color: #ffffff; padding: 12px 24px; border-radius: 8px; font-weight: bold; text-decoration: none; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+          متابعة مغادرات السكن وتجارب النقل &larr;
+        </a>
+        <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://admins.rawaes.com'}/admin/housedarrivals" target="_blank" style="display: inline-block; background-color: #1A4D4F; color: #ffffff; padding: 12px 24px; border-radius: 8px; font-weight: bold; text-decoration: none; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
           فتح جدول السكن والتسكين &larr;
         </a>
       </div>

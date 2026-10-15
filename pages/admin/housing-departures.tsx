@@ -34,10 +34,14 @@ import {
   CreditCard,
   Paperclip,
   ChevronDown,
-  X
+  X,
+  ShieldCheck,
+  ShieldAlert,
+  Shield
 } from 'lucide-react';
 import { FaHospital } from 'react-icons/fa';
 import FailTrialModal from 'components/FailTrialModal';
+import { getCountryFlagUrl } from 'lib/flagHelper';
 
 interface HousedWorkerRow {
   id: number;
@@ -346,6 +350,78 @@ export default function HousingDeparturesPage({
   // Helper to extract Nationality
   const getNationality = (worker: HousedWorkerRow) => {
     return worker.externalHomedmaid?.nationality || worker.Order?.Nationalitycopy || worker.Order?.office?.Country || 'غير محدد';
+  };
+
+  // Helper to calculate Guarantee Status (حالة الضمان)
+  const getGuaranteeInfo = (worker: HousedWorkerRow) => {
+    const arrival = worker.Order?.NewOrder?.[0]?.arrivals?.[0];
+    const tsd = worker.transferSponsorshipData;
+
+    let endDate: Date | null = null;
+    const directEnd = tsd?.originalSponsorGuaranteeEndDate || arrival?.GuaranteeDurationEnd;
+
+    if (directEnd) {
+      const d = new Date(directEnd);
+      if (!isNaN(d.getTime())) {
+        endDate = d;
+      }
+    }
+
+    if (!endDate && arrival?.KingdomentryDate) {
+      const entry = new Date(arrival.KingdomentryDate);
+      if (!isNaN(entry.getTime())) {
+        endDate = new Date(entry);
+        endDate.setDate(endDate.getDate() + 90);
+      }
+    }
+
+    if (!endDate) {
+      return {
+        hasDate: false,
+        isExpired: false,
+        text: 'بدون ضمان',
+        fullStatus: 'لا توجد بيانات ضمان مسجلة',
+        diffDays: 0,
+        endDateStr: '',
+      };
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(0, 0, 0, 0);
+
+    const diffTime = end.getTime() - today.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    const isExpired = diffDays < 0;
+    const absDays = Math.abs(diffDays);
+
+    const endDateStr = `${end.getFullYear()}/${String(end.getMonth() + 1).padStart(2, '0')}/${String(end.getDate()).padStart(2, '0')}`;
+
+    let text = '';
+    if (diffDays > 0) {
+      if (diffDays === 1) text = 'متبقي يوم';
+      else if (diffDays === 2) text = 'متبقي يومين';
+      else if (diffDays <= 10) text = `متبقي ${diffDays} أيام`;
+      else text = `متبقي ${diffDays} يوم`;
+    } else if (diffDays === 0) {
+      text = 'ينتهي اليوم';
+    } else {
+      if (absDays === 1) text = 'انتهى منذ يوم';
+      else if (absDays === 2) text = 'انتهى منذ يومين';
+      else text = `انتهى من ${absDays} يوم`;
+    }
+
+    return {
+      hasDate: true,
+      isExpired,
+      text,
+      fullStatus: isExpired
+        ? `انتهى الضمان بتاريخ ${endDateStr} (${text})`
+        : `الضمان ساري حتى ${endDateStr} (${text})`,
+      diffDays,
+      endDateStr,
+    };
   };
 
   // Helper to extract Old Sponsor Name
@@ -752,19 +828,19 @@ export default function HousingDeparturesPage({
       )}
 
       <section className={`min-h-screen bg-gray-50/50 pb-12 ${Style?.['tajawal-regular'] || ''}`} dir="rtl">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6 space-y-5">
+        <div className="w-full px-2 sm:px-4 py-4 space-y-4">
           
           {/* Top Page Header */}
-          <div className="bg-white border border-gray-200/80 rounded-2xl p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-800">
-                <FileText className="w-5 h-5 text-teal-700" />
+          <div className="bg-white border border-gray-200/80 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-800 shrink-0">
+                <FileText className="w-6 h-6 text-teal-700" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">
+                <h1 className="text-xl sm:text-2xl font-extrabold text-gray-900">
                   العاملات اللاتي غادرن السكن
                 </h1>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
                   متابعة المغادرات المؤقتة (المستشفى وتجارب نقل الكفالة) وسجل المغادرات الدائمة
                 </p>
               </div>
@@ -774,7 +850,7 @@ export default function HousingDeparturesPage({
               <button
                 type="button"
                 onClick={handleExportToExcel}
-                className="inline-flex items-center gap-2 px-3.5 py-2 bg-white hover:bg-teal-50 text-teal-800 text-xs font-bold rounded-xl transition-all border border-teal-300 shadow-sm cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-teal-50 text-teal-800 text-xs sm:text-sm font-bold rounded-xl transition-all border border-teal-300 shadow-sm cursor-pointer"
               >
                 <Download className="w-4 h-4 text-teal-700" />
                 <span>تصدير Excel</span>
@@ -783,32 +859,32 @@ export default function HousingDeparturesPage({
           </div>
 
           {/* Primary Section Switcher (مغادرة مؤقتة vs مغادرة دائمة) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             {/* Temporary Departures Card */}
             <button
               type="button"
               onClick={() => handleSectionSwitch('temporary')}
-              className={`p-4 rounded-2xl border text-right transition-all flex items-center justify-between cursor-pointer select-none ${
+              className={`p-4 sm:p-5 rounded-2xl border text-right transition-all flex items-center justify-between cursor-pointer select-none ${
                 activeSection === 'temporary'
                   ? 'bg-gradient-to-l from-teal-900 to-teal-800 text-white border-teal-900 shadow-md ring-2 ring-teal-700/50'
                   : 'bg-white hover:bg-teal-50/40 text-gray-800 border-gray-200 shadow-sm hover:border-teal-300'
               }`}
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3.5">
                 <div
-                  className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+                  className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
                     activeSection === 'temporary'
                       ? 'bg-white/15 text-teal-200 border border-white/20'
                       : 'bg-teal-50 text-teal-700 border border-teal-200'
                   }`}
                 >
-                  <Activity className="w-5 h-5" />
+                  <Activity className="w-6 h-6" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm">المغادرة المؤقتة</span>
+                    <span className="font-extrabold text-base sm:text-lg">المغادرة المؤقتة</span>
                     <span
-                      className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                      className={`text-[11px] sm:text-xs px-2.5 py-0.5 rounded-full font-bold ${
                         activeSection === 'temporary'
                           ? 'bg-emerald-500/30 text-emerald-200 border border-emerald-400/30'
                           : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
@@ -818,8 +894,8 @@ export default function HousingDeparturesPage({
                     </span>
                   </div>
                   <p
-                    className={`text-xs mt-1 ${
-                      activeSection === 'temporary' ? 'text-teal-100/80' : 'text-gray-500'
+                    className={`text-xs sm:text-sm mt-1 ${
+                      activeSection === 'temporary' ? 'text-teal-100/90' : 'text-gray-500'
                     }`}
                   >
                     حالات المستشفى وتجارب نقل الكفالة النشطة
@@ -828,14 +904,14 @@ export default function HousingDeparturesPage({
               </div>
               <div className="text-left shrink-0">
                 <span
-                  className={`text-lg font-mono font-bold block ${
+                  className={`text-2xl sm:text-3xl font-mono font-extrabold block ${
                     activeSection === 'temporary' ? 'text-white' : 'text-teal-900'
                   }`}
                 >
                   {counts.tempTotal}
                 </span>
                 <span
-                  className={`text-[10px] ${
+                  className={`text-xs font-semibold ${
                     activeSection === 'temporary' ? 'text-teal-200' : 'text-gray-400'
                   }`}
                 >
@@ -848,27 +924,27 @@ export default function HousingDeparturesPage({
             <button
               type="button"
               onClick={() => handleSectionSwitch('permanent')}
-              className={`p-4 rounded-2xl border text-right transition-all flex items-center justify-between cursor-pointer select-none ${
+              className={`p-4 sm:p-5 rounded-2xl border text-right transition-all flex items-center justify-between cursor-pointer select-none ${
                 activeSection === 'permanent'
                   ? 'bg-gradient-to-l from-teal-900 to-teal-800 text-white border-teal-900 shadow-md ring-2 ring-teal-700/50'
                   : 'bg-white hover:bg-teal-50/40 text-gray-800 border-gray-200 shadow-sm hover:border-teal-300'
               }`}
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3.5">
                 <div
-                  className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+                  className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
                     activeSection === 'permanent'
                       ? 'bg-white/15 text-teal-200 border border-white/20'
                       : 'bg-teal-50 text-teal-700 border border-teal-200'
                   }`}
                 >
-                  <Plane className="w-5 h-5" />
+                  <Plane className="w-6 h-6" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm">المغادرة الدائمة</span>
+                    <span className="font-extrabold text-base sm:text-lg">المغادرة الدائمة</span>
                     <span
-                      className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                      className={`text-[11px] sm:text-xs px-2.5 py-0.5 rounded-full font-bold ${
                         activeSection === 'permanent'
                           ? 'bg-teal-700/40 text-teal-100 border border-teal-400/30'
                           : 'bg-gray-100 text-gray-700 border border-gray-200'
@@ -878,8 +954,8 @@ export default function HousingDeparturesPage({
                     </span>
                   </div>
                   <p
-                    className={`text-xs mt-1 ${
-                      activeSection === 'permanent' ? 'text-teal-100/80' : 'text-gray-500'
+                    className={`text-xs sm:text-sm mt-1 ${
+                      activeSection === 'permanent' ? 'text-teal-100/90' : 'text-gray-500'
                     }`}
                   >
                     الترحيل، العاملات الخارجيات، ونقل الكفالة المكتمل
@@ -888,14 +964,14 @@ export default function HousingDeparturesPage({
               </div>
               <div className="text-left shrink-0">
                 <span
-                  className={`text-lg font-mono font-bold block ${
+                  className={`text-2xl sm:text-3xl font-mono font-extrabold block ${
                     activeSection === 'permanent' ? 'text-white' : 'text-teal-900'
                   }`}
                 >
                   {counts.permTotal}
                 </span>
                 <span
-                  className={`text-[10px] ${
+                  className={`text-xs font-semibold ${
                     activeSection === 'permanent' ? 'text-teal-200' : 'text-gray-400'
                   }`}
                 >
@@ -911,7 +987,7 @@ export default function HousingDeparturesPage({
             <div className="p-2 border-b border-gray-200 bg-gray-50/70">
               {activeSection === 'temporary' ? (
                 /* Temporary Sub-tabs */
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 w-full">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
                   {[
                     { id: 'temp_all', label: 'جميع المغادرات المؤقتة', count: counts.tempTotal, icon: Activity },
                     { id: 'trial_transfer', label: 'تجارب نقل الكفالة', count: counts.trial_transfer, icon: UserCheck },
@@ -924,16 +1000,16 @@ export default function HousingDeparturesPage({
                         key={tab.id}
                         type="button"
                         onClick={() => handleCategoryTabChange(tab.id as DepartureCategoryTab)}
-                        className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all w-full cursor-pointer select-none text-center ${
+                        className={`flex items-center justify-center gap-2 py-3 px-3.5 rounded-xl text-xs sm:text-sm font-bold transition-all w-full cursor-pointer select-none text-center ${
                           isActive
                             ? 'bg-teal-900 text-white shadow-sm ring-1 ring-teal-800'
                             : 'bg-white hover:bg-teal-50/60 text-gray-700 border border-gray-200/80 shadow-sm hover:border-teal-200'
                         }`}
                       >
-                        <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-teal-200' : 'text-teal-700'}`} />
+                        <Icon className={`w-4.5 h-4.5 shrink-0 ${isActive ? 'text-teal-200' : 'text-teal-700'}`} />
                         <span className="truncate">{tab.label}</span>
                         <span
-                          className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold shrink-0 ${
+                          className={`text-xs px-2.5 py-0.5 rounded-full font-mono font-bold shrink-0 ${
                             isActive
                               ? 'bg-teal-800 text-white'
                               : 'bg-gray-100 text-gray-700 border border-gray-200'
@@ -947,7 +1023,7 @@ export default function HousingDeparturesPage({
                 </div>
               ) : (
                 /* Permanent Sub-tabs */
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 w-full">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full">
                   {[
                     { id: 'perm_all', label: 'جميع المغادرات الدائمة', count: counts.permTotal, icon: Building },
                     { id: 'completed_transfer', label: 'تم نقل الكفالة (مكتمل)', count: counts.completed_transfer, icon: CheckCircle2 },
@@ -961,16 +1037,16 @@ export default function HousingDeparturesPage({
                         key={tab.id}
                         type="button"
                         onClick={() => handleCategoryTabChange(tab.id as DepartureCategoryTab)}
-                        className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs font-bold transition-all w-full cursor-pointer select-none text-center ${
+                        className={`flex items-center justify-center gap-2 py-3 px-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all w-full cursor-pointer select-none text-center ${
                           isActive
                             ? 'bg-teal-900 text-white shadow-sm ring-1 ring-teal-800'
                             : 'bg-white hover:bg-teal-50/60 text-gray-700 border border-gray-200/80 shadow-sm hover:border-teal-200'
                         }`}
                       >
-                        <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-teal-200' : 'text-teal-700'}`} />
+                        <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-teal-200' : 'text-teal-700'}`} />
                         <span className="truncate">{tab.label}</span>
                         <span
-                          className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold shrink-0 ${
+                          className={`text-xs px-2 py-0.5 rounded-full font-mono font-bold shrink-0 ${
                             isActive
                               ? 'bg-teal-800 text-white'
                               : 'bg-gray-100 text-gray-700 border border-gray-200'
@@ -986,13 +1062,13 @@ export default function HousingDeparturesPage({
             </div>
 
             {/* Filter Controls Bar */}
-            <div className="p-4 bg-white border-b border-gray-200 space-y-3">
+            <div className="p-4 bg-white border-b border-gray-200 space-y-3.5">
               {/* Row 1: Search, Nationality, Location, Contract Type */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
                 {/* Search Bar (4 cols) */}
                 <div className="sm:col-span-2 lg:col-span-4 relative">
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400">
-                    <Search className="w-4 h-4" />
+                  <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-gray-400">
+                    <Search className="w-4.5 h-4.5" />
                   </div>
                   <input
                     type="text"
@@ -1002,7 +1078,7 @@ export default function HousingDeparturesPage({
                       setSearchQuery(e.target.value);
                       setPage(1);
                     }}
-                    className="w-full h-10 pr-9 pl-3 text-xs bg-gray-50/70 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none transition-all"
+                    className="w-full h-11 pr-10 pl-3 text-xs sm:text-sm bg-gray-50/70 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none transition-all"
                   />
                 </div>
 
@@ -1014,7 +1090,7 @@ export default function HousingDeparturesPage({
                       setSelectedNationality(e.target.value);
                       setPage(1);
                     }}
-                    className="w-full h-10 pr-3 pl-8 text-xs bg-gray-50/70 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none text-gray-700 font-bold appearance-none bg-none cursor-pointer"
+                    className="w-full h-11 pr-3 pl-8 text-xs sm:text-sm bg-gray-50/70 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none text-gray-700 font-bold appearance-none bg-none cursor-pointer"
                   >
                     <option value="">جميع الجنسيات</option>
                     <option value="إثيوبيا">إثيوبيا (Ethiopia)</option>
@@ -1041,7 +1117,7 @@ export default function HousingDeparturesPage({
                       setSelectedLocation(e.target.value);
                       setPage(1);
                     }}
-                    className="w-full h-10 pr-3 pl-8 text-xs bg-gray-50/70 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none text-gray-700 font-bold appearance-none bg-none cursor-pointer"
+                    className="w-full h-11 pr-3 pl-8 text-xs sm:text-sm bg-gray-50/70 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none text-gray-700 font-bold appearance-none bg-none cursor-pointer"
                   >
                     <option value="">جميع مباني وسكن العاملات</option>
                     {locations.map((loc) => (
@@ -1063,7 +1139,7 @@ export default function HousingDeparturesPage({
                       setSelectedContractType(e.target.value);
                       setPage(1);
                     }}
-                    className="w-full h-10 pr-3 pl-8 text-xs bg-gray-50/70 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none text-gray-700 font-bold appearance-none bg-none cursor-pointer"
+                    className="w-full h-11 pr-3 pl-8 text-xs sm:text-sm bg-gray-50/70 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none text-gray-700 font-bold appearance-none bg-none cursor-pointer"
                   >
                     <option value="">جميع أنواع العقود</option>
                     <option value="recruitment">استقدام</option>
@@ -1076,10 +1152,10 @@ export default function HousingDeparturesPage({
               </div>
 
               {/* Row 2: Date Filters, Contextual Section Filters (Follow-up vs Office), Page Size & Reset */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 pt-2 border-t border-gray-100 items-center">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 pt-2.5 border-t border-gray-100 items-center">
                 {/* From Date Filter (3 cols) */}
                 <div className="sm:col-span-1 lg:col-span-3 flex items-center gap-2">
-                  <span className="text-[11px] text-gray-500 font-medium shrink-0">من تاريخ:</span>
+                  <span className="text-xs sm:text-sm text-gray-600 font-semibold shrink-0">من تاريخ:</span>
                   <input
                     type="date"
                     value={fromDate}
@@ -1087,13 +1163,13 @@ export default function HousingDeparturesPage({
                       setFromDate(e.target.value);
                       setPage(1);
                     }}
-                    className="w-full h-9 px-2 text-xs bg-gray-50/70 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none text-gray-700 font-medium"
+                    className="w-full h-10 px-2.5 text-xs sm:text-sm bg-gray-50/70 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none text-gray-700 font-medium"
                   />
                 </div>
 
                 {/* To Date Filter (3 cols) */}
                 <div className="sm:col-span-1 lg:col-span-3 flex items-center gap-2">
-                  <span className="text-[11px] text-gray-500 font-medium shrink-0">إلى تاريخ:</span>
+                  <span className="text-xs sm:text-sm text-gray-600 font-semibold shrink-0">إلى تاريخ:</span>
                   <input
                     type="date"
                     value={toDate}
@@ -1101,7 +1177,7 @@ export default function HousingDeparturesPage({
                       setToDate(e.target.value);
                       setPage(1);
                     }}
-                    className="w-full h-9 px-2 text-xs bg-gray-50/70 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none text-gray-700 font-medium"
+                    className="w-full h-10 px-2.5 text-xs sm:text-sm bg-gray-50/70 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none text-gray-700 font-medium"
                   />
                 </div>
 
@@ -1115,7 +1191,7 @@ export default function HousingDeparturesPage({
                         setFollowUpStatus(e.target.value);
                         setPage(1);
                       }}
-                      className="w-full h-9 pr-3 pl-8 text-xs bg-amber-50/60 border border-amber-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none text-amber-900 font-bold appearance-none bg-none cursor-pointer"
+                      className="w-full h-10 pr-3 pl-8 text-xs sm:text-sm bg-amber-50/60 border border-amber-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none text-amber-900 font-bold appearance-none bg-none cursor-pointer"
                     >
                       <option value="all">جميع حالات المتابعة الحية</option>
                       <option value="overdue">⚠️ المتأخرات عن العودة فقط (تجاوزن المدة)</option>
@@ -1134,7 +1210,7 @@ export default function HousingDeparturesPage({
                         setSelectedOffice(e.target.value);
                         setPage(1);
                       }}
-                      className="w-full h-9 pr-3 pl-8 text-xs bg-gray-50/70 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none text-gray-700 font-bold appearance-none bg-none cursor-pointer"
+                      className="w-full h-10 pr-3 pl-8 text-xs sm:text-sm bg-gray-50/70 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none text-gray-700 font-bold appearance-none bg-none cursor-pointer"
                     >
                       <option value="">جميع المكاتب الخارجية</option>
                       {offices.map((off) => (
@@ -1152,7 +1228,7 @@ export default function HousingDeparturesPage({
                 {/* Page Size & Reset Filter (3 cols) */}
                 <div className="sm:col-span-1 lg:col-span-3 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-xs text-gray-500">عرض:</span>
+                    <span className="text-xs sm:text-sm text-gray-600 font-medium">عرض:</span>
                     <div className="relative">
                       <select
                         value={pageSize}
@@ -1160,7 +1236,7 @@ export default function HousingDeparturesPage({
                           setPageSize(Number(e.target.value));
                           setPage(1);
                         }}
-                        className="h-9 pr-2.5 pl-7 text-xs bg-gray-50/70 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none text-gray-700 font-bold appearance-none bg-none cursor-pointer"
+                        className="h-10 pr-2.5 pl-7 text-xs sm:text-sm bg-gray-50/70 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none text-gray-700 font-bold appearance-none bg-none cursor-pointer"
                       >
                         <option value="10">10</option>
                         <option value="25">25</option>
@@ -1195,7 +1271,7 @@ export default function HousingDeparturesPage({
                         setSelectedOffice('');
                         setPage(1);
                       }}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 rounded-xl border border-red-200 font-bold transition-all cursor-pointer"
+                      className="inline-flex items-center gap-1 px-3 py-2 text-xs sm:text-sm text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 rounded-xl border border-red-200 font-bold transition-all cursor-pointer"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                       <span>إلغاء الفلاتر</span>
@@ -1206,46 +1282,46 @@ export default function HousingDeparturesPage({
             </div>
 
             {/* Main Table Container (Zero Horizontal Scroll) */}
-            <div className="w-full overflow-hidden">
-              <table className="w-full text-right text-xs border-collapse">
+            <div className="w-full overflow-x-auto">
+              <table className="w-full text-right text-xs sm:text-sm border-collapse">
                 <thead>
                   <tr
-                    className="text-white font-bold border-b text-[11px] bg-teal-900/95 border-teal-950/20"
+                    className="text-white font-bold border-b text-xs sm:text-sm bg-teal-900 border-teal-950/20"
                   >
-                    <th className="py-2.5 px-2 text-center w-8 shrink-0">#</th>
-                    <th className="py-2.5 px-2">العاملة والجنسية</th>
-                    <th className="py-2.5 px-2">الكفيل الحالي (القديم)</th>
+                    <th className="py-3.5 px-3 text-center w-10 shrink-0">#</th>
+                    <th className="py-3.5 px-3">العاملة والجنسية</th>
+                    <th className="py-3.5 px-3">الكفيل الحالي (القديم)</th>
                     {activeCategory === 'trial_transfer' ? (
                       <>
-                        <th className="py-2.5 px-2">الكفيل الجديد</th>
-                        <th className="py-2.5 px-1 text-center">فترة التجربة</th>
-                        <th className="py-2.5 px-1 text-center">البيانات المالية</th>
-                        <th className="py-2.5 px-2">تاريخ المغادرة والسكن</th>
+                        <th className="py-3.5 px-3">الكفيل الجديد</th>
+                        <th className="py-3.5 px-2 text-center">فترة التجربة</th>
+                        <th className="py-3.5 px-2 text-center">البيانات المالية</th>
+                        <th className="py-3.5 px-3">تاريخ المغادرة والسكن</th>
                       </>
                     ) : activeCategory === 'medical' ? (
                       <>
-                        <th className="py-2.5 px-2">المستشفى / المركز</th>
-                        <th className="py-2.5 px-2">التشخيص الطبي والحالة</th>
-                        <th className="py-2.5 px-2">تاريخ المغادرة والسكن</th>
-                        <th className="py-2.5 px-2 text-center">تاريخ العودة والمدة</th>
-                        <th className="py-2.5 px-1 text-center">التقرير</th>
+                        <th className="py-3.5 px-3">المستشفى / المركز</th>
+                        <th className="py-3.5 px-3">التشخيص الطبي والحالة</th>
+                        <th className="py-3.5 px-3">تاريخ المغادرة والسكن</th>
+                        <th className="py-3.5 px-3 text-center">تاريخ العودة والمدة</th>
+                        <th className="py-3.5 px-2 text-center">التقرير</th>
                       </>
                     ) : activeCategory === 'temp_all' ? (
                       <>
-                        <th className="py-2.5 px-2">نوع ووجهة المغادرة</th>
-                        <th className="py-2.5 px-2">تاريخ المغادرة والسكن</th>
-                        <th className="py-2.5 px-2 text-center">تاريخ العودة والمدة</th>
-                        <th className="py-2.5 px-1 text-center">السكن والمرفقات</th>
+                        <th className="py-3.5 px-3">نوع ووجهة المغادرة</th>
+                        <th className="py-3.5 px-3">تاريخ المغادرة والسكن</th>
+                        <th className="py-3.5 px-3 text-center">تاريخ العودة والمدة</th>
+                        <th className="py-3.5 px-2 text-center">السكن والمرفقات</th>
                       </>
                     ) : (
                       <>
-                        <th className="py-2.5 px-2">مسار وسبب المغادرة</th>
-                        <th className="py-2.5 px-2">تاريخ المغادرة والسكن</th>
-                        <th className="py-2.5 px-1 text-center">السكن السابق</th>
-                        <th className="py-2.5 px-1 text-center">المرفقات</th>
+                        <th className="py-3.5 px-3">مسار وسبب المغادرة</th>
+                        <th className="py-3.5 px-3">تاريخ المغادرة والسكن</th>
+                        <th className="py-3.5 px-2 text-center">السكن السابق</th>
+                        <th className="py-3.5 px-2 text-center">المرفقات</th>
                       </>
                     )}
-                    <th className="py-2.5 px-2 text-left">الإجراءات</th>
+                    <th className="py-3.5 px-3 text-left">الإجراءات</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -1275,6 +1351,8 @@ export default function HousingDeparturesPage({
                       const workerName = getWorkerName(worker);
                       const passport = getPassportNumber(worker);
                       const nationality = getNationality(worker);
+                      const flagUrl = getCountryFlagUrl(nationality);
+                      const guarantee = getGuaranteeInfo(worker);
                       const oldSponsor = getOldSponsorName(worker);
                       const oldSponsorPhone = getOldSponsorPhone(worker);
                       const isExternal = Boolean(worker.externalHomedmaidId || worker.externalHomedmaid);
@@ -1313,66 +1391,102 @@ export default function HousingDeparturesPage({
                           }`}
                         >
                           {/* Row Number */}
-                          <td className="py-2.5 px-2 text-center text-gray-400 font-mono w-8">
+                          <td className="py-3.5 px-3 text-center text-gray-400 font-mono text-xs sm:text-sm w-10">
                             {(page - 1) * pageSize + idx + 1}
                           </td>
 
                           {/* Worker Details */}
-                          <td className="py-2.5 px-2">
-                            <div className="flex items-center gap-2">
+                          <td className="py-3.5 px-3">
+                            <div className="flex items-center gap-2.5">
                               <div className="relative shrink-0">
                                 {worker.externalHomedmaid?.image ? (
                                   <img
                                     src={worker.externalHomedmaid.image}
                                     alt={workerName}
-                                    className="w-8 h-8 rounded-lg object-cover border border-gray-200"
+                                    className="w-10 h-10 rounded-xl object-cover border border-gray-200"
                                   />
                                 ) : (
-                                  <div className={`w-8 h-8 rounded-lg border flex items-center justify-center font-bold text-xs ${
+                                  <div className={`w-10 h-10 rounded-xl border flex items-center justify-center font-bold text-sm ${
                                     isExpiredTrial
                                       ? 'bg-red-100 text-red-700 border-red-300'
                                       : 'bg-teal-100/70 border-teal-200 text-teal-800'
                                   }`}>
-                                    <Users className="w-4 h-4" />
+                                    <Users className="w-5 h-5" />
                                   </div>
                                 )}
                                 {isExternal && (
-                                  <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-teal-700 text-white rounded-full flex items-center justify-center text-[8px] font-bold">
+                                  <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-teal-700 text-white rounded-full flex items-center justify-center text-[9px] font-bold">
                                     خ
                                   </span>
                                 )}
                               </div>
                               <div className="min-w-0">
                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="font-bold text-gray-900 block truncate text-xs" title={workerName}>
+                                  {flagUrl && (
+                                    <img
+                                      src={flagUrl}
+                                      alt={nationality}
+                                      title={nationality}
+                                      className="w-5 h-3.5 object-cover rounded-xs border border-gray-200 inline-block shrink-0 shadow-2xs"
+                                    />
+                                  )}
+                                  <span className="font-bold text-gray-900 block truncate text-xs sm:text-sm" title={`${workerName} (${nationality})`}>
                                     {workerName}
                                   </span>
                                   {isExpiredTrial && (
                                     <span
-                                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-red-100 text-red-700 border border-red-300 animate-pulse shrink-0 shadow-sm"
+                                      className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-extrabold bg-red-100 text-red-700 border border-red-300 animate-pulse shrink-0 shadow-sm"
                                       title="انتهت فترة التجربة ولم تعد للسكن أو يُتم نقل كفالتها"
                                     >
-                                      <AlertCircle className="w-2.5 h-2.5 text-red-600 shrink-0" />
+                                      <AlertCircle className="w-3 h-3 text-red-600 shrink-0" />
                                       <span>انتهت التجربة</span>
                                     </span>
                                   )}
                                 </div>
-                                <div className="flex items-center gap-1 text-[10px] text-gray-500 font-mono">
+                                <div className="flex items-center gap-1.5 text-xs text-gray-500 font-mono mt-0.5 flex-wrap">
                                   <span>{passport}</span>
                                   <span>•</span>
-                                  <span className="font-sans text-teal-800 font-medium">{nationality}</span>
+                                  {guarantee.hasDate ? (() => {
+                                    const isRed = guarantee.isExpired || guarantee.diffDays <= 5;
+                                    const isYellow = !isRed && guarantee.diffDays <= 9;
+                                    const colorClass = isRed ? 'text-red-600' : isYellow ? 'text-amber-500' : 'text-emerald-600';
+
+                                    return (
+                                      <span
+                                        className={`inline-flex items-center gap-1 text-xs ${colorClass}`}
+                                        title={guarantee.fullStatus}
+                                      >
+                                        {isRed ? (
+                                          <ShieldAlert className="w-4 h-4 shrink-0 text-red-600" />
+                                        ) : isYellow ? (
+                                          <ShieldAlert className="w-4 h-4 shrink-0 text-amber-500" />
+                                        ) : (
+                                          <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-600" />
+                                        )}
+                                        <span className="font-sans font-bold">{guarantee.text}</span>
+                                      </span>
+                                    );
+                                  })() : (
+                                    <span
+                                      className="inline-flex items-center gap-1 text-xs text-gray-400"
+                                      title={guarantee.fullStatus}
+                                    >
+                                      <Shield className="w-4 h-4 text-gray-400 shrink-0" />
+                                      <span className="font-sans">بدون ضمان</span>
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                             </div>
                           </td>
 
                           {/* Old Sponsor */}
-                          <td className="py-2.5 px-2">
+                          <td className="py-3.5 px-3">
                             <div className="space-y-0.5 min-w-0">
-                              <span className="font-bold text-gray-800 block truncate text-xs" title={oldSponsor}>
+                              <span className="font-bold text-gray-800 block truncate text-xs sm:text-sm" title={oldSponsor}>
                                 {oldSponsor}
                               </span>
-                              <span className="text-[10px] text-gray-500 font-mono block truncate" dir="ltr">
+                              <span className="text-xs text-gray-500 font-mono block truncate" dir="ltr">
                                 {oldSponsorPhone}
                               </span>
                             </div>
@@ -1382,13 +1496,13 @@ export default function HousingDeparturesPage({
                           {activeCategory === 'trial_transfer' ? (
                             <>
                               {/* New Sponsor */}
-                              <td className="py-2.5 px-2">
+                              <td className="py-3.5 px-3">
                                 {tsd?.newSponsorName ? (
                                   <div className="space-y-0.5 min-w-0">
-                                    <span className="font-bold text-teal-900 block truncate text-xs" title={tsd.newSponsorName}>
+                                    <span className="font-bold text-teal-900 block truncate text-xs sm:text-sm" title={tsd.newSponsorName}>
                                       {tsd.newSponsorName}
                                     </span>
-                                    <div className="flex items-center gap-1 text-[10px] text-gray-500 font-mono" dir="ltr">
+                                    <div className="flex items-center gap-1.5 text-xs text-gray-500 font-mono" dir="ltr">
                                       <span className="truncate">{tsd.newSponsorPhone || '—'}</span>
                                       {tsd.newSponsorCity && (
                                         <span className="font-sans text-gray-600 shrink-0">({tsd.newSponsorCity})</span>
@@ -1401,22 +1515,22 @@ export default function HousingDeparturesPage({
                               </td>
 
                               {/* Trial Period & Countdown */}
-                              <td className="py-2.5 px-1 text-center">
+                              <td className="py-3.5 px-2 text-center">
                                 {trialStatus ? (
                                   <div className="inline-flex flex-col items-center gap-0.5">
-                                    <span className="font-bold text-[11px] text-gray-800">
+                                    <span className="font-bold text-xs sm:text-sm text-gray-800">
                                       {trialStatus.totalDays} أيام
                                     </span>
                                     {trialStatus.isExpired ? (
-                                      <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-red-100 text-red-700 border border-red-200">
+                                      <span className="px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-extrabold bg-red-100 text-red-700 border border-red-200">
                                         انتهت التجربة
                                       </span>
                                     ) : trialStatus.isToday ? (
-                                      <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
+                                      <span className="px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
                                         اليوم!
                                       </span>
                                     ) : (
-                                      <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                      <span className="px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
                                         باقي {trialStatus.remainingDays} يوم
                                       </span>
                                     )}
@@ -1427,13 +1541,13 @@ export default function HousingDeparturesPage({
                               </td>
 
                               {/* Financial Details */}
-                              <td className="py-2.5 px-1 text-center font-mono">
+                              <td className="py-3.5 px-2 text-center font-mono">
                                 {tsd?.totalCost ? (
                                   <div className="space-y-0.5">
-                                    <div className="text-[11px] font-bold text-gray-900">
+                                    <div className="text-xs sm:text-sm font-bold text-gray-900">
                                       {Number(tsd.totalCost).toLocaleString('en-US')} ر.س
                                     </div>
-                                    <div className="text-[9px] text-emerald-700 font-semibold">
+                                    <div className="text-xs text-emerald-700 font-semibold">
                                       مدفوع: {Number(tsd.paidAmount || 0).toLocaleString('en-US')}
                                     </div>
                                   </div>
@@ -1443,13 +1557,13 @@ export default function HousingDeparturesPage({
                               </td>
 
                               {/* Dates & Stay */}
-                              <td className="py-2.5 px-2 font-mono">
+                              <td className="py-3.5 px-3 font-mono">
                                 <div className="space-y-0.5">
-                                  <div className="flex items-center gap-1 text-gray-900 font-bold text-[11px]">
-                                    <Calendar className="w-3 h-3 text-gray-400 shrink-0" />
+                                  <div className="flex items-center gap-1.5 text-gray-900 font-bold text-xs sm:text-sm">
+                                    <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                                     <span>{formatDate(worker.deparatureHousingDate)}</span>
                                   </div>
-                                  <div className="text-[9px] text-gray-500 flex items-center gap-1 font-sans">
+                                  <div className="text-xs text-gray-500 flex items-center gap-1 font-sans">
                                     <span>السكن:</span>
                                     <span className="font-bold text-teal-800">
                                       {getHousingStayDuration(worker.houseentrydate, worker.deparatureHousingDate)}
@@ -1461,28 +1575,28 @@ export default function HousingDeparturesPage({
                           ) : activeCategory === 'medical' ? (
                             <>
                               {/* المستشفى / المركز الطبي */}
-                              <td className="py-2.5 px-2">
-                                <div className="space-y-0.5 min-w-0">
-                                  <div className="flex items-center gap-1">
-                                    <FaHospital className="w-3 h-3 text-rose-700 shrink-0" />
-                                    <strong className="text-gray-900 font-bold block truncate text-xs" title={worker.medicalDepartureData?.hospitalName}>
+                              <td className="py-3.5 px-3">
+                                <div className="space-y-1 min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <FaHospital className="w-3.5 h-3.5 text-rose-700 shrink-0" />
+                                    <strong className="text-gray-900 font-bold block truncate text-xs sm:text-sm" title={worker.medicalDepartureData?.hospitalName}>
                                       {worker.medicalDepartureData?.hospitalName || 'غير محدد'}
                                     </strong>
                                   </div>
-                                  <span className="inline-block px-1.5 py-0.5 rounded bg-rose-50 text-rose-800 border border-rose-200 text-[9px] font-bold">
+                                  <span className="inline-block px-2 py-0.5 rounded-md bg-rose-50 text-rose-800 border border-rose-200 text-[10px] sm:text-xs font-bold">
                                     متابعة طبية
                                   </span>
                                 </div>
                               </td>
 
                               {/* التشخيص الطبي والحالة */}
-                              <td className="py-2.5 px-2">
+                              <td className="py-3.5 px-3">
                                 <div className="space-y-0.5 min-w-0">
-                                  <span className="text-gray-900 font-bold block text-xs truncate" title={worker.medicalDepartureData?.diagnosis}>
+                                  <span className="text-gray-900 font-bold block text-xs sm:text-sm truncate" title={worker.medicalDepartureData?.diagnosis}>
                                     {worker.medicalDepartureData?.diagnosis || '—'}
                                   </span>
                                   {worker.medicalDepartureData?.notes && (
-                                    <p className="text-[10px] text-gray-500 truncate" title={worker.medicalDepartureData.notes}>
+                                    <p className="text-xs text-gray-500 truncate" title={worker.medicalDepartureData.notes}>
                                       {worker.medicalDepartureData.notes}
                                     </p>
                                   )}
@@ -1490,13 +1604,13 @@ export default function HousingDeparturesPage({
                               </td>
 
                               {/* تاريخ المغادرة من السكن */}
-                              <td className="py-2.5 px-2 font-mono">
+                              <td className="py-3.5 px-3 font-mono">
                                 <div className="space-y-0.5">
-                                  <div className="flex items-center gap-1 text-gray-900 font-bold text-[11px]">
-                                    <Calendar className="w-3 h-3 text-gray-400 shrink-0" />
+                                  <div className="flex items-center gap-1.5 text-gray-900 font-bold text-xs sm:text-sm">
+                                    <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                                     <span>{formatDate(worker.deparatureHousingDate)}</span>
                                   </div>
-                                  <div className="text-[9px] text-gray-500 flex items-center gap-1 font-sans">
+                                  <div className="text-xs text-gray-500 flex items-center gap-1 font-sans">
                                     <span>السكن:</span>
                                     <span className="font-bold text-teal-800">
                                       {getHousingStayDuration(worker.houseentrydate, worker.deparatureHousingDate)}
@@ -1506,22 +1620,22 @@ export default function HousingDeparturesPage({
                               </td>
 
                               {/* تاريخ العودة والمدة */}
-                              <td className="py-2.5 px-2 font-mono text-center">
+                              <td className="py-3.5 px-3 font-mono text-center">
                                 <div className="space-y-0.5">
-                                  <div className={`flex items-center justify-center gap-1 font-bold text-[11px] ${
+                                  <div className={`flex items-center justify-center gap-1.5 font-bold text-xs sm:text-sm ${
                                     medStatus?.isOverdue ? 'text-red-700 font-extrabold' : 'text-gray-900'
                                   }`}>
-                                    <Calendar className={`w-3 h-3 shrink-0 ${medStatus?.isOverdue ? 'text-red-600' : 'text-rose-500'}`} />
+                                    <Calendar className={`w-3.5 h-3.5 shrink-0 ${medStatus?.isOverdue ? 'text-red-600' : 'text-rose-500'}`} />
                                     <span>
                                       {medStatus?.returnDateFormatted || (worker.medicalDepartureData?.expectedReturnDate
                                         ? worker.medicalDepartureData.expectedReturnDate.replace(/-/g, '/')
                                         : '—')}
                                     </span>
                                   </div>
-                                  <div className="text-[9px] font-sans flex items-center justify-center gap-1">
+                                  <div className="text-xs font-sans flex items-center justify-center gap-1">
                                     {medStatus?.isOverdue ? (
-                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-red-100 text-red-700 border border-red-200">
-                                        <Clock className="w-2.5 h-2.5 text-red-600" />
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-extrabold bg-red-100 text-red-700 border border-red-200">
+                                        <Clock className="w-3 h-3 text-red-600" />
                                         {medStatus.daysOverdue === 1
                                           ? 'متأخرة يوم واحد'
                                           : medStatus.daysOverdue === 2
@@ -1529,8 +1643,8 @@ export default function HousingDeparturesPage({
                                           : `متأخرة ${medStatus.daysOverdue} أيام`}
                                       </span>
                                     ) : medStatus?.isToday ? (
-                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
-                                        <Clock className="w-2.5 h-2.5 text-amber-700" />
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
+                                        <Clock className="w-3 h-3 text-amber-700" />
                                         موعد العودة اليوم
                                       </span>
                                     ) : (
@@ -1553,17 +1667,17 @@ export default function HousingDeparturesPage({
                               </td>
 
                               {/* التقرير الطبي والمرفقات */}
-                              <td className="py-2.5 px-1 text-center">
-                                <div className="flex items-center justify-center gap-1 flex-wrap">
+                              <td className="py-3.5 px-2 text-center">
+                                <div className="flex items-center justify-center gap-1.5 flex-wrap">
                                   {worker.medicalDepartureData?.medicalReportFile && (
                                     <a
                                       href={worker.medicalDepartureData.medicalReportFile}
                                       target="_blank"
                                       rel="noreferrer"
-                                      className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 font-bold text-[10px] transition-colors shadow-sm"
+                                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 font-bold text-xs transition-colors shadow-sm"
                                       title="معاينة التقرير الطبي"
                                     >
-                                      <FileText className="w-3 h-3 text-rose-700" />
+                                      <FileText className="w-3.5 h-3.5 text-rose-700" />
                                       <span>التقرير</span>
                                     </a>
                                   )}
@@ -1572,15 +1686,15 @@ export default function HousingDeparturesPage({
                                       href={worker.deparatureAttachment}
                                       target="_blank"
                                       rel="noreferrer"
-                                      className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 font-bold text-[10px] transition-colors shadow-sm"
+                                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 font-bold text-xs transition-colors shadow-sm"
                                       title="مرفق إضافي"
                                     >
-                                      <Paperclip className="w-3 h-3 text-gray-600" />
+                                      <Paperclip className="w-3.5 h-3.5 text-gray-600" />
                                       <span>مرفق</span>
                                     </a>
                                   )}
                                   {!worker.medicalDepartureData?.medicalReportFile && !worker.deparatureAttachment && (
-                                    <span className="text-gray-400 text-[10px]">بدون مرفق</span>
+                                    <span className="text-gray-400 text-xs">بدون مرفق</span>
                                   )}
                                 </div>
                               </td>
@@ -1588,30 +1702,30 @@ export default function HousingDeparturesPage({
                           ) : activeCategory === 'temp_all' ? (
                             <>
                               {/* نوع ووجهة المغادرة */}
-                              <td className="py-2.5 px-2">
-                                <div className="space-y-0.5 min-w-0">
+                              <td className="py-3.5 px-3">
+                                <div className="space-y-1 min-w-0">
                                   {isTrial ? (
                                     <>
-                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-sm">
-                                        <UserCheck className="w-3 h-3 text-emerald-700" />
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-sm">
+                                        <UserCheck className="w-3.5 h-3.5 text-emerald-700" />
                                         <span>تجربة نقل كفالة</span>
                                       </span>
-                                      <p className="text-[10px] text-gray-700 font-bold truncate" title={tsd?.newSponsorName}>
+                                      <p className="text-xs text-gray-700 font-bold truncate" title={tsd?.newSponsorName}>
                                         {tsd?.newSponsorName ? `الجديد: ${tsd.newSponsorName}` : '—'}
                                       </p>
                                     </>
                                   ) : isMed ? (
                                     <>
-                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200 shadow-sm">
-                                        <FaHospital className="w-3 h-3 text-rose-700" />
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold bg-rose-50 text-rose-800 border border-rose-200 shadow-sm">
+                                        <FaHospital className="w-3.5 h-3.5 text-rose-700" />
                                         <span>متابعة طبية</span>
                                       </span>
-                                      <p className="text-[10px] text-gray-700 font-bold truncate" title={worker.medicalDepartureData?.hospitalName}>
+                                      <p className="text-xs text-gray-700 font-bold truncate" title={worker.medicalDepartureData?.hospitalName}>
                                         {worker.medicalDepartureData?.hospitalName || 'مستشفى'}
                                       </p>
                                     </>
                                   ) : (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-700 border border-gray-200 truncate">
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200 truncate">
                                       <span>{reasonText}</span>
                                     </span>
                                   )}
@@ -1619,13 +1733,13 @@ export default function HousingDeparturesPage({
                               </td>
 
                               {/* تاريخ المغادرة من السكن */}
-                              <td className="py-2.5 px-2 font-mono">
+                              <td className="py-3.5 px-3 font-mono">
                                 <div className="space-y-0.5">
-                                  <div className="flex items-center gap-1 text-gray-900 font-bold text-[11px]">
-                                    <Calendar className="w-3 h-3 text-gray-400 shrink-0" />
+                                  <div className="flex items-center gap-1.5 text-gray-900 font-bold text-xs sm:text-sm">
+                                    <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                                     <span>{formatDate(worker.deparatureHousingDate)}</span>
                                   </div>
-                                  <div className="text-[9px] text-gray-500 flex items-center gap-1 font-sans">
+                                  <div className="text-xs text-gray-500 flex items-center gap-1 font-sans">
                                     <span>السكن:</span>
                                     <span className="font-bold text-teal-800">
                                       {getHousingStayDuration(worker.houseentrydate, worker.deparatureHousingDate)}
@@ -1635,22 +1749,22 @@ export default function HousingDeparturesPage({
                               </td>
 
                               {/* تاريخ العودة / الانتهاء والمدة */}
-                              <td className="py-2.5 px-2 font-mono text-center">
+                              <td className="py-3.5 px-3 font-mono text-center">
                                 {isTrial ? (
                                   <div className="space-y-0.5">
-                                    <div className="flex items-center justify-center gap-1 text-gray-900 font-bold text-[11px]">
-                                      <Calendar className="w-3 h-3 text-emerald-600 shrink-0" />
+                                    <div className="flex items-center justify-center gap-1.5 text-gray-900 font-bold text-xs sm:text-sm">
+                                      <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                                       <span>
                                         {trialStatus?.endDateFormatted || (tsd?.trialEndDate ? tsd.trialEndDate.replace(/-/g, '/') : '—')}
                                       </span>
                                     </div>
-                                    <div className="text-[9px] font-sans">
+                                    <div className="text-xs font-sans">
                                       {trialStatus?.isExpired ? (
-                                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-red-100 text-red-700 border border-red-200">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-extrabold bg-red-100 text-red-700 border border-red-200">
                                           انتهت التجربة
                                         </span>
                                       ) : trialStatus?.isToday ? (
-                                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
                                           تنتهي اليوم
                                         </span>
                                       ) : (
@@ -1660,20 +1774,20 @@ export default function HousingDeparturesPage({
                                   </div>
                                 ) : isMed ? (
                                   <div className="space-y-0.5">
-                                    <div className={`flex items-center justify-center gap-1 font-bold text-[11px] ${
+                                    <div className={`flex items-center justify-center gap-1.5 font-bold text-xs sm:text-sm ${
                                       medStatus?.isOverdue ? 'text-red-700 font-extrabold' : 'text-gray-900'
                                     }`}>
-                                      <Calendar className={`w-3 h-3 shrink-0 ${medStatus?.isOverdue ? 'text-red-600' : 'text-rose-500'}`} />
+                                      <Calendar className={`w-3.5 h-3.5 shrink-0 ${medStatus?.isOverdue ? 'text-red-600' : 'text-rose-500'}`} />
                                       <span>
                                         {medStatus?.returnDateFormatted || (worker.medicalDepartureData?.expectedReturnDate
                                           ? worker.medicalDepartureData.expectedReturnDate.replace(/-/g, '/')
                                           : '—')}
                                       </span>
                                     </div>
-                                    <div className="text-[9px] font-sans flex items-center justify-center gap-1">
+                                    <div className="text-xs font-sans flex items-center justify-center gap-1">
                                       {medStatus?.isOverdue ? (
-                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-red-100 text-red-700 border border-red-200">
-                                          <Clock className="w-2.5 h-2.5 text-red-600" />
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-extrabold bg-red-100 text-red-700 border border-red-200">
+                                          <Clock className="w-3 h-3 text-red-600" />
                                           {medStatus.daysOverdue === 1
                                             ? 'متأخرة يوم واحد'
                                             : medStatus.daysOverdue === 2
@@ -1681,8 +1795,8 @@ export default function HousingDeparturesPage({
                                             : `متأخرة ${medStatus.daysOverdue} أيام`}
                                         </span>
                                       ) : medStatus?.isToday ? (
-                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
-                                          <Clock className="w-2.5 h-2.5 text-amber-700" />
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
+                                          <Clock className="w-3 h-3 text-amber-700" />
                                           موعد العودة اليوم
                                         </span>
                                       ) : (
@@ -1708,10 +1822,10 @@ export default function HousingDeparturesPage({
                               </td>
 
                               {/* السكن والمرفقات */}
-                              <td className="py-2.5 px-1 text-center">
+                              <td className="py-3.5 px-2 text-center">
                                 <div className="space-y-1">
-                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 font-bold text-[10px] truncate max-w-[90px]">
-                                    <Building className="w-2.5 h-2.5 text-gray-500 shrink-0" />
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 font-bold text-xs truncate max-w-[110px]">
+                                    <Building className="w-3 h-3 text-gray-500 shrink-0" />
                                     <span className="truncate">{locName}</span>
                                   </span>
                                   <div className="flex items-center justify-center gap-1 flex-wrap">
@@ -1723,7 +1837,7 @@ export default function HousingDeparturesPage({
                                         title="إيصال السداد"
                                         className="p-1 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition-colors"
                                       >
-                                        <DollarSign className="w-3 h-3" />
+                                        <DollarSign className="w-3.5 h-3.5" />
                                       </a>
                                     )}
                                     {worker.medicalDepartureData?.medicalReportFile && (
@@ -1734,7 +1848,7 @@ export default function HousingDeparturesPage({
                                         title="التقرير الطبي"
                                         className="p-1 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors"
                                       >
-                                        <FaHospital className="w-3 h-3" />
+                                        <FaHospital className="w-3.5 h-3.5" />
                                       </a>
                                     )}
                                     {worker.deparatureAttachment && (
@@ -1745,11 +1859,11 @@ export default function HousingDeparturesPage({
                                         title="مرفق إضافي"
                                         className="p-1 rounded bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 transition-colors"
                                       >
-                                        <Paperclip className="w-3 h-3 text-gray-600" />
+                                        <Paperclip className="w-3.5 h-3.5 text-gray-600" />
                                       </a>
                                     )}
                                     {!tsd?.paymentReceiptFile && !worker.medicalDepartureData?.medicalReportFile && !worker.deparatureAttachment && (
-                                      <span className="text-gray-400 text-[9px]">بدون مرفق</span>
+                                      <span className="text-gray-400 text-xs">بدون مرفق</span>
                                     )}
                                   </div>
                                 </div>
@@ -1758,17 +1872,17 @@ export default function HousingDeparturesPage({
                           ) : (
                             <>
                               {/* Departure Reason Badge & Specific Notes */}
-                              <td className="py-2.5 px-2">
-                                <div className="space-y-0.5 min-w-0">
+                              <td className="py-3.5 px-3">
+                                <div className="space-y-1 min-w-0">
                                   {isTrial ? (
                                     <div className="space-y-0.5">
-                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-sm">
-                                        <UserCheck className="w-3 h-3 text-emerald-700" />
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-sm">
+                                        <UserCheck className="w-3.5 h-3.5 text-emerald-700" />
                                         <span>تجربة نقل كفالة</span>
                                       </span>
                                       {trialStatus && (
-                                        <div className="text-[9px] font-bold text-emerald-800 flex items-center gap-1">
-                                          <Clock className="w-2.5 h-2.5 text-emerald-600" />
+                                        <div className="text-xs font-bold text-emerald-800 flex items-center gap-1">
+                                          <Clock className="w-3 h-3 text-emerald-600" />
                                           <span>
                                             {trialStatus.isExpired
                                               ? 'انتهت التجربة'
@@ -1777,51 +1891,51 @@ export default function HousingDeparturesPage({
                                         </div>
                                       )}
                                       {worker.transferSponsorshipData?.notes && (
-                                        <p className="text-[9px] text-emerald-700 font-medium truncate" title={worker.transferSponsorshipData.notes}>
+                                        <p className="text-xs text-emerald-700 font-medium truncate" title={worker.transferSponsorshipData.notes}>
                                           {worker.transferSponsorshipData.notes}
                                         </p>
                                       )}
                                     </div>
                                   ) : isMed ? (
                                     <div className="space-y-0.5">
-                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200 shadow-sm">
-                                        <FaHospital className="w-3 h-3 text-rose-700" />
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold bg-rose-50 text-rose-800 border border-rose-200 shadow-sm">
+                                        <FaHospital className="w-3.5 h-3.5 text-rose-700" />
                                         <span>متابعة طبية</span>
                                       </span>
                                       {worker.medicalDepartureData?.expectedStayDays && (
-                                        <div className="text-[9px] font-bold text-rose-800 flex items-center gap-1">
-                                          <Clock className="w-2.5 h-2.5 text-rose-600" />
+                                        <div className="text-xs font-bold text-rose-800 flex items-center gap-1">
+                                          <Clock className="w-3 h-3 text-rose-600" />
                                           <span>المدة: {worker.medicalDepartureData.expectedStayDays} يوم</span>
                                         </div>
                                       )}
                                       {(worker.medicalDepartureData?.diagnosis || worker.medicalDepartureData?.notes) && (
-                                        <p className="text-[9px] text-rose-700 font-medium truncate" title={worker.medicalDepartureData?.notes || worker.medicalDepartureData?.diagnosis}>
+                                        <p className="text-xs text-rose-700 font-medium truncate" title={worker.medicalDepartureData?.notes || worker.medicalDepartureData?.diagnosis}>
                                           {worker.medicalDepartureData?.diagnosis ? `التشخيص: ${worker.medicalDepartureData.diagnosis}` : worker.medicalDepartureData?.notes}
                                         </p>
                                       )}
                                     </div>
                                   ) : isCompletedTransfer ? (
                                     <div className="space-y-0.5">
-                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-teal-50 text-teal-800 border border-teal-200 shadow-sm">
-                                        <CheckCircle2 className="w-3 h-3 text-teal-700" />
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold bg-teal-50 text-teal-800 border border-teal-200 shadow-sm">
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-teal-700" />
                                         <span>تم نقل الكفالة</span>
                                       </span>
                                     </div>
                                   ) : isDeport ? (
                                     <div className="space-y-0.5">
-                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-sky-50 text-sky-800 border border-sky-200 truncate">
-                                        <Plane className="w-2.5 h-2.5 text-sky-700 shrink-0" />
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-sky-50 text-sky-800 border border-sky-200 truncate">
+                                        <Plane className="w-3 h-3 text-sky-700 shrink-0" />
                                         <span className="truncate">{reasonText}</span>
                                       </span>
                                       {(worker.deportationData?.notes || (worker.deportationData?.externalReason && worker.deportationData.externalReason !== reasonText)) && (
-                                        <p className="text-[9px] text-sky-700 font-medium truncate" title={worker.deportationData?.notes || worker.deportationData?.externalReason}>
+                                        <p className="text-xs text-sky-700 font-medium truncate" title={worker.deportationData?.notes || worker.deportationData?.externalReason}>
                                           {worker.deportationData?.notes || worker.deportationData?.externalReason}
                                         </p>
                                       )}
                                     </div>
                                   ) : (
                                     <div className="space-y-0.5">
-                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-700 border border-gray-200 truncate">
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200 truncate">
                                         <span className="truncate">{reasonText}</span>
                                       </span>
                                     </div>
@@ -1830,13 +1944,13 @@ export default function HousingDeparturesPage({
                               </td>
 
                               {/* Dates & Stay */}
-                              <td className="py-2.5 px-2 font-mono">
+                              <td className="py-3.5 px-3 font-mono">
                                 <div className="space-y-0.5">
-                                  <div className="flex items-center gap-1 text-gray-900 font-bold text-[11px]">
-                                    <Calendar className="w-3 h-3 text-gray-400 shrink-0" />
+                                  <div className="flex items-center gap-1.5 text-gray-900 font-bold text-xs sm:text-sm">
+                                    <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                                     <span>{formatDate(worker.deparatureHousingDate)}</span>
                                   </div>
-                                  <div className="text-[9px] text-gray-500 flex items-center gap-1 font-sans">
+                                  <div className="text-xs text-gray-500 flex items-center gap-1 font-sans">
                                     <span>السكن:</span>
                                     <span className="font-bold text-teal-800">
                                       {getHousingStayDuration(worker.houseentrydate, worker.deparatureHousingDate)}
@@ -1846,15 +1960,15 @@ export default function HousingDeparturesPage({
                               </td>
 
                               {/* Location */}
-                              <td className="py-2.5 px-1 text-center">
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 font-bold text-[10px] truncate max-w-[90px]">
-                                  <Building className="w-2.5 h-2.5 text-gray-500 shrink-0" />
+                              <td className="py-3.5 px-2 text-center">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 font-bold text-xs truncate max-w-[110px]">
+                                  <Building className="w-3 h-3 text-gray-500 shrink-0" />
                                   <span className="truncate">{locName}</span>
                                 </span>
                               </td>
 
                               {/* Attachments quick preview */}
-                              <td className="py-2.5 px-1 text-center">
+                              <td className="py-3.5 px-2 text-center">
                                 <div className="flex items-center justify-center gap-1 flex-wrap">
                                   {/* Payment Receipt */}
                                   {tsd?.paymentReceiptFile && (
@@ -1865,7 +1979,7 @@ export default function HousingDeparturesPage({
                                       title="إيصال السداد"
                                       className="p-1 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition-colors"
                                     >
-                                      <DollarSign className="w-3 h-3" />
+                                      <DollarSign className="w-3.5 h-3.5" />
                                     </a>
                                   )}
                                   {/* Salary Certificate */}
@@ -1877,7 +1991,7 @@ export default function HousingDeparturesPage({
                                       title="تعريف الراتب"
                                       className="p-1 rounded bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 transition-colors"
                                     >
-                                      <FileText className="w-3 h-3" />
+                                      <FileText className="w-3.5 h-3.5" />
                                     </a>
                                   )}
                                   {/* National Address */}
@@ -1889,7 +2003,7 @@ export default function HousingDeparturesPage({
                                       title="العنوان الوطني"
                                       className="p-1 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition-colors"
                                     >
-                                      <MapPin className="w-3 h-3" />
+                                      <MapPin className="w-3.5 h-3.5" />
                                     </a>
                                   )}
                                   {/* Flight Ticket */}
@@ -1901,7 +2015,7 @@ export default function HousingDeparturesPage({
                                       title="تذكرة السفر"
                                       className="p-1 rounded bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 transition-colors"
                                     >
-                                      <Plane className="w-3 h-3" />
+                                      <Plane className="w-3.5 h-3.5" />
                                     </a>
                                   )}
                                   {/* Medical Report */}
@@ -1913,7 +2027,7 @@ export default function HousingDeparturesPage({
                                       title="التقرير الطبي"
                                       className="p-1 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors"
                                     >
-                                      <FaHospital className="w-3 h-3" />
+                                      <FaHospital className="w-3.5 h-3.5" />
                                     </a>
                                   )}
                                   {/* External Photo */}
@@ -1925,11 +2039,11 @@ export default function HousingDeparturesPage({
                                       title="صورة المغادرة"
                                       className="p-1 rounded bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 transition-colors"
                                     >
-                                      <Eye className="w-3 h-3" />
+                                      <Eye className="w-3.5 h-3.5" />
                                     </a>
                                   )}
                                   {!tsd?.paymentReceiptFile && !tsd?.salaryCertificateFile && !tsd?.nationalAddressFile && !worker.deportationData?.externalTicketFile && !worker.medicalDepartureData?.medicalReportFile && !worker.deportationData?.departurePhoto && (
-                                    <span className="text-gray-400 text-[10px]">—</span>
+                                    <span className="text-gray-400 text-xs">—</span>
                                   )}
                                 </div>
                               </td>
@@ -1937,8 +2051,8 @@ export default function HousingDeparturesPage({
                           )}
 
                           {/* Actions */}
-                          <td className="py-2.5 px-2 text-left">
-                            <div className="flex items-center justify-end gap-1" dir="rtl">
+                          <td className="py-3.5 px-3 text-left">
+                            <div className="flex items-center justify-end gap-1.5" dir="rtl">
                               {/* For active trial transfers in temporary section: Show (نجاح التجربة) & (فشل التجربة) */}
                               {isTrial && activeSection === 'temporary' ? (
                                 <>
@@ -1946,10 +2060,10 @@ export default function HousingDeparturesPage({
                                   <button
                                     type="button"
                                     onClick={() => handleSuccessTrial(worker)}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-[11px] shadow-sm transition-colors cursor-pointer shrink-0"
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs sm:text-sm shadow-sm transition-colors cursor-pointer shrink-0"
                                     title="نجاح التجربة والانتقال لإضافة معاملة نقل الكفالة وإتمام الإجراءات"
                                   >
-                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-700" />
                                     <span>نجاح التجربة</span>
                                   </button>
 
@@ -1957,10 +2071,10 @@ export default function HousingDeparturesPage({
                                   <button
                                     type="button"
                                     onClick={() => setFailTrialWorker(worker)}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 font-bold text-[11px] shadow-sm transition-colors cursor-pointer shrink-0"
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 font-bold text-xs sm:text-sm shadow-sm transition-colors cursor-pointer shrink-0"
                                     title="فشل التجربة واستعادة العاملة للسكن"
                                   >
-                                    <RotateCcw className="w-3.5 h-3.5 text-rose-700" />
+                                    <RotateCcw className="w-4 h-4 text-rose-700" />
                                     <span>فشل التجربة</span>
                                   </button>
                                 </>
@@ -1978,10 +2092,10 @@ export default function HousingDeparturesPage({
                                           location: worker.location_id ? String(worker.location_id) : '',
                                         });
                                       }}
-                                      className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-colors cursor-pointer shrink-0"
+                                      className="p-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-colors cursor-pointer shrink-0"
                                       title="إعادة تسكين العاملة بالسكن"
                                     >
-                                      <RotateCcw className="w-3.5 h-3.5" />
+                                      <RotateCcw className="w-4 h-4" />
                                     </button>
                                   )}
                                 </>
@@ -1991,20 +2105,20 @@ export default function HousingDeparturesPage({
                               <button
                                 type="button"
                                 onClick={() => setSelectedDetailWorker(worker)}
-                                className="p-1.5 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 transition-colors cursor-pointer shrink-0"
+                                className="p-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 transition-colors cursor-pointer shrink-0"
                                 title="عرض التفاصيل الكاملة والمرفقات"
                               >
-                                <Eye className="w-3.5 h-3.5" />
+                                <Eye className="w-4 h-4" />
                               </button>
 
                               {/* Notes Button */}
                               <button
                                 type="button"
                                 onClick={() => setNotesWorker(worker)}
-                                className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200 transition-colors cursor-pointer shrink-0"
+                                className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200 transition-colors cursor-pointer shrink-0"
                                 title="سجل الملاحظات"
                               >
-                                <FileText className="w-3.5 h-3.5" />
+                                <FileText className="w-4 h-4" />
                               </button>
                             </div>
                           </td>
@@ -2019,7 +2133,7 @@ export default function HousingDeparturesPage({
             {/* Pagination Controls */}
             {totalPages > 1 && (
               <div className="p-4 border-t border-gray-200 flex items-center justify-between flex-wrap gap-3 bg-gray-50/50">
-                <div className="text-xs text-gray-500">
+                <div className="text-xs sm:text-sm text-gray-600">
                   عرض صفحة <span className="font-bold text-gray-900 font-mono">{page}</span> من{' '}
                   <span className="font-bold text-gray-900 font-mono">{totalPages}</span> (إجمالي{' '}
                   <span className="font-bold text-teal-800 font-mono">{totalCount}</span> سجل)
@@ -2138,7 +2252,50 @@ export default function HousingDeparturesPage({
                     </div>
                     <div>
                       <span className="text-[10px] text-gray-500 block">الجنسية:</span>
-                      <span className="text-gray-800">{getNationality(selectedDetailWorker)}</span>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        {getCountryFlagUrl(getNationality(selectedDetailWorker)) && (
+                          <img
+                            src={getCountryFlagUrl(getNationality(selectedDetailWorker))}
+                            alt={getNationality(selectedDetailWorker)}
+                            className="w-4 h-3 object-cover rounded-xs border border-gray-200 inline-block shrink-0 shadow-2xs"
+                          />
+                        )}
+                        <span className="text-gray-800 font-medium">{getNationality(selectedDetailWorker)}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-gray-500 block">حالة الضمان:</span>
+                      {(() => {
+                        const g = getGuaranteeInfo(selectedDetailWorker);
+                        if (!g.hasDate) {
+                          return (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-gray-400 mt-0.5" title={g.fullStatus}>
+                              <Shield className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                              <span>بدون ضمان مسجل</span>
+                            </span>
+                          );
+                        }
+                        const isRed = g.isExpired || g.diffDays <= 5;
+                        const isYellow = !isRed && g.diffDays <= 9;
+                        const colorClass = isRed ? 'text-red-600' : isYellow ? 'text-amber-500' : 'text-emerald-600';
+
+                        return (
+                          <span
+                            className={`inline-flex items-center gap-1 text-[11px] font-bold mt-0.5 ${colorClass}`}
+                            title={g.fullStatus}
+                          >
+                            {isRed ? (
+                              <ShieldAlert className="w-3.5 h-3.5 text-red-600 shrink-0" />
+                            ) : isYellow ? (
+                              <ShieldAlert className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                            ) : (
+                              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            )}
+                            <span>{g.text}</span>
+                            {g.endDateStr && <span className="font-mono text-[10px] text-gray-500 font-normal">({g.endDateStr})</span>}
+                          </span>
+                        );
+                      })()}
                     </div>
                     <div>
                       <span className="text-[10px] text-gray-500 block">تاريخ التسكين:</span>
