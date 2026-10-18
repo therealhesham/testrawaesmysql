@@ -96,9 +96,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           office: true,
           profession: true,
           logs: {
+            include: {
+              user: {
+                select: {
+                  username: true,
+                },
+              },
+            },
             orderBy: {
-              createdAt: 'desc'
-            }
+              createdAt: 'desc',
+            },
           },
           NewOrder: {
             include: {

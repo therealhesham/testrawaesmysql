@@ -62,6 +62,7 @@ const DesktopNavbar = () => {
     
     try {
       const response = await fetch(`/api/notifications?limit=100`);
+      if (response.status === 401) return;
       if (!response.ok) throw new Error('Failed to fetch notifications');
       const { data, counts } = await response.json();
       

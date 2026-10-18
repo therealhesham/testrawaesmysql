@@ -9,7 +9,7 @@ export default async function handler(
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  const { orderId, daftraJournalNumber, notes, userId, clientName, contractNumber } = req.body;
+  const { orderId, daftraJournalNumber, notes, userId, clientId, clientName, contractNumber } = req.body;
 
   if (!orderId) {
     return res.status(400).json({ message: 'معرف الطلب مطلوب' });
@@ -21,7 +21,7 @@ export default async function handler(
       select: {
         id: true,
         ClientName: true,
-        clientId: true,
+        clientID: true,
         Total: true,
         isJournalPosted: true,
         daftraJournalId: true,
@@ -49,7 +49,7 @@ export default async function handler(
       }
     });
 
-    // Log action to accounting_actions_log
+    // Log action to accountSystemLogs
     try {
       const contract = contractNumber || existingOrder.arrivals?.[0]?.InternalmusanedContract || '';
       const client = clientName || existingOrder.ClientName || 'عميل';
@@ -63,19 +63,26 @@ export default async function handler(
         } catch (e) {}
       }
 
-      await (prisma as any).accounting_actions_log.create({
+      let validClientId: number | null = null;
+      const targetClientId = clientId ? Number(clientId) : (existingOrder.clientID ? Number(existingOrder.clientID) : null);
+      if (targetClientId) {
+        try {
+          const c = await prisma.client.findUnique({ where: { id: targetClientId }, select: { id: true } });
+          if (c) validClientId = c.id;
+        } catch (e) {}
+      }
+
+      await (prisma as any).accountSystemLogs.create({
         data: {
-          TransactionType: 'قيد محاسبي مرحل يدوياً',
-          BeneficiaryType: 'طلب',
-          BeneficiaryId: Number(orderId),
-          BeneficiaryName: client,
-          Statement: notes 
-            ? `تم تعيين القيد كمرحل مسبقاً (يدوياً): ${notes}`
-            : `تم تعيين قيد العقد ${contract} للعميل ${client} كمرحل مسبقاً برقم قيد (${journalNum})`,
-          Amount: existingOrder.Total ? Number(existingOrder.Total) : 0,
-          AccountSystem: 'دفترة ERP',
-          UserId: validUserId,
-          OperationDate: new Date(),
+          action: `تعيين قيد مرحل يدوياً - عقد #${contract || orderId} للعميل ${client}`,
+          actionType: 'daftra_manual_entry',
+          actionStatus: 'success',
+          actionAmount: existingOrder.Total ? Number(existingOrder.Total) : 0,
+          actionClientId: validClientId,
+          actionUserId: validUserId,
+          actionNotes: notes 
+            ? `تم تعيين القيد كمرحل مسبقاً (يدوياً): ${notes} (رقم القيد: ${journalNum})`
+            : `تم تعيين قيد العقد ${contract || orderId} للعميل ${client} كمرحل مسبقاً برقم قيد (${journalNum})`,
         }
       });
     } catch (logErr) {

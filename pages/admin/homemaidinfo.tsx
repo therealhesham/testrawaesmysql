@@ -2077,12 +2077,12 @@ function HomeMaidInfo() {
                       <td className="border border-gray-300 p-3 text-right">{getDate(log.createdAt)}</td>
                       <td className="border border-gray-300 p-3 text-right">{log?.Status}</td>
                       <td className="border border-gray-300 p-3 text-right">{log?.Details || "غير متوفر"}</td>
-                      <td className="border border-gray-300 p-3 text-right">{log.userId || "غير متوفر"}</td>
+                      <td className="border border-gray-300 p-3 text-right">{log.user?.username || log.userId || "غير متوفر"}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={3} className="text-center p-4 text-gray-500">لا توجد سجلات متاحة</td>
+                    <td colSpan={4} className="text-center p-4 text-gray-500">لا توجد سجلات متاحة</td>
                   </tr>
                 )}
               </tbody>

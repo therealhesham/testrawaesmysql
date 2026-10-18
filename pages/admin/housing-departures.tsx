@@ -37,7 +37,8 @@ import {
   X,
   ShieldCheck,
   ShieldAlert,
-  Shield
+  Shield,
+  FileCheck
 } from 'lucide-react';
 import { FaHospital } from 'react-icons/fa';
 import FailTrialModal from 'components/FailTrialModal';
@@ -68,6 +69,30 @@ interface HousedWorkerRow {
     office?: {
       Country?: string | null;
       title?: string | null;
+    } | null;
+    transferSponsorShips?: {
+      id?: number;
+      file?: string | null;
+      salaryCertificateFile?: string | null;
+      nationalAddressFile?: string | null;
+      paymentReceiptFile?: string | null;
+      promissoryNoteFile?: string | null;
+      transferStage?: string | null;
+      Notes?: string | null;
+      NewClient?: {
+        id?: number;
+        fullname?: string | null;
+        phonenumber?: string | null;
+        nationalId?: string | null;
+        city?: string | null;
+      } | null;
+      OldClient?: {
+        id?: number;
+        fullname?: string | null;
+        phonenumber?: string | null;
+        nationalId?: string | null;
+        city?: string | null;
+      } | null;
     } | null;
     NewOrder?: Array<{
       clientID?: number | null;
@@ -114,6 +139,164 @@ interface HousedWorkerRow {
   }>;
 }
 
+export interface WorkerAttachmentItem {
+  type: string;
+  label: string;
+  url: string;
+  icon: any;
+  colorClasses: string;
+}
+
+export const getWorkerAttachments = (worker: HousedWorkerRow | null | undefined): WorkerAttachmentItem[] => {
+  if (!worker) return [];
+  const tsd = worker.transferSponsorshipData || {};
+  const tsDb = worker.Order?.transferSponsorShips || {};
+
+  const clean = (val: any): string | null => {
+    if (typeof val === 'string' && val.trim().length > 0 && val.trim() !== 'null' && val.trim() !== 'undefined') {
+      return val.trim();
+    }
+    return null;
+  };
+
+  const paymentReceipt = clean(tsd.paymentReceiptFile) || clean(tsDb.paymentReceiptFile);
+  const salaryCertificate = clean(tsd.salaryCertificateFile) || clean(tsDb.salaryCertificateFile);
+  const nationalAddress = clean(tsd.nationalAddressFile) || clean(tsDb.nationalAddressFile);
+  const contractFile = clean(tsd.file) || clean(tsDb.file);
+  const promissoryNote = clean(tsd.promissoryNoteFile) || clean(tsDb.promissoryNoteFile);
+  const bankCertificate = clean(tsd.bankCertificateAttachment);
+  const financialAbility = clean(tsd.financialAbilityAttachment);
+  const medicalReport = clean(worker.medicalDepartureData?.medicalReportFile);
+  const deportationTicket = clean(worker.deportationData?.externalTicketFile);
+  const deportationPhoto = clean(worker.deportationData?.departurePhoto);
+  const generalAttachment = clean(worker.deparatureAttachment) || clean(worker.notes_attachment);
+
+  const list: WorkerAttachmentItem[] = [];
+
+  // 1. إيصال السداد / الحوالة (الكفيل الجديد)
+  if (paymentReceipt) {
+    list.push({
+      type: 'paymentReceipt',
+      label: 'إيصال السداد / الحوالة (الكفيل الجديد)',
+      url: paymentReceipt,
+      icon: DollarSign,
+      colorClasses: 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200',
+    });
+  }
+
+  // 2. تعريف الراتب (الكفيل الجديد)
+  if (salaryCertificate) {
+    list.push({
+      type: 'salaryCertificate',
+      label: 'تعريف الراتب (الكفيل الجديد)',
+      url: salaryCertificate,
+      icon: FileText,
+      colorClasses: 'bg-teal-50 hover:bg-teal-100 text-teal-700 border-teal-200',
+    });
+  }
+
+  // 3. العنوان الوطني (الكفيل الجديد)
+  if (nationalAddress) {
+    list.push({
+      type: 'nationalAddress',
+      label: 'العنوان الوطني (الكفيل الجديد)',
+      url: nationalAddress,
+      icon: MapPin,
+      colorClasses: 'bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200',
+    });
+  }
+
+  // 4. عقد نقل الخدمات
+  if (contractFile) {
+    list.push({
+      type: 'contract',
+      label: 'عقد نقل الخدمات',
+      url: contractFile,
+      icon: FileCheck,
+      colorClasses: 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200',
+    });
+  }
+
+  // 5. سند لأمر
+  if (promissoryNote) {
+    list.push({
+      type: 'promissoryNote',
+      label: 'سند لأمر',
+      url: promissoryNote,
+      icon: CreditCard,
+      colorClasses: 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200',
+    });
+  }
+
+  // 6. الشهادة البنكية (الكفيل الجديد)
+  if (bankCertificate) {
+    list.push({
+      type: 'bankCertificate',
+      label: 'الشهادة البنكية (الكفيل الجديد)',
+      url: bankCertificate,
+      icon: Building,
+      colorClasses: 'bg-cyan-50 hover:bg-cyan-100 text-cyan-700 border-cyan-200',
+    });
+  }
+
+  // 7. إثبات القدرة المالية (الكفيل الجديد)
+  if (financialAbility) {
+    list.push({
+      type: 'financialAbility',
+      label: 'القدرة المالية (الكفيل الجديد)',
+      url: financialAbility,
+      icon: FileText,
+      colorClasses: 'bg-violet-50 hover:bg-violet-100 text-violet-700 border-violet-200',
+    });
+  }
+
+  // 8. التقرير الطبي
+  if (medicalReport) {
+    list.push({
+      type: 'medical',
+      label: 'التقرير الطبي',
+      url: medicalReport,
+      icon: FaHospital,
+      colorClasses: 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200',
+    });
+  }
+
+  // 9. تذكرة السفر
+  if (deportationTicket) {
+    list.push({
+      type: 'ticket',
+      label: 'تذكرة السفر (المغادرة الخارجية)',
+      url: deportationTicket,
+      icon: Plane,
+      colorClasses: 'bg-sky-50 hover:bg-sky-100 text-sky-700 border-sky-200',
+    });
+  }
+
+  // 10. صورة المغادرة
+  if (deportationPhoto) {
+    list.push({
+      type: 'photo',
+      label: 'صورة المغادرة / المطار',
+      url: deportationPhoto,
+      icon: Eye,
+      colorClasses: 'bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200',
+    });
+  }
+
+  // 11. مرفق إضافي
+  if (generalAttachment) {
+    list.push({
+      type: 'general',
+      label: 'مرفق إضافي',
+      url: generalAttachment,
+      icon: Paperclip,
+      colorClasses: 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200',
+    });
+  }
+
+  return list;
+};
+
 interface InHouseLocation {
   id: number;
   location: string;
@@ -153,6 +336,19 @@ export default function HousingDeparturesPage({
   const [activeSection, setActiveSection] = useState<DepartureSection>('temporary');
   const [activeCategory, setActiveCategory] = useState<DepartureCategoryTab>('temp_all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+
+  // Debounce search query to reduce server requests (400ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearchQuery]);
   const [selectedLocation, setSelectedLocation] = useState<string>('');
   const [selectedContractType, setSelectedContractType] = useState<string>('');
   const [selectedNationality, setSelectedNationality] = useState<string>('');
@@ -256,8 +452,8 @@ export default function HousingDeparturesPage({
       params.append('pageSize', String(pageSize));
       params.append('section', activeSection);
       params.append('departureCategory', activeCategory);
-      if (searchQuery.trim()) {
-        params.append('Name', searchQuery.trim());
+      if (debouncedSearchQuery.trim()) {
+        params.append('Name', debouncedSearchQuery.trim());
       }
       if (selectedLocation) {
         params.append('location', selectedLocation);
@@ -303,7 +499,7 @@ export default function HousingDeparturesPage({
     pageSize,
     activeSection,
     activeCategory,
-    searchQuery,
+    debouncedSearchQuery,
     selectedLocation,
     selectedContractType,
     selectedNationality,
@@ -1068,15 +1264,18 @@ export default function HousingDeparturesPage({
                 {/* Search Bar (4 cols) */}
                 <div className="sm:col-span-2 lg:col-span-4 relative">
                   <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-gray-400">
-                    <Search className="w-4.5 h-4.5" />
+                    {loading ? (
+                      <div className="w-4 h-4 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Search className="w-4.5 h-4.5" />
+                    )}
                   </div>
                   <input
                     type="text"
-                    placeholder="بحث باسم العاملة، الجواز، الجوال، الكفيل..."
+                    placeholder="بحث باسم العاملة، الجواز، الكفيل، هوية العميل..."
                     value={searchQuery}
                     onChange={(e) => {
                       setSearchQuery(e.target.value);
-                      setPage(1);
                     }}
                     className="w-full h-11 pr-10 pl-3 text-xs sm:text-sm bg-gray-50/70 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 focus:border-teal-600 outline-none transition-all"
                   />
@@ -1262,6 +1461,7 @@ export default function HousingDeparturesPage({
                       type="button"
                       onClick={() => {
                         setSearchQuery('');
+                        setDebouncedSearchQuery('');
                         setSelectedNationality('');
                         setSelectedLocation('');
                         setSelectedContractType('');
@@ -1282,7 +1482,13 @@ export default function HousingDeparturesPage({
             </div>
 
             {/* Main Table Container (Zero Horizontal Scroll) */}
-            <div className="w-full overflow-x-auto">
+            <div className="w-full overflow-x-auto relative">
+              {/* شريط تحميل ناعم في أعلى الجدول عند التحديث دون إخفاء الجدول أو إحداث وميض */}
+              {loading && (
+                <div className="h-1 w-full bg-teal-100 overflow-hidden absolute top-0 left-0 right-0 z-10">
+                  <div className="h-full bg-gradient-to-r from-teal-500 via-teal-700 to-teal-900 animate-pulse w-full"></div>
+                </div>
+              )}
               <table className="w-full text-right text-xs sm:text-sm border-collapse">
                 <thead>
                   <tr
@@ -1324,8 +1530,8 @@ export default function HousingDeparturesPage({
                     <th className="py-3.5 px-3 text-left">الإجراءات</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {loading ? (
+                <tbody className={`divide-y divide-gray-200 transition-opacity duration-200 ${loading ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+                  {loading && workers.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="py-16 text-center text-gray-500">
                         <div className="flex flex-col items-center justify-center gap-2">
@@ -1364,6 +1570,7 @@ export default function HousingDeparturesPage({
                       const tsd = worker.transferSponsorshipData;
                       const trialStatus = getTrialPeriodStatus(worker);
                       const medStatus = getMedicalReturnStatus(worker);
+                      const attachments = getWorkerAttachments(worker);
 
                       // Determine badge style for departure reason
                       const reasonText = worker.deparatureReason || 'مغادرة السكن';
@@ -1829,40 +2036,23 @@ export default function HousingDeparturesPage({
                                     <span className="truncate">{locName}</span>
                                   </span>
                                   <div className="flex items-center justify-center gap-1 flex-wrap">
-                                    {tsd?.paymentReceiptFile && (
-                                      <a
-                                        href={tsd.paymentReceiptFile}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        title="إيصال السداد"
-                                        className="p-1 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition-colors"
-                                      >
-                                        <DollarSign className="w-3.5 h-3.5" />
-                                      </a>
-                                    )}
-                                    {worker.medicalDepartureData?.medicalReportFile && (
-                                      <a
-                                        href={worker.medicalDepartureData.medicalReportFile}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        title="التقرير الطبي"
-                                        className="p-1 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors"
-                                      >
-                                        <FaHospital className="w-3.5 h-3.5" />
-                                      </a>
-                                    )}
-                                    {worker.deparatureAttachment && (
-                                      <a
-                                        href={worker.deparatureAttachment}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        title="مرفق إضافي"
-                                        className="p-1 rounded bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 transition-colors"
-                                      >
-                                        <Paperclip className="w-3.5 h-3.5 text-gray-600" />
-                                      </a>
-                                    )}
-                                    {!tsd?.paymentReceiptFile && !worker.medicalDepartureData?.medicalReportFile && !worker.deparatureAttachment && (
+                                    {attachments.length > 0 ? (
+                                      attachments.map((att, i) => {
+                                        const IconComp = att.icon;
+                                        return (
+                                          <a
+                                            key={i}
+                                            href={att.url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            title={att.label}
+                                            className={`p-1 rounded border transition-all hover:scale-110 shadow-sm ${att.colorClasses}`}
+                                          >
+                                            <IconComp className="w-3.5 h-3.5" />
+                                          </a>
+                                        );
+                                      })
+                                    ) : (
                                       <span className="text-gray-400 text-xs">بدون مرفق</span>
                                     )}
                                   </div>
@@ -1970,79 +2160,23 @@ export default function HousingDeparturesPage({
                               {/* Attachments quick preview */}
                               <td className="py-3.5 px-2 text-center">
                                 <div className="flex items-center justify-center gap-1 flex-wrap">
-                                  {/* Payment Receipt */}
-                                  {tsd?.paymentReceiptFile && (
-                                    <a
-                                      href={tsd.paymentReceiptFile}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      title="إيصال السداد"
-                                      className="p-1 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition-colors"
-                                    >
-                                      <DollarSign className="w-3.5 h-3.5" />
-                                    </a>
-                                  )}
-                                  {/* Salary Certificate */}
-                                  {tsd?.salaryCertificateFile && (
-                                    <a
-                                      href={tsd.salaryCertificateFile}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      title="تعريف الراتب"
-                                      className="p-1 rounded bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 transition-colors"
-                                    >
-                                      <FileText className="w-3.5 h-3.5" />
-                                    </a>
-                                  )}
-                                  {/* National Address */}
-                                  {tsd?.nationalAddressFile && (
-                                    <a
-                                      href={tsd.nationalAddressFile}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      title="العنوان الوطني"
-                                      className="p-1 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition-colors"
-                                    >
-                                      <MapPin className="w-3.5 h-3.5" />
-                                    </a>
-                                  )}
-                                  {/* Flight Ticket */}
-                                  {worker.deportationData?.externalTicketFile && (
-                                    <a
-                                      href={worker.deportationData.externalTicketFile}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      title="تذكرة السفر"
-                                      className="p-1 rounded bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 transition-colors"
-                                    >
-                                      <Plane className="w-3.5 h-3.5" />
-                                    </a>
-                                  )}
-                                  {/* Medical Report */}
-                                  {worker.medicalDepartureData?.medicalReportFile && (
-                                    <a
-                                      href={worker.medicalDepartureData.medicalReportFile}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      title="التقرير الطبي"
-                                      className="p-1 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors"
-                                    >
-                                      <FaHospital className="w-3.5 h-3.5" />
-                                    </a>
-                                  )}
-                                  {/* External Photo */}
-                                  {worker.deportationData?.departurePhoto && (
-                                    <a
-                                      href={worker.deportationData.departurePhoto}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      title="صورة المغادرة"
-                                      className="p-1 rounded bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 transition-colors"
-                                    >
-                                      <Eye className="w-3.5 h-3.5" />
-                                    </a>
-                                  )}
-                                  {!tsd?.paymentReceiptFile && !tsd?.salaryCertificateFile && !tsd?.nationalAddressFile && !worker.deportationData?.externalTicketFile && !worker.medicalDepartureData?.medicalReportFile && !worker.deportationData?.departurePhoto && (
+                                  {attachments.length > 0 ? (
+                                    attachments.map((att, i) => {
+                                      const IconComp = att.icon;
+                                      return (
+                                        <a
+                                          key={i}
+                                          href={att.url}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          title={att.label}
+                                          className={`p-1 rounded border transition-all hover:scale-110 shadow-sm ${att.colorClasses}`}
+                                        >
+                                          <IconComp className="w-3.5 h-3.5" />
+                                        </a>
+                                      );
+                                    })
+                                  ) : (
                                     <span className="text-gray-400 text-xs">—</span>
                                   )}
                                 </div>
@@ -2403,67 +2537,116 @@ export default function HousingDeparturesPage({
 
                   {/* Attachments Section */}
                   <div className="space-y-2 pt-1">
-                    <span className="text-xs font-bold text-gray-700 block">المرفقات والوثائق:</span>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                      {/* Salary Certificate */}
-                      {selectedDetailWorker.transferSponsorshipData.salaryCertificateFile ? (
-                        <a
-                          href={selectedDetailWorker.transferSponsorshipData.salaryCertificateFile}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center justify-between p-2.5 bg-gray-50 hover:bg-teal-50 border border-gray-200 rounded-lg text-xs text-teal-800 transition-colors"
-                        >
-                          <div className="flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-teal-700" />
-                            <span className="font-bold">تعريف الراتب</span>
+                    <span className="text-xs font-bold text-gray-700 block">
+                      المرفقات والوثائق (الخاصة بالكفيل الجديد ومعاملة النقل):
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                      {/* Payment Receipt */}
+                      {(() => {
+                        const fileUrl = selectedDetailWorker.transferSponsorshipData?.paymentReceiptFile || selectedDetailWorker.Order?.transferSponsorShips?.paymentReceiptFile;
+                        return fileUrl ? (
+                          <a
+                            href={fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center justify-between p-2.5 bg-emerald-50/50 hover:bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 transition-colors"
+                          >
+                            <div className="flex items-center gap-2">
+                              <DollarSign className="w-4 h-4 text-emerald-700" />
+                              <span className="font-bold">إيصال السداد / الحوالة</span>
+                            </div>
+                            <Eye className="w-3.5 h-3.5 text-emerald-600" />
+                          </a>
+                        ) : (
+                          <div className="p-2.5 bg-gray-50 border border-dashed border-gray-200 rounded-lg text-xs text-gray-400 text-center">
+                            إيصال السداد غير مرفق
                           </div>
-                          <Eye className="w-3.5 h-3.5 text-teal-600" />
-                        </a>
-                      ) : (
-                        <div className="p-2.5 bg-gray-50 border border-dashed border-gray-200 rounded-lg text-xs text-gray-400 text-center">
-                          تعريف الراتب غير مرفق
-                        </div>
-                      )}
+                        );
+                      })()}
+
+                      {/* Salary Certificate */}
+                      {(() => {
+                        const fileUrl = selectedDetailWorker.transferSponsorshipData?.salaryCertificateFile || selectedDetailWorker.Order?.transferSponsorShips?.salaryCertificateFile;
+                        return fileUrl ? (
+                          <a
+                            href={fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center justify-between p-2.5 bg-teal-50/50 hover:bg-teal-50 border border-teal-200 rounded-lg text-xs text-teal-800 transition-colors"
+                          >
+                            <div className="flex items-center gap-2">
+                              <FileText className="w-4 h-4 text-teal-700" />
+                              <span className="font-bold">تعريف الراتب / شهادة بنكية</span>
+                            </div>
+                            <Eye className="w-3.5 h-3.5 text-teal-600" />
+                          </a>
+                        ) : (
+                          <div className="p-2.5 bg-gray-50 border border-dashed border-gray-200 rounded-lg text-xs text-gray-400 text-center">
+                            تعريف الراتب غير مرفق
+                          </div>
+                        );
+                      })()}
 
                       {/* National Address */}
-                      {selectedDetailWorker.transferSponsorshipData.nationalAddressFile ? (
-                        <a
-                          href={selectedDetailWorker.transferSponsorshipData.nationalAddressFile}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center justify-between p-2.5 bg-gray-50 hover:bg-teal-50 border border-gray-200 rounded-lg text-xs text-teal-800 transition-colors"
-                        >
-                          <div className="flex items-center gap-2">
-                            <MapPin className="w-4 h-4 text-teal-700" />
-                            <span className="font-bold">العنوان الوطني</span>
+                      {(() => {
+                        const fileUrl = selectedDetailWorker.transferSponsorshipData?.nationalAddressFile || selectedDetailWorker.Order?.transferSponsorShips?.nationalAddressFile;
+                        return fileUrl ? (
+                          <a
+                            href={fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center justify-between p-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800 transition-colors"
+                          >
+                            <div className="flex items-center gap-2">
+                              <MapPin className="w-4 h-4 text-blue-700" />
+                              <span className="font-bold">العنوان الوطني للكفيل</span>
+                            </div>
+                            <Eye className="w-3.5 h-3.5 text-blue-600" />
+                          </a>
+                        ) : (
+                          <div className="p-2.5 bg-gray-50 border border-dashed border-gray-200 rounded-lg text-xs text-gray-400 text-center">
+                            العنوان الوطني غير مرفق
                           </div>
-                          <Eye className="w-3.5 h-3.5 text-teal-600" />
-                        </a>
-                      ) : (
-                        <div className="p-2.5 bg-gray-50 border border-dashed border-gray-200 rounded-lg text-xs text-gray-400 text-center">
-                          العنوان الوطني غير مرفق
-                        </div>
-                      )}
+                        );
+                      })()}
 
-                      {/* Payment Receipt */}
-                      {selectedDetailWorker.transferSponsorshipData.paymentReceiptFile ? (
-                        <a
-                          href={selectedDetailWorker.transferSponsorshipData.paymentReceiptFile}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center justify-between p-2.5 bg-gray-50 hover:bg-emerald-50 border border-gray-200 rounded-lg text-xs text-emerald-800 transition-colors"
-                        >
-                          <div className="flex items-center gap-2">
-                            <DollarSign className="w-4 h-4 text-emerald-700" />
-                            <span className="font-bold">إيصال السداد</span>
-                          </div>
-                          <Eye className="w-3.5 h-3.5 text-emerald-600" />
-                        </a>
-                      ) : (
-                        <div className="p-2.5 bg-gray-50 border border-dashed border-gray-200 rounded-lg text-xs text-gray-400 text-center">
-                          إيصال السداد غير مرفق
-                        </div>
-                      )}
+                      {/* Transfer Contract */}
+                      {(() => {
+                        const fileUrl = selectedDetailWorker.transferSponsorshipData?.file || selectedDetailWorker.Order?.transferSponsorShips?.file;
+                        return fileUrl ? (
+                          <a
+                            href={fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center justify-between p-2.5 bg-indigo-50/50 hover:bg-indigo-50 border border-indigo-200 rounded-lg text-xs text-indigo-800 transition-colors"
+                          >
+                            <div className="flex items-center gap-2">
+                              <FileCheck className="w-4 h-4 text-indigo-700" />
+                              <span className="font-bold">عقد نقل الخدمات</span>
+                            </div>
+                            <Eye className="w-3.5 h-3.5 text-indigo-600" />
+                          </a>
+                        ) : null;
+                      })()}
+
+                      {/* Promissory Note */}
+                      {(() => {
+                        const fileUrl = selectedDetailWorker.transferSponsorshipData?.promissoryNoteFile || selectedDetailWorker.Order?.transferSponsorShips?.promissoryNoteFile;
+                        return fileUrl ? (
+                          <a
+                            href={fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center justify-between p-2.5 bg-amber-50/50 hover:bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 transition-colors"
+                          >
+                            <div className="flex items-center gap-2">
+                              <CreditCard className="w-4 h-4 text-amber-700" />
+                              <span className="font-bold">سند لأمر</span>
+                            </div>
+                            <Eye className="w-3.5 h-3.5 text-amber-600" />
+                          </a>
+                        ) : null;
+                      })()}
                     </div>
                   </div>
                 </div>

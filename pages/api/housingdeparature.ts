@@ -7,27 +7,47 @@ import { parseFlightDateTime, processDueScheduledDepartures } from "lib/housingD
 
 // Helper function to get user info from cookies
 const getUserFromCookies = (req: NextApiRequest) => {
-  const cookieHeader = req.headers.cookie;
-  let cookies: { [key: string]: string } = {};
-  if (cookieHeader) {
-    cookieHeader.split(";").forEach((cookie) => {
-      const [key, value] = cookie.trim().split("=");
-      cookies[key] = decodeURIComponent(value);
-    });
-  }
-  
-  if (cookies.authToken) {
-    try {
-      const token = jwtDecode(cookies.authToken) as any;
-      return { userId: Number(token.id), username: token.username || 'غير محدد' };
-    } catch (error) {
-      console.error('Error decoding token:', error);
-      return { userId: null, username: 'غير محدد' };
+  try {
+    let tokenStr = req.cookies?.authToken;
+    if (!tokenStr && req.headers.cookie) {
+      const match = req.headers.cookie.match(/(?:^|;\s*)authToken=([^;]+)/);
+      if (match) tokenStr = decodeURIComponent(match[1]);
     }
+    if (!tokenStr && req.headers.authorization?.startsWith('Bearer ')) {
+      tokenStr = req.headers.authorization.substring(7);
+    }
+    
+    if (tokenStr) {
+      const token = jwtDecode(tokenStr) as any;
+      return { userId: Number(token.id) || null, username: token.username || 'غير محدد' };
+    }
+  } catch (error) {
+    console.error('Error decoding token:', error);
   }
   
   return { userId: null, username: 'غير محدد' };
 };
+
+async function getValidLogUsername(req: NextApiRequest): Promise<string | null> {
+  const userInfo = getUserFromCookies(req);
+  if (!userInfo.userId && (!userInfo.username || userInfo.username === 'غير محدد' || userInfo.username === 'النظام')) {
+    return null;
+  }
+  try {
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          ...(userInfo.userId ? [{ id: userInfo.userId }] : []),
+          ...(userInfo.username && userInfo.username !== 'غير محدد' && userInfo.username !== 'النظام' ? [{ username: userInfo.username }] : []),
+        ],
+      },
+      select: { username: true },
+    });
+    return user?.username || (userInfo.username !== 'غير محدد' && userInfo.username !== 'النظام' ? userInfo.username : null);
+  } catch {
+    return userInfo.username !== 'غير محدد' && userInfo.username !== 'النظام' ? userInfo.username : null;
+  }
+}
 
 // دالة مساعدة لحفظ التعديلات في systemUserLogs
 async function logToSystemLogs(
@@ -141,7 +161,13 @@ export default async function handler(
                 { Passportnumber: { contains: searchString } },
                 { phone: { contains: searchString } },
                 { NewOrder: { some: { ClientName: { contains: searchString } } } },
+                { NewOrder: { some: { nationalId: { contains: searchString } } } },
                 { NewOrder: { some: { client: { fullname: { contains: searchString } } } } },
+                { NewOrder: { some: { client: { nationalId: { contains: searchString } } } } },
+                { transferSponsorShips: { NewClient: { fullname: { contains: searchString } } } },
+                { transferSponsorShips: { NewClient: { nationalId: { contains: searchString } } } },
+                { transferSponsorShips: { OldClient: { fullname: { contains: searchString } } } },
+                { transferSponsorShips: { OldClient: { nationalId: { contains: searchString } } } },
               ]
             }),
             ...(id && { id: { equals: Number(id) } }),
@@ -182,11 +208,17 @@ export default async function handler(
                       { passportNumber: { contains: searchString } },
                       { phone: { contains: searchString } },
                       { Client: { fullname: { contains: searchString } } },
+                      { Client: { nationalId: { contains: searchString } } },
                     ],
                   }),
                 },
               }),
             },
+            ...(searchString ? [
+              { transferSponsorshipData: { path: '$.newSponsorId', string_contains: searchString } },
+              { transferSponsorshipData: { path: '$.newSponsorNationalId', string_contains: searchString } },
+              { transferSponsorshipData: { path: '$.oldSponsorId', string_contains: searchString } },
+            ] : []),
           ],
         },
       ];
@@ -296,6 +328,16 @@ export default async function handler(
           Order: {
             include: {
               office: true,
+              transferSponsorShips: {
+                include: {
+                  NewClient: {
+                    select: { id: true, fullname: true, phonenumber: true, nationalId: true, city: true },
+                  },
+                  OldClient: {
+                    select: { id: true, fullname: true, phonenumber: true, nationalId: true, city: true },
+                  },
+                },
+              },
               NewOrder: {
                 orderBy: { createdAt: "desc" },
                 take: 1,
@@ -561,12 +603,14 @@ export default async function handler(
 
         // Logs
         try {
+          const logUsername = await getValidLogUsername(req);
           await prisma.logs.create({
             data: {
               homemaidId: actualHomeMaidId ? Number(actualHomeMaidId) : undefined,
               Details: `إتمام نقل كفالة العاملة (${workerName}) بنجاح بتاريخ ${completionDate.split('T')[0]}`,
               reason: "نقل الكفالة",
               Status: "تم نقل الكفالة",
+              userId: logUsername,
             }
           });
         } catch (logErr) {
@@ -659,11 +703,14 @@ export default async function handler(
 
         // تسجيل في Logs و SystemUserLogs
         try {
+          const logUsername = await getValidLogUsername(req);
           await prisma.logs.create({
             data: {
+              homemaidId: workerBeforeUpdate.homeMaid_id ? Number(workerBeforeUpdate.homeMaid_id) : undefined,
               Details: `تسجيل مغادرة عاملة خارجية (${workerName}) بتاريخ ${finalHousingDate.split('T')[0]} - الملاحظات: ${String(notes).trim()}`,
               reason: "مغادرة السكن",
               Status: "مغادرة السكن",
+              userId: logUsername,
             }
           });
         } catch (logErr) {
@@ -780,6 +827,7 @@ export default async function handler(
 
           // Log scheduled departure
           try {
+            const logUsername = await getValidLogUsername(req);
             const timeFormatted = dd.externaldeparatureTime ? ` الساعة ${dd.externaldeparatureTime}` : '';
             const dateFormatted = dd.externaldeparatureDate ? ` بتاريخ ${dd.externaldeparatureDate}` : '';
             await prisma.logs.create({
@@ -788,6 +836,7 @@ export default async function handler(
                 Details: `جدولة مغادرة وترحيل العاملة - موعد الرحلة:${dateFormatted}${timeFormatted}`,
                 reason: 'جدولة مغادرة السكن',
                 Status: 'مجدولة للمغادرة',
+                userId: logUsername,
               },
             });
           } catch (logErr) {
@@ -1080,6 +1129,7 @@ export default async function handler(
 
       // 📝 إضافة سجل Logs
       try {
+        const logUsername = await getValidLogUsername(req);
         const actionText = `تسجيل مغادرة عاملة - النوع: ${deparatureType || 'عادي'} - السبب: ${finalReason} بتاريخ ${finalHousingDate}`;
         await prisma.logs.create({
           data: {
@@ -1087,6 +1137,7 @@ export default async function handler(
             Details: actionText,
             reason: "مغادرة السكن",
             Status: "مغادرة السكن",
+            userId: logUsername,
           } 
         });
       } catch (logErr) {

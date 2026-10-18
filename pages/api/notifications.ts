@@ -11,8 +11,12 @@ export default async function handler(
     let userId: string | null = null;
 
     if (token) {
-      const decoded: any = jwt.verify(token, "rawaesecret");
-      userId = decoded?.username ? decoded.username.toLowerCase().trim() : null;
+      try {
+        const decoded: any = jwt.verify(token, "rawaesecret");
+        userId = decoded?.username ? decoded.username.toLowerCase().trim() : null;
+      } catch (tokenErr: any) {
+        return res.status(401).json({ error: "Unauthorized: Token expired or invalid" });
+      }
     }
 
     // ✅ إنشاء إشعار

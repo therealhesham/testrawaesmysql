@@ -5,16 +5,17 @@ import { jwtDecode } from 'jwt-decode';
 import { syncTransferFinancialStatement } from 'lib/transferFinancialSync';
 
 function getUserInfoFromReq(req: NextApiRequest): { id: number | null; username: string } {
-  const cookieHeader = req.headers.cookie;
-  if (!cookieHeader) return { id: null, username: 'النظام' };
   try {
-    const cookies: { [key: string]: string } = {};
-    cookieHeader.split(";").forEach((cookie) => {
-      const [key, value] = cookie.trim().split("=");
-      cookies[key] = decodeURIComponent(value);
-    });
-    if (cookies.authToken) {
-      const token = jwtDecode(cookies.authToken) as any;
+    let tokenStr = req.cookies?.authToken;
+    if (!tokenStr && req.headers.cookie) {
+      const match = req.headers.cookie.match(/(?:^|;\s*)authToken=([^;]+)/);
+      if (match) tokenStr = decodeURIComponent(match[1]);
+    }
+    if (!tokenStr && req.headers.authorization?.startsWith('Bearer ')) {
+      tokenStr = req.headers.authorization.substring(7);
+    }
+    if (tokenStr) {
+      const token = jwtDecode(tokenStr) as any;
       return {
         id: Number(token.id) || null,
         username: token.username || token.name || 'النظام',
@@ -24,6 +25,27 @@ function getUserInfoFromReq(req: NextApiRequest): { id: number | null; username:
     // Ignore token errors
   }
   return { id: null, username: 'النظام' };
+}
+
+async function getValidLogUsername(req: NextApiRequest): Promise<string | null> {
+  const userInfo = getUserInfoFromReq(req);
+  if (!userInfo.id && (!userInfo.username || userInfo.username === 'النظام')) {
+    return null;
+  }
+  try {
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          ...(userInfo.id ? [{ id: userInfo.id }] : []),
+          ...(userInfo.username && userInfo.username !== 'النظام' ? [{ username: userInfo.username }] : []),
+        ],
+      },
+      select: { username: true },
+    });
+    return user?.username || (userInfo.username !== 'النظام' ? userInfo.username : null);
+  } catch {
+    return userInfo.username !== 'النظام' ? userInfo.username : null;
+  }
 }
 
 function getUserIdFromReq(req: NextApiRequest): number | null {
@@ -436,14 +458,19 @@ case 'GET':
         }
 
         if (searchTerm) {
+          const trimmedTerm = String(searchTerm).trim();
+          const isNum = !isNaN(Number(trimmedTerm)) && /^\d+$/.test(trimmedTerm);
           andConditions.push({
             OR: [
-              { TransferOperationNumber: { contains: searchTerm as string } },
-              { NewClient: { fullname: { contains: searchTerm as string } } },
-              { HomeMaid: { Name: { contains: searchTerm as string } } },
-              { HomeMaid: { Passportnumber: { contains: searchTerm as string } } },
-              { NationalID: { contains: searchTerm as string } },
-              { OldClient: { fullname: { contains: searchTerm as string } } },
+              ...(isNum ? [{ id: Number(trimmedTerm) }] : []),
+              { TransferOperationNumber: { contains: trimmedTerm } },
+              { NewClient: { fullname: { contains: trimmedTerm } } },
+              { NewClient: { nationalId: { contains: trimmedTerm } } },
+              { OldClient: { fullname: { contains: trimmedTerm } } },
+              { OldClient: { nationalId: { contains: trimmedTerm } } },
+              { HomeMaid: { Name: { contains: trimmedTerm } } },
+              { HomeMaid: { Passportnumber: { contains: trimmedTerm } } },
+              { NationalID: { contains: trimmedTerm } },
             ],
           });
         }
@@ -854,7 +881,24 @@ case 'GET':
             }
           }
 
-          // تسجيل في سجلات النظام
+          // تسجيل في سجل عمليات العاملة (logs) وسجلات النظام
+          const logUsername = await getValidLogUsername(req);
+          if (transfer.HomeMaidId) {
+            try {
+              await prisma.logs.create({
+                data: {
+                  homemaidId: Number(transfer.HomeMaidId),
+                  Details: `إتمام نقل كفالة معاملة #${transfer.id} للعاملة (${transfer.HomeMaid?.Name || ''}) للكفيل (${transfer.NewClient?.fullname || ''})`,
+                  reason: "نقل كفالة",
+                  Status: "تم نقل الكفالة",
+                  userId: logUsername,
+                },
+              });
+            } catch (logErr) {
+              console.error('Error creating homemaid log on transfer complete:', logErr);
+            }
+          }
+
           const userId = getUserIdFromReq(req);
           if (userId) {
             eventBus.emit('ACTION', {
@@ -1006,6 +1050,7 @@ case 'GET':
         }
 
         // تسجيل في سجل عمليات العاملة
+        const logUsername = await getValidLogUsername(req);
         try {
           await prisma.logs.create({
             data: {
@@ -1013,6 +1058,7 @@ case 'GET':
               Details: `توثيق معاملة نقل كفالة للعاملة (${transfer?.HomeMaid?.Name || 'عاملة'}) للكفيل الجديد (${transfer?.NewClient?.fullname || 'غير محدد'}) - إجمالي التكلفة: ${Cost || 0} ر.س، المسدد: ${Paid || 0} ر.س`,
               reason: "نقل كفالة",
               Status: transferStage || "نقل الخدمات",
+              userId: logUsername,
             }
           });
         } catch (logErr) {
@@ -1211,8 +1257,49 @@ case 'GET':
           changesList.push(`المرحلة: من (${existing.transferStage || 'غير محدد'}) إلى (${transferStage})`);
         }
 
-        if (TransferOperationNumber !== undefined && TransferOperationNumber !== existing.TransferOperationNumber) {
-          changesList.push(`رقم عملية النقل: من (${existing.TransferOperationNumber || 'غير محدد'}) إلى (${TransferOperationNumber || 'غير محدد'})`);
+        if (NationalID !== undefined && String(NationalID || '').trim() !== String(existing.NationalID || '').trim()) {
+          changesList.push(`رقم الإقامة/الهوية: من (${existing.NationalID || 'بدون'}) إلى (${NationalID || 'بدون'})`);
+        }
+
+        const oldContract = existing.ContractDate ? new Date(existing.ContractDate).toISOString().split('T')[0] : '';
+        const newContract = ContractDate ? new Date(ContractDate).toISOString().split('T')[0] : '';
+        if (ContractDate !== undefined && oldContract !== newContract) {
+          changesList.push(`تاريخ العقد: من (${oldContract || 'غير محدد'}) إلى (${newContract || 'غير محدد'})`);
+        }
+
+        if (TransferingDate !== undefined && String(TransferingDate || '').trim() !== String(existing.TransferingDate || '').trim()) {
+          changesList.push(`تاريخ نقل الكفالة: من (${existing.TransferingDate || 'غير محدد'}) إلى (${TransferingDate || 'غير محدد'})`);
+        }
+
+        if (ExperimentRate !== undefined && ExperimentRate !== existing.ExperimentRate) {
+          changesList.push(`تقييم التجربة: من (${existing.ExperimentRate || 'غير محدد'}) إلى (${ExperimentRate || 'غير محدد'})`);
+        }
+
+        if (WorkDuration !== undefined && String(WorkDuration || '').trim() !== String(existing.WorkDuration || '').trim()) {
+          changesList.push(`مدة العمل: من (${existing.WorkDuration || 'غير محدد'}) إلى (${WorkDuration || 'غير محدد'})`);
+        }
+
+        if (salaryCertificateFile !== undefined && salaryCertificateFile !== existing.salaryCertificateFile) {
+          changesList.push(`مرفق تعريف الراتب: ${salaryCertificateFile ? 'تم الرفع/التحديث' : 'تم الحذف'}`);
+        }
+        if (nationalAddressFile !== undefined && nationalAddressFile !== existing.nationalAddressFile) {
+          changesList.push(`مرفق العنوان الوطني: ${nationalAddressFile ? 'تم الرفع/التحديث' : 'تم الحذف'}`);
+        }
+        if (paymentReceiptFile !== undefined && paymentReceiptFile !== existing.paymentReceiptFile) {
+          changesList.push(`مرفق إيصال السداد: ${paymentReceiptFile ? 'تم الرفع/التحديث' : 'تم الحذف'}`);
+        }
+        if (promissoryNoteFile !== undefined && promissoryNoteFile !== existing.promissoryNoteFile) {
+          changesList.push(`مرفق سند لأمر: ${promissoryNoteFile ? 'تم الرفع/التحديث' : 'تم الحذف'}`);
+        }
+        if (file !== undefined && file !== existing.file) {
+          changesList.push(`المرفق العام: ${file ? 'تم الرفع/التحديث' : 'تم الحذف'}`);
+        }
+
+        if (resolvedPutNewClientId && resolvedPutNewClientId !== existing.NewClientId) {
+          changesList.push(`الكفيل الجديد: تم التغيير`);
+        }
+        if (resolvedPutOldClientId && resolvedPutOldClientId !== existing.OldClientId) {
+          changesList.push(`الكفيل السابق: تم التغيير`);
         }
 
         const transfer: any = await prisma.transferSponsorShips.update({
@@ -1238,7 +1325,7 @@ case 'GET':
             WorkDuration,
             Notes,
             transferStage,
-            NationalID,
+            NationalID: NationalID !== undefined ? (NationalID && String(NationalID).trim() ? String(NationalID).trim() : null) : undefined,
             TransferingDate,
             file,
             EntryDate: EntryDate ? new Date(EntryDate) : undefined,
@@ -1274,12 +1361,14 @@ case 'GET':
 
         // 2) تسجيل في سجل عمليات العاملة العام (logs)
         try {
+          const logUsername = await getValidLogUsername(req);
           await prisma.logs.create({
             data: {
               homemaidId: transfer?.HomeMaidId ? Number(transfer.HomeMaidId) : undefined,
               Details: `تعديل معاملة نقل كفالة #${transfer?.id} (${changesSummary.slice(0, 200)})`,
               reason: "تحديث نقل كفالة",
               Status: transferStage || transfer.transferStage || "نقل الخدمات",
+              userId: logUsername,
             }
           });
         } catch (logErr) {
@@ -1398,6 +1487,23 @@ case 'GET':
         });
 
         // تسجيل الحدث
+        const logUsername = await getValidLogUsername(req);
+        if (transfer?.HomeMaidId) {
+          try {
+            await prisma.logs.create({
+              data: {
+                homemaidId: Number(transfer.HomeMaidId),
+                Details: `حذف معاملة نقل كفالة #${id}${transfer.HomeMaid?.Name ? ` للعاملة (${transfer.HomeMaid.Name})` : ''}`,
+                reason: "حذف نقل كفالة",
+                Status: "حذف نقل الكفالة",
+                userId: logUsername,
+              },
+            });
+          } catch (delLogErr) {
+            console.error('Error creating homemaid log on transfer delete:', delLogErr);
+          }
+        }
+
         if (transfer && deleteUserId) {
           eventBus.emit('ACTION', {
             type: `حذف معاملة نقل كفالة #${id} - ${transfer.TransferOperationNumber || 'غير محدد'}`,

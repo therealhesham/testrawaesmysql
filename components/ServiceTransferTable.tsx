@@ -350,6 +350,19 @@ export default function ServiceTransferTable({
     }
     return '';
   });
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
+
+  // Debounce search input (400ms) to reduce server requests
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm]);
 
   // حالة نوافذ الإجراءات (نجاح التجربة / فشل التجربة / عرض التفاصيل / تأكيد الحذف)
   const [completeModalTransfer, setCompleteModalTransfer] = useState<Transfer | null>(null);
@@ -477,7 +490,7 @@ export default function ServiceTransferTable({
   // جلب البيانات مع Pagination + Filters + Tab
   useEffect(() => {
     fetchTransfers();
-  }, [currentPage, activeTab, nationalityFilter, cityFilter, dateFrom, dateTo, searchTerm]);
+  }, [currentPage, activeTab, nationalityFilter, cityFilter, dateFrom, dateTo, debouncedSearchTerm]);
 
   const fetchTransfers = async () => {
     try {
@@ -492,7 +505,7 @@ export default function ServiceTransferTable({
       if (cityFilter) params.cityFilter = cityFilter;
       if (dateFrom) params.dateFrom = dateFrom;
       if (dateTo) params.dateTo = dateTo;
-      if (searchTerm) params.searchTerm = searchTerm;
+      if (debouncedSearchTerm) params.searchTerm = debouncedSearchTerm;
 
       const response = await axios.get('/api/transferSponsorShips', { params });
       setTransfers(response.data.transfers || []);
@@ -541,10 +554,15 @@ export default function ServiceTransferTable({
       const term = searchTerm.toLowerCase();
       dataToExport = dataToExport.filter(
         (t) =>
+          String(t.id).includes(term) ||
           t.HomeMaid?.Name?.toLowerCase().includes(term) ||
           t.HomeMaid?.Passportnumber?.toLowerCase().includes(term) ||
           t.OldClient?.fullname?.toLowerCase().includes(term) ||
-          t.NewClient?.fullname?.toLowerCase().includes(term)
+          t.OldClient?.nationalId?.toLowerCase().includes(term) ||
+          t.NewClient?.fullname?.toLowerCase().includes(term) ||
+          t.NewClient?.nationalId?.toLowerCase().includes(term) ||
+          t.TransferOperationNumber?.toLowerCase().includes(term) ||
+          t.NationalID?.toLowerCase().includes(term)
       );
     }
     if (nationalityFilter) {
@@ -637,10 +655,15 @@ export default function ServiceTransferTable({
       const term = searchTerm.toLowerCase();
       dataToExport = dataToExport.filter(
         (t) =>
+          String(t.id).includes(term) ||
           t.HomeMaid?.Name?.toLowerCase().includes(term) ||
           t.HomeMaid?.Passportnumber?.toLowerCase().includes(term) ||
           t.OldClient?.fullname?.toLowerCase().includes(term) ||
-          t.NewClient?.fullname?.toLowerCase().includes(term)
+          t.OldClient?.nationalId?.toLowerCase().includes(term) ||
+          t.NewClient?.fullname?.toLowerCase().includes(term) ||
+          t.NewClient?.nationalId?.toLowerCase().includes(term) ||
+          t.TransferOperationNumber?.toLowerCase().includes(term) ||
+          t.NationalID?.toLowerCase().includes(term)
       );
     }
     if (nationalityFilter) {
@@ -1049,20 +1072,24 @@ export default function ServiceTransferTable({
           <div className="relative flex-1 min-w-[220px]">
             <input
               type="text"
-              placeholder="بحث برقم المعاملة، العاملة، العميل..."
+              placeholder="بحث برقم المعاملة، العاملة، العميل، هوية العميل..."
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
-                setCurrentPage(1);
               }}
               className="w-full h-10 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 pr-10 pl-8 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all placeholder:text-gray-400"
             />
-            <Search className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            {loading ? (
+              <div className="w-4 h-4 border-2 border-teal-600 border-t-transparent rounded-full animate-spin absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            ) : (
+              <Search className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            )}
             {searchTerm && (
               <button
                 type="button"
                 onClick={() => {
                   setSearchTerm('');
+                  setDebouncedSearchTerm('');
                   setCurrentPage(1);
                 }}
                 className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 cursor-pointer"
@@ -1206,8 +1233,15 @@ export default function ServiceTransferTable({
       </div>
 
       {/* 5. Table Card */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-visible">
-        {loading ? (
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-visible relative">
+        {/* شريط تحميل ناعم في أعلى الجدول عند التحديث دون إخفاء الجدول أو إحداث وميض */}
+        {loading && (
+          <div className="h-1 w-full bg-teal-100 overflow-hidden rounded-t-2xl absolute top-0 left-0 right-0 z-10">
+            <div className="h-full bg-gradient-to-r from-teal-500 via-teal-700 to-teal-900 animate-pulse w-full"></div>
+          </div>
+        )}
+
+        {loading && transfers.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
             <div className="animate-spin rounded-full h-10 w-10 border-3 border-teal-800 border-t-transparent"></div>
             <p className="text-sm font-medium text-gray-600">جاري تحميل البيانات...</p>
@@ -1256,7 +1290,7 @@ export default function ServiceTransferTable({
             )}
           </div>
         ) : (
-          <div className="w-full overflow-visible pb-10">
+          <div className={`w-full overflow-visible pb-10 transition-opacity duration-200 ${loading ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
             <table className="w-full text-right border-collapse">
               <thead>
                 <tr className="bg-teal-900 text-white text-center text-sm font-semibold">

@@ -93,13 +93,17 @@ export default function SystemLogs() {
     try {
       const response = await axios.get('/api/susers');
       setUsers(response.data || []);
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.response?.status === 401) {
+        router.push('/admin/login');
+        return;
+      }
       console.error('Error fetching users:', err);
       setUsers([]);
     } finally {
       setIsLoadingUsers(false);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     try {
@@ -186,6 +190,10 @@ export default function SystemLogs() {
       }
     } catch (err) {
       const error = err as AxiosError;
+      if (error.response?.status === 401) {
+        router.push('/admin/login');
+        return;
+      }
       console.error('Error fetching logs:', error.response?.data || error.message);
       setError('حدث خطأ أثناء تحميل السجلات. يرجى المحاولة مرة أخرى.');
       setLogs([]);
@@ -839,7 +847,7 @@ export default function SystemLogs() {
                   <Activity className="w-5 h-5 text-slate-600" />
                 </div>
               </div>
-              <div className="text-2xl font-bold text-gray-900">{stats.total.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-gray-900" suppressHydrationWarning>{stats.total.toLocaleString()}</div>
               <div className="text-xs text-gray-500 mt-1">إجمالي السجلات</div>
             </div>
 
@@ -850,7 +858,7 @@ export default function SystemLogs() {
                   <Clock className="w-5 h-5 text-teal-600" />
                 </div>
               </div>
-              <div className="text-2xl font-bold text-gray-900">{stats.today}</div>
+              <div className="text-2xl font-bold text-gray-900" suppressHydrationWarning>{stats.today}</div>
               <div className="text-xs text-gray-500 mt-1">اليوم</div>
             </div>
 
@@ -877,7 +885,7 @@ export default function SystemLogs() {
                   <span className="text-xs text-white/80 bg-white/20 px-2 py-0.5 rounded-full">فعّال</span>
                 )}
               </div>
-              <div className={`text-2xl font-bold ${actionFilter === 'view' ? 'text-white' : 'text-blue-700'}`}>{stats.views}</div>
+              <div className={`text-2xl font-bold ${actionFilter === 'view' ? 'text-white' : 'text-blue-700'}`} suppressHydrationWarning>{stats.views}</div>
               <div className={`text-xs mt-1 ${actionFilter === 'view' ? 'text-blue-100' : 'text-blue-600'}`}>عرض</div>
             </button>
 
@@ -904,7 +912,7 @@ export default function SystemLogs() {
                   <span className="text-xs text-white/80 bg-white/20 px-2 py-0.5 rounded-full">فعّال</span>
                 )}
               </div>
-              <div className={`text-2xl font-bold ${actionFilter === 'create' ? 'text-white' : 'text-emerald-700'}`}>{stats.creates}</div>
+              <div className={`text-2xl font-bold ${actionFilter === 'create' ? 'text-white' : 'text-emerald-700'}`} suppressHydrationWarning>{stats.creates}</div>
               <div className={`text-xs mt-1 ${actionFilter === 'create' ? 'text-emerald-100' : 'text-emerald-600'}`}>إنشاء</div>
             </button>
 
@@ -931,7 +939,7 @@ export default function SystemLogs() {
                   <span className="text-xs text-white/80 bg-white/20 px-2 py-0.5 rounded-full">فعّال</span>
                 )}
               </div>
-              <div className={`text-2xl font-bold ${actionFilter === 'update' ? 'text-white' : 'text-amber-700'}`}>{stats.updates}</div>
+              <div className={`text-2xl font-bold ${actionFilter === 'update' ? 'text-white' : 'text-amber-700'}`} suppressHydrationWarning>{stats.updates}</div>
               <div className={`text-xs mt-1 ${actionFilter === 'update' ? 'text-amber-100' : 'text-amber-600'}`}>تحديث</div>
             </button>
 
@@ -958,7 +966,7 @@ export default function SystemLogs() {
                   <span className="text-xs text-white/80 bg-white/20 px-2 py-0.5 rounded-full">فعّال</span>
                 )} */}
               </div>
-              <div className={`text-2xl font-bold ${actionFilter === 'delete' ? 'text-white' : 'text-rose-700'}`}>{stats.deletes}</div>
+              <div className={`text-2xl font-bold ${actionFilter === 'delete' ? 'text-white' : 'text-rose-700'}`} suppressHydrationWarning>{stats.deletes}</div>
               <div className={`text-xs mt-1 ${actionFilter === 'delete' ? 'text-rose-100' : 'text-rose-600'}`}>حذف</div>
             </button>
           </div>
@@ -1047,6 +1055,7 @@ export default function SystemLogs() {
                   {/* Page Size */}
                   <div className="w-32">
                     <Select
+                      instanceId="systemlogs-pagesize-select"
                       options={pageSizeOptions}
                       onChange={handlePageSizeChange}
                       value={pageSizeOptions.find(opt => opt.value === pageSize)}
@@ -1289,6 +1298,7 @@ export default function SystemLogs() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">اختر المستخدم</label>
                 <Select
+                  instanceId="systemlogs-users-select"
                   options={[
                     { value: null, label: 'جميع المستخدمين' },
                     ...users.map(user => ({ value: user.id, label: user.username }))
@@ -1312,6 +1322,7 @@ export default function SystemLogs() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">نوع الإجراء</label>
                 <Select
+                  instanceId="systemlogs-actions-select"
                   options={actionOptions}
                   value={actionOptions.find(opt => opt.value === actionFilter) || actionOptions[0]}
                   onChange={(selected: any) => {

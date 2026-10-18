@@ -80,6 +80,7 @@ function SidebarSubmenu({ route, linkClicked }: ISidebarSubmenu) {
                 <Link
                   href={r.path || ""}
                   scroll={false}
+                  prefetch={false}
                 >
                   <a
                     className={`w-full inline-block ${

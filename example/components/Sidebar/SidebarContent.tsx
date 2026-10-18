@@ -48,6 +48,7 @@ cookies.remove("token")
               <Link
                 href={route.path || '#'}
                 scroll={false}
+                prefetch={false}
               >
                 <a
                   className={`inline-flex items-center w-full text-sm font-semibold transition-colors duration-150 hover:text-gray-800 dark:hover:text-gray-200 ${

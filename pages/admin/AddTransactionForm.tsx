@@ -265,6 +265,7 @@ export default function AddTransactionForm({
   const [linkedHousedWorkerId, setLinkedHousedWorkerId] = useState<number | null>(null);
   const [existingTransferId, setExistingTransferId] = useState<number | null>(null);
   const [isFromHousingTrial, setIsFromHousingTrial] = useState(false);
+  const [isCompletingTransferAction, setIsCompletingTransferAction] = useState(false);
   const [trialPaidAmount, setTrialPaidAmount] = useState<number>(0);
   const [trialPaymentReceipt, setTrialPaymentReceipt] = useState<string>('');
   const [currentPaidAmount, setCurrentPaidAmount] = useState<string>('');
@@ -326,6 +327,10 @@ export default function AddTransactionForm({
       const initialRemaining = Math.max(0, totalCostNum - safeTrialPaid);
 
       const isFromTrial = Boolean(d.sourceAction === 'complete_housing_transfer' || d.trialResult || d.housedWorkerId || d.experimentStart || d.paidAmount != null);
+      const isCompletingTransfer = Boolean(d.sourceAction === 'complete_housing_transfer' || d.trialResult === 'ناجحة');
+      if (isCompletingTransfer) {
+        setIsCompletingTransferAction(true);
+      }
       if (isFromTrial) {
         setIsFromHousingTrial(true);
         setTrialPaidAmount(safeTrialPaid);
@@ -1017,9 +1022,12 @@ export default function AddTransactionForm({
       'فترة التجربة',
       'نقل الخدمات',
     ];
-    if (data.NationalID && data.TransferOperationNumber && data.TransferingDate) {
+    // لا يتم الانتقال لمرحلة نقل الخدمات إلا عبر مسار إتمام نقل الكفالة الفعلي (علامة الصح في المعاملات أو نجاح التجربة في السكن)
+    // أو إذا كانت المعاملة قد تم إتمام نقل خدماتها مسبقاً في قاعدة البيانات
+    if (isCompletingTransferAction || data.stage === 'نقل الخدمات' || data.stage === 'تم نقل الكفالة') {
       return stages[3];
-    } else if (data.ExperimentDuration && data.ExperimentStart && data.ExperimentEnd) {
+    }
+    if (data.ExperimentDuration && data.ExperimentStart && data.ExperimentEnd) {
       return stages[2];
     } else if (data.ContractDate && data.Cost && data.Paid) {
       return stages[1];
@@ -1036,10 +1044,13 @@ export default function AddTransactionForm({
     { label: 'نقل الخدمات', icon: Send },
   ];
 
+  const currentStage = determineStage(formData);
+  // رقم الإقامة مطلوب فقط وحصرياً إذا كان الإجراء هو إتمام نقل الكفالة (علامة الصح أو نجاح التجربة)
+  const isNationalIdRequired = isCompletingTransferAction;
+
   const handleSubmit = async () => {
     try {
       setLoading(true);
-      const currentStage = determineStage(formData);
       
       const calculatedPaid = isFromHousingTrial
         ? trialPaidAmount + (parseFloat(currentPaidAmount) || 0)
@@ -1067,7 +1078,7 @@ export default function AddTransactionForm({
         KingdomEntryDate: formData.EntryDate || undefined,
         ExperimentEnd: formData.ExperimentEnd || undefined,
         Notes: formData.Notes || undefined,
-        NationalID: formData.NationalID || undefined,
+        NationalID: formData.NationalID && formData.NationalID.trim() ? formData.NationalID.trim() : null,
         TransferingDate: formData.TransferingDate || undefined,
         file: formData.file || undefined,
         salaryCertificateFile: formData.salaryCertificateFile || undefined,
@@ -1080,15 +1091,21 @@ export default function AddTransactionForm({
         transferStage: currentStage,
         ContractDate: formData.ContractDate || undefined,
       };
+      const isCompletedStage = currentStage === 'نقل الخدمات' || currentStage === 'تم نقل الكفالة' || Boolean(data.TransferOperationNumber && data.TransferingDate);
+
       if (!data.HomeMaidId || !data.OldClientId || !data.NewClientId) {
         throw new Error('يرجى ملء جميع الحقول المطلوبة لإنشاء الطلب');
       }
-      if (!data.NationalID || !data.NationalID.trim()) {
-        throw new Error('يرجى إدخال رقم إقامة العاملة');
+
+      // رقم الإقامة إلزامي فقط وحصرياً عند الضغط على علامة الصح في معاملات نقل الكفالة أو نجاح التجربة في السكن
+      if (data.NationalID && data.NationalID.trim()) {
+        if (data.NationalID.trim().length !== 10) {
+          throw new Error('يجب أن يتكون رقم الإقامة من 10 أرقام');
+        }
+      } else if (isNationalIdRequired) {
+        throw new Error('يرجى إدخال رقم إقامة العاملة (10 أرقام) لإتمام نقل الكفالة');
       }
-      if (data.NationalID.trim().length !== 10) {
-        throw new Error('يجب أن يتكون رقم الإقامة من 10 أرقام');
-      }
+
       const targetId = transactionId || existingTransferId;
       if (targetId) {
         await axios.put(`/api/transferSponsorShips?id=${targetId}`, data);
@@ -1097,7 +1114,6 @@ export default function AddTransactionForm({
       }
 
       // إذا كانت المعاملة قادمة من سكن العاملات أو مرتبطة بعاملة سكن وانتهت بنقل الكفالة فعلياً
-      const isCompletedStage = currentStage === 'نقل الخدمات' || currentStage === 'تم نقل الكفالة' || Boolean(data.TransferOperationNumber && data.TransferingDate);
       if (isCompletedStage && (linkedHousedWorkerId || data.HomeMaidId)) {
         try {
           await axios.put('/api/housingdeparature', {
@@ -1435,14 +1451,21 @@ export default function AddTransactionForm({
 
               {/* رقم الإقامة */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium text-gray-700 text-right">
-                  رقم الإقامة <span className="text-red-500">*</span>
+                <label className="text-sm font-medium text-gray-700 text-right flex items-center justify-between">
+                  <span>
+                    رقم الإقامة {isNationalIdRequired && <span className="text-red-500 font-bold">*</span>}
+                  </span>
+                  {!isNationalIdRequired && (
+                    <span className="text-xs text-teal-700/80 font-normal">
+                      (اختياري)
+                    </span>
+                  )}
                 </label>
                 <input
                   type="text"
                   inputMode="numeric"
                   name="NationalID"
-                  required
+                  required={isNationalIdRequired}
                   maxLength={10}
                   value={formData.NationalID || formData.ResidencyNumber || ''}
                   onChange={(e) => {
@@ -1453,7 +1476,7 @@ export default function AddTransactionForm({
                       .slice(0, 10);
                     setFormData((prev) => ({ ...prev, NationalID: val, ResidencyNumber: val }));
                   }}
-                  placeholder="ادخل رقم الإقامة (10 أرقام)"
+                  placeholder={isNationalIdRequired ? "ادخل رقم الإقامة (10 أرقام)" : "ادخل رقم الإقامة (اختياري)"}
                   dir="ltr"
                   className="w-full bg-white focus:bg-white border-2 border-teal-700/30 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/10 rounded-xl p-3 text-sm text-gray-900 font-bold text-right outline-none transition-all force-en-num shadow-xs"
                 />
@@ -2497,7 +2520,7 @@ export default function AddTransactionForm({
                 {/* رقم العقد */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium text-gray-700 text-right">
-                    رقم العقد <span className="text-red-500 font-bold">*</span>
+                    رقم العقد {isCompletingTransferAction && <span className="text-red-500 font-bold">*</span>}
                   </label>
                   <input
                     type="text"
@@ -2513,7 +2536,7 @@ export default function AddTransactionForm({
                 {/* تاريخ العقد */}
                 <DateInputField
                   label="تاريخ العقد"
-                  required={true}
+                  required={isCompletingTransferAction}
                   infoTooltip="التاريخ المدون داخل العقد يختلف عن تاريخ إنشاء العقد، والمطلوب هنا هو التاريخ المكتوب بداخل العقد."
                   value={formData.TransferingDate || formData.ContractDate || ''}
                   onChange={(val) => setFormData((prev) => ({ ...prev, TransferingDate: val, ContractDate: val }))}
@@ -2523,7 +2546,7 @@ export default function AddTransactionForm({
                 {/* ملف العقد */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium text-gray-700 text-right">
-                    ملف العقد <span className="text-red-500 font-bold">*</span>
+                    ملف العقد {isCompletingTransferAction && <span className="text-red-500 font-bold">*</span>}
                   </label>
                   <div className="bg-gray-50 border border-gray-200 rounded-xl p-2.5 flex items-center justify-between gap-2 min-h-[46px]">
                     <div className="flex items-center gap-2 min-w-0 truncate">
