@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import prisma from 'lib/prisma';
 import Style from 'styles/Home.module.css';
-import { Plus, Search, FileText, RotateCcw, Settings, MoreHorizontal, Trash2, UserPlus, Phone, Check, Calendar, Clock, ShieldCheck, Building, Globe, ArrowLeft, ArrowRight, ChevronDown, ChevronUp, Smartphone, CreditCard, Activity, Package, CheckCircle2, XCircle, Tag, ClipboardCheck, Plane, Edit3, Camera, Upload, UploadCloud, Eye, User, MapPin, UserCheck, LogOut, AlertCircle, Users, Home as HomeIcon, DollarSign, Filter } from 'lucide-react';
+import { Plus, Search, FileText, RotateCcw, Settings, MoreHorizontal, Trash2, UserPlus, Phone, Check, Calendar, Clock, ShieldCheck, Building, Globe, ArrowLeft, ArrowRight, ChevronDown, ChevronUp, Smartphone, CreditCard, Activity, Package, CheckCircle2, XCircle, Tag, ClipboardCheck, Plane, Edit3, Camera, Upload, UploadCloud, Eye, User, MapPin, UserCheck, UserX, LogOut, AlertCircle, Users, Home as HomeIcon, DollarSign, Filter } from 'lucide-react';
 import { DocumentTextIcon } from '@heroicons/react/outline';
 import { FaAddressBook, FaUserFriends, FaPassport, FaIdCard, FaHome, FaExchangeAlt, FaHeartbeat, FaHospital } from 'react-icons/fa';
 import { jwtDecode } from 'jwt-decode';
@@ -22,6 +22,7 @@ import { getCountryFlagUrl } from 'lib/flagHelper';
 import { useSidebar } from 'utils/sidebarcontext';
 import Select from 'react-select';
 import CityAutocomplete from 'components/CityAutocomplete';
+import { DateInputField, TimeInputField } from 'components/admin/DateTimeInputs';
 import { tafqeet } from 'lib/tafqeet';
 
 interface HousedWorker {
@@ -900,7 +901,12 @@ useEffect(()=>{
     status: 'departed',
   });
   // Departure Modal Paths States
-  const [activeDepartureType, setActiveDepartureType] = useState<'medical' | 'trial_transfer' | 'deportation'>('medical');
+  const [activeDepartureType, setActiveDepartureType] = useState<'medical' | 'trial_transfer' | 'deportation' | 'escape'>('medical');
+  const [escapeHousingForm, setEscapeHousingForm] = useState({
+    escapeDate: new Date().toISOString().split('T')[0],
+    escapeTime: new Date().toTimeString().substring(0, 5),
+    notes: '',
+  });
   const [departureHousingDate, setDepartureHousingDate] = useState<string>('');
   const [medicalDepartureForm, setMedicalDepartureForm] = useState({
     hospitalName: '',
@@ -2784,11 +2790,20 @@ const fetchDepartedHousedforExporting = async () => {
       }
     }
 
+    if (activeDepartureType === 'escape') {
+      if (!escapeHousingForm.escapeDate) {
+        showNotification('يرجى تحديد تاريخ الهروب', 'error');
+        return;
+      }
+    }
+
     setIsSubmittingDeparture(true);
     try {
       const finalHousingDepartureDate =
         activeDepartureType === 'deportation'
           ? (deportationForm.externaldeparatureDate || departureHousingDate)
+          : activeDepartureType === 'escape'
+          ? escapeHousingForm.escapeDate
           : departureHousingDate;
 
       const calcEndDate = (sDate: string, days: string) => {
@@ -2805,6 +2820,7 @@ const fetchDepartedHousedforExporting = async () => {
         deparatureHousingDate: finalHousingDepartureDate,
         medicalDepartureData: activeDepartureType === 'medical' ? medicalDepartureForm : undefined,
         deportationData: activeDepartureType === 'deportation' ? deportationForm : undefined,
+        escapeData: activeDepartureType === 'escape' ? escapeHousingForm : undefined,
         transferSponsorshipData: activeDepartureType === 'trial_transfer' ? {
           trialStartDate: finalHousingDepartureDate,
           trialPeriodDays: trialTransferForm.trialPeriodDays,
@@ -5633,6 +5649,14 @@ const confirmDeleteNote = async () => {
                                         photoUrl = parts[1]?.trim() || '';
                                       } else if (isExtDep) {
                                         cleanText = cleanText.replace('[مغادرة عاملة خارجية]', '').trim();
+                                      }
+
+                                      if (cleanText.includes('إعادة للسكن بعد هروب') && cleanText.includes(' - ')) {
+                                        cleanText = cleanText
+                                          .replace(/ - سبب التسكين:/g, '\n• سبب التسكين:')
+                                          .replace(/ - الإجراء:/g, '\n• الإجراء المتخذ:')
+                                          .replace(/\. ملاحظات:/g, '\n• الملاحظات:')
+                                          .replace(/ التاريخ:/g, '\n• التاريخ:');
                                       }
 
                                       return (
@@ -8484,10 +8508,10 @@ const confirmDeleteNote = async () => {
                         /* 🏢 مسارات المغادرة للعاملات الداخليات (الخيارات الأربعة) */
                         /* ============================================================== */
                         <>
-                    {/* 3 Options Grid Selector */}
+                    {/* 4 Options Grid Selector */}
                     <div>
                       <label className="block text-xs font-bold text-gray-700 mb-2">نوع ومسار المغادرة (اختر المسار المناسب):</label>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                         {/* Option 1: Medical */}
                         <button
                           type="button"
@@ -8563,6 +8587,32 @@ const confirmDeleteNote = async () => {
                           <div>
                             <h4 className="text-sm font-bold">ترحيل العاملة</h4>
                             <p className="text-[11px] text-gray-500 mt-0.5">مغادرة خارجية للبلاد</p>
+                          </div>
+                        </button>
+
+                        {/* Option 4: Escape */}
+                        <button
+                          type="button"
+                          onClick={() => setActiveDepartureType('escape')}
+                          className={`p-3.5 rounded-xl border text-right transition-all flex flex-col justify-between gap-2 cursor-pointer ${
+                            activeDepartureType === 'escape'
+                              ? 'border-2 border-red-600 bg-red-50 text-red-900 shadow-sm'
+                              : 'border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                              activeDepartureType === 'escape' ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-600'
+                            }`}>
+                              <UserX className="w-4 h-4" />
+                            </div>
+                            {activeDepartureType === 'escape' && (
+                              <span className="w-2 h-2 rounded-full bg-red-600"></span>
+                            )}
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold">الهروب من السكن</h4>
+                            <p className="text-[11px] text-gray-500 mt-0.5">توثيق الهروب وتفريغ السرير</p>
                           </div>
                         </button>
                       </div>
@@ -10229,6 +10279,73 @@ const confirmDeleteNote = async () => {
                               className="w-full bg-white border border-gray-300 rounded-lg p-2.5 text-right text-sm focus:ring-2 focus:ring-teal-600 outline-none"
                             />
                           </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Path 4: Escape Details */}
+                    {activeDepartureType === 'escape' && (
+                      <div className="border border-red-200 bg-white rounded-xl p-4 space-y-4 shadow-sm animate-in fade-in duration-150">
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
+                          <div className="flex items-center gap-2 text-red-800 font-bold text-xs sm:text-sm">
+                            <UserX className="w-4 h-4 text-red-600" />
+                            <span>بيانات وتوثيق الهروب من السكن</span>
+                          </div>
+                          <span className="text-[10px] bg-red-100 text-red-800 px-2.5 py-0.5 rounded-full font-bold">
+                            تفريغ السكن فوري
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <DateInputField
+                            label="تاريخ الهروب"
+                            required
+                            value={escapeHousingForm.escapeDate}
+                            onChange={(val) =>
+                              setEscapeHousingForm({
+                                ...escapeHousingForm,
+                                escapeDate: val,
+                              })
+                            }
+                            accentColor="red"
+                          />
+
+                          <TimeInputField
+                            label="وقت الهروب التقريبي"
+                            value={escapeHousingForm.escapeTime}
+                            onChange={(val) =>
+                              setEscapeHousingForm({
+                                ...escapeHousingForm,
+                                escapeTime: val,
+                              })
+                            }
+                            accentColor="red"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">
+                            ملاحظات وتفاصيل الواقعة
+                          </label>
+                          <textarea
+                            rows={2}
+                            placeholder="اكتب أي ملاحظات أو تفاصيل حول كيفية الهروب أو الأمتعة المتبقية..."
+                            value={escapeHousingForm.notes}
+                            onChange={(e) =>
+                              setEscapeHousingForm({
+                                ...escapeHousingForm,
+                                notes: e.target.value,
+                              })
+                            }
+                            className="w-full bg-white border border-gray-300 rounded-lg p-2.5 text-right text-xs sm:text-sm focus:ring-2 focus:ring-red-500 outline-none"
+                          />
+                        </div>
+
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-2.5 text-xs text-red-800 flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                          <span>
+                            سيتم فور حفظ المغادرة تفريغ السرير والموقع بالسكن تلقائياً وإدراج العاملة في سجل بلاغات الهروب الموحد.
+                          </span>
                         </div>
                       </div>
                     )}

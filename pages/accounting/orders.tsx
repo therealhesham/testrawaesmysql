@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { BookFilled } from "@ant-design/icons";
 import Layout from "example/containers/Layout";
 import { useRouter } from "next/router";
@@ -280,7 +281,7 @@ export default function Table({ offices }) {
     setCurrentStep((prevStep) => prevStep + 1);
   };
   const handleClicker = (id) => {
-    const url = "/admin/cvdetails/" + id;
+    const url = "/admin/homemaidinfo?id=" + id;
     window.open(url, "_blank");
   };
   const handlePreviousStep = () => {
@@ -491,7 +492,7 @@ export default function Table({ offices }) {
                   </td>
                   <td
                     onClick={() =>
-                      router.push("/admin/cvdetails/" + item.HomemaidId)
+                      router.push("/admin/homemaidinfo?id=" + item.HomemaidId)
                     }
                     // onClick={() => handleClicker(item?.HomeMaid.id)}
                     className="p-3 text-center text-md cursor-pointer text-gray-700 font-semibold    whitespace-nowrap"

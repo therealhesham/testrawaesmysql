@@ -147,7 +147,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  // جلب البيانات - الطلبات المكتملة هي التي لديها ملف استلام
+  const deliveryDetailsFilter = filters.DeliveryDetails;
+  delete filters.DeliveryDetails;
+
+  const completedCondition = deliveryDetailsFilter
+    ? { DeliveryDetails: deliveryDetailsFilter }
+    : {
+        OR: [
+          {
+            DeliveryDetails: {
+              some: {
+                deliveryFile: {
+                  not: null,
+                },
+              },
+            },
+          },
+          {
+            isContractEnded: true,
+          },
+          {
+            bookingstatus: {
+              in: ['مغلق لهروب العاملة من المطار', 'closed', 'مغلق'],
+            },
+          },
+        ],
+      };
+
+  // جلب البيانات - الطلبات المكتملة هي التي لديها ملف استلام أو تم إنهاء عقدها
   const homemaids = await prisma.neworder.findMany({
     include: {
       HomeMaid: {
@@ -181,14 +208,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     orderBy: { id: "desc" },
     where: {
       ...filters,
-      // الطلب مكتمل عندما يكون لديه DeliveryDetails مع deliveryFile موجود
-      DeliveryDetails: filters.DeliveryDetails || {
-        some: {
-          deliveryFile: {
-            not: null,
-          },
-        },
-      },
+      ...completedCondition,
     },
     skip: (pageNumber - 1) * pageSize,
     take: pageSize,
@@ -197,14 +217,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const totalCount = await prisma.neworder.count({
     where: {
       ...filters,
-      // الطلب مكتمل عندما يكون لديه DeliveryDetails مع deliveryFile موجود
-      DeliveryDetails: filters.DeliveryDetails || {
-        some: {
-          deliveryFile: {
-            not: null,
-          },
-        },
-      },
+      ...completedCondition,
     },
   });
 

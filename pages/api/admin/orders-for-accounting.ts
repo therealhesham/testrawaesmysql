@@ -80,7 +80,6 @@ export default async function handler(
       orderBy: {
         createdAt: 'desc',
       },
-      take: 50, // Limit to 50 for performance
     });
 
     // In-memory filter as an extra safeguard

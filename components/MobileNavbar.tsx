@@ -67,6 +67,7 @@ const menuItems: MenuItem[] = [
     subItems: [
       { id: 51, label: "التسكين (المتواجدات)", link: "/admin/housedarrivals" },
       { id: 511, label: "مغادرات السكن", link: "/admin/housing-departures" },
+      { id: 513, label: "بلاغات الهروب", link: "/admin/escapes" },
       { id: 52, label: "الاعاشات", link: "/admin/checkedtable" },
     ],
   },

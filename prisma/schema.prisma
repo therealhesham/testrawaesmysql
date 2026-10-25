@@ -79,7 +79,7 @@ contractType String @default("recruitment") @db.VarChar(100)
 elderlycareLevel String? @db.VarChar(100)
 laundryLevel String? @db.VarChar(100)
 BabySitterLevel String? @db.VarChar(100)
-
+  workerEscapes   workerEscape[]
 }
 
 
@@ -329,6 +329,7 @@ notes_date        DateTime?
 
   AccountSystemLogs AccountSystemLogs[]
   externalHomedmaids externalHomedmaid[]
+  workerEscapes workerEscape[]
 }
 model notes{
   id Int @id @default(autoincrement())
@@ -477,6 +478,7 @@ Installments Int?
   isJournalPosted    Boolean?  @default(false)
   daftraJournalId    String?   @db.VarChar(255)
   journalPostedAt    DateTime?
+  workerEscapes      workerEscape[]
 
   tickets_details tickets_details[]
 }
@@ -831,6 +833,7 @@ deparatureHousingDate  DateTime?
 transferSponsorshipData Json?
 medicalDepartureData Json?
 deportationData Json?
+escapeData Json?
 isExternal Boolean? @default(false)
 HousedWorkerNotes HousedWorkerNotes[]
  externalHomedmaid externalHomedmaid? @relation(fields: [externalHomedmaidId], references: [id])
@@ -1442,3 +1445,41 @@ model QuickClient {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+model workerEscape {
+  id               Int       @id @default(autoincrement())
+  escapeType       String    @db.VarChar(50) // airport | housing | trial_transfer | client
+  homeMaidId       Int
+  orderId          Int?
+  clientId         Int?
+  housedWorkerId   Int?
+  transferId       Int?
+  escapeDate       DateTime
+  escapeTime       String?   @db.VarChar(30)
+  arrivalDate      DateTime?
+  daysSinceArrival Int?
+  isWithinWarranty Boolean   @default(false)
+  visaFeeRequired  Boolean   @default(false)
+  visaFeeAmount    Decimal   @default(2000.00) @db.Decimal(10, 2)
+  visaFeeStatus    String?   @default("pending") @db.VarChar(50) // pending | collected | deducted | waived | none
+  reportFile       String?   @db.VarChar(255)
+  notes            String?   @db.Text
+  workerWageAmount Decimal?  @db.Decimal(10, 2)
+  trialDaysCount   Int?
+  status           String    @default("recorded") @db.VarChar(50)
+  createdById      Int?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  homeMaid         homemaid?  @relation(fields: [homeMaidId], references: [id])
+  order            neworder?  @relation(fields: [orderId], references: [id])
+  client           Client?    @relation(fields: [clientId], references: [id])
+
+  @@index([homeMaidId])
+  @@index([orderId])
+  @@index([clientId])
+  @@index([escapeType])
+  @@index([isWithinWarranty])
+  @@map("worker_escapes")
+}
+

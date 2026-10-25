@@ -74,7 +74,8 @@ async function logToSystemLogs(
   action: string,
   beneficiary: string,
   beneficiaryId: number,
-  pageRoute: string
+  pageRoute: string,
+  details?: string
 ) {
   try {
     // الحصول على عنوان الصفحة بالعربي
@@ -96,7 +97,7 @@ async function logToSystemLogs(
         beneficiary,
         BeneficiaryId: beneficiaryId,
         pageRoute,
-        details: pageTitle || null, // اسم الصفحة من العنوان
+        details: details || pageTitle || null, // تفاصيل الإجراء أو اسم الصفحة
       } as any, // cast لحين إعادة توليد أنواع Prisma بعد إضافة الحقل
     });
     console.log('✅ تم حفظ السجل في systemUserLogs:', actionText);
@@ -436,14 +437,19 @@ const cookieHeader = req.headers.cookie;
     console.log(cookies.authToken)
     const token = jwtDecode(cookies.authToken) as any;
 
+    const clientName = orderData.clientInfo?.name || order.ClientName || '';
+    const workerName = orderData.homemaidInfo?.name || order.HomeMaid?.Name || '';
+    const clientPart = clientName ? ` للعميل (${clientName})` : '';
+    const workerPart = workerName ? ` - العاملة (${workerName})` : '';
+
     eventBus.emit('ACTION', {
-         type: "عرض صفحة تتبع طلب " + order.id,
-    beneficiary: "order",
-    pageRoute: req.headers.referer || '/admin/track_order',
-    actionType: "view",
-    userId: Number((token as any).id),
-    BeneficiaryId: Number(id),
-      });
+      type: `عرض صفحة تتبع الطلب #${order.id}${clientPart}${workerPart}`,
+      beneficiary: workerName || clientName || "order",
+      pageRoute: req.headers.referer || '/admin/track_order',
+      actionType: "view",
+      userId: Number((token as any).id),
+      BeneficiaryId: Number(id),
+    });
       console.log('Emitted ACTION event for order:', order.id);
       return res.status(200).json(orderData);  
     } catch (error) {
@@ -804,59 +810,84 @@ const cookieHeader = req.headers.cookie;
             break;
           case 'externalOfficeApproval':
             const oldExtStatus = order.arrivals[0]?.externalOfficeStatus;
+            const oldExtText = oldExtStatus === 'approved' ? 'معتمد' : (oldExtStatus === 'pending' ? 'قيد الانتظار' : (oldExtStatus || 'غير محدد'));
+            const newExtText = value ? 'معتمد' : 'قيد الانتظار';
             arrivalUpdate.externalOfficeStatus = value ? 'approved' : 'pending';
             arrivalUpdate.ExternalOFficeApproval = value ? new Date() : null;
             updateData.bookingstatus = value ? 'external_office_approved' : 'pending_external_office';
-            logMessage = `تعديل موافقة المكتب الخارجي في الطلب ${id} من "${oldExtStatus}" إلى "${value ? 'approved' : 'pending'}"`;
+            logMessage = `تعديل موافقة المكتب الخارجي في الطلب #${id} من "${oldExtText}" إلى "${newExtText}"`;
             break;
           case 'medicalCheck':
             const oldMedical = order.arrivals[0]?.medicalCheckDate ? 'مكتمل' : 'غير مكتمل';
             arrivalUpdate.medicalCheckFile = value ? undefined : null;
             arrivalUpdate.medicalCheckDate = value ? new Date() : null;
             updateData.bookingstatus = value ? 'medical_check_passed' : 'pending_medical_check';
-            logMessage = `تعديل الفحص الطبي في الطلب ${id} من "${oldMedical}" إلى "${value ? 'مكتمل' : 'غير مكتمل'}"`;
+            logMessage = `تعديل الفحص الطبي في الطلب #${id} من "${oldMedical}" إلى "${value ? 'مكتمل' : 'غير مكتمل'}"`;
             break;
           case 'foreignLaborApproval':
             const oldLabor = order.arrivals[0]?.foreignLaborApprovalDate ? 'مكتمل' : 'غير مكتمل';
             arrivalUpdate.foreignLaborApproval = value ? true : false;
             arrivalUpdate.foreignLaborApprovalDate = value ? new Date() : null;
             updateData.bookingstatus = value ? 'foreign_labor_approved' : 'pending_foreign_labor';
-            logMessage = `تعديل موافقة العمالة الأجنبية في الطلب ${id} من "${oldLabor}" إلى "${value ? 'مكتمل' : 'غير مكتمل'}"`;
+            logMessage = `تعديل موافقة العمالة الأجنبية في الطلب #${id} من "${oldLabor}" إلى "${value ? 'مكتمل' : 'غير مكتمل'}"`;
             break;
           case 'agencyPayment':
             const oldPayment = order.arrivals[0]?.approvalPayment || 'غير مدفوع';
+            const oldPaymentText = oldPayment === 'paid' ? 'مدفوع' : (oldPayment || 'غير مدفوع');
+            const newPaymentText = value ? 'مدفوع' : 'غير مدفوع';
             arrivalUpdate.approvalPayment = value ? 'paid' : null;
             updateData.bookingstatus = value ? 'agency_paid' : 'pending_agency_payment';
-            logMessage = `تعديل دفع الوكالة في الطلب ${id} من "${oldPayment}" إلى "${value ? 'paid' : 'غير مدفوع'}"`;
+            logMessage = `تعديل دفع الوكالة في الطلب #${id} من "${oldPaymentText}" إلى "${newPaymentText}"`;
             break;
           case 'saudiEmbassyApproval':
             const oldEmbassy = order.arrivals[0]?.EmbassySealing ? 'مكتمل' : 'غير مكتمل';
             arrivalUpdate.EmbassySealing = value ? new Date() : null;
             updateData.bookingstatus = value ? 'embassy_approved' : 'pending_embassy';
-            logMessage = `تعديل موافقة السفارة السعودية في الطلب ${id} من "${oldEmbassy}" إلى "${value ? 'مكتمل' : 'غير مكتمل'}"`;
+            logMessage = `تعديل موافقة السفارة السعودية في الطلب #${id} من "${oldEmbassy}" إلى "${value ? 'مكتمل' : 'غير مكتمل'}"`;
             break;
           case 'visaIssuance':
             const oldVisa = order.arrivals[0]?.visaIssuanceDate ? 'مكتمل' : 'غير مكتمل';
             arrivalUpdate.visaIssuanceDate = value ? new Date() : null;
             updateData.bookingstatus = value ? 'visa_issued' : 'pending_visa';
-            logMessage = `تعديل إصدار التأشيرة في الطلب ${id} من "${oldVisa}" إلى "${value ? 'مكتمل' : 'غير مكتمل'}"`;
+            logMessage = `تعديل إصدار التأشيرة في الطلب #${id} من "${oldVisa}" إلى "${value ? 'مكتمل' : 'غير مكتمل'}"`;
             break;
           case 'travelPermit':
             const oldPermit = order.arrivals[0]?.travelPermit || 'غير صادر';
+            const oldPermitText = oldPermit === 'issued' ? 'صادر' : (oldPermit || 'غير صادر');
+            const newPermitText = value ? 'صادر' : 'غير صادر';
             arrivalUpdate.travelPermit = value ? 'issued' : null;
             arrivalUpdate.travelPermitDate = value ? new Date() : null;
             updateData.bookingstatus = value ? 'travel_permit_issued' : 'pending_travel_permit';
-            logMessage = `تعديل تصريح السفر في الطلب ${id} من "${oldPermit}" إلى "${value ? 'issued' : 'غير صادر'}"`;
+            logMessage = `تعديل تصريح السفر في الطلب #${id} من "${oldPermitText}" إلى "${newPermitText}"`;
             break;
           case 'receipt':
-            const oldReceipt = order.arrivals[0]?.DeliveryDate ? 'مستلم' : 'غير مستلم';
-            arrivalUpdate.DeliveryDate = value ? new Date() : null;
-            updateData.bookingstatus = value ? 'received' : 'pending_receipt';
-            logMessage = `تعديل الاستلام في الطلب ${id} من "${oldReceipt}" إلى "${value ? 'مستلم' : 'غير مستلم'}"`;
-            // إضافة طريقة الاستلام إذا تم تمريرها
-            if (section === 'receipt' && updatedData && updatedData.method) {
-              arrivalUpdate.receiptMethod = updatedData.method;
-              logMessage += ` - طريقة الاستلام: ${updatedData.method}`;
+            const methodArabicMap: Record<string, string> = {
+              direct: 'مباشر',
+              indirect: 'غير مباشر',
+              intermediary: 'عن طريق وسيط',
+              airport_escape: 'هروب من المطار',
+            };
+            const isAirportEscape = updatedData?.method === 'airport_escape';
+            if (isAirportEscape) {
+              arrivalUpdate.DeliveryDate = new Date();
+              arrivalUpdate.receiptMethod = 'airport_escape';
+              updateData.bookingstatus = 'مغلق لهروب العاملة من المطار';
+              updateData.clientBookingStatus = 'closed';
+              updateData.isContractEnded = true;
+              logMessage = `توثيق هروب العاملة من المطار في مرحلة الاستلام للطلب #${id} وإغلاق الطلب دون تسليم`;
+            } else {
+              const oldReceipt = order.arrivals[0]?.DeliveryDate ? 'مستلم' : 'قيد انتظار الاستلام';
+              arrivalUpdate.DeliveryDate = value ? new Date() : null;
+              updateData.bookingstatus = value ? 'received' : 'pending_receipt';
+              const methodText = updatedData?.method ? (methodArabicMap[updatedData.method] || updatedData.method) : '';
+              if (value) {
+                logMessage = `تأكيد استلام الطلب #${id} للعميل بنجاح${methodText ? ` (طريقة الاستلام: ${methodText})` : ''} - الحالة السابقة: ${oldReceipt}`;
+              } else {
+                logMessage = `إلغاء استلام الطلب #${id} وإعادته إلى قائمة انتظار الاستلام`;
+              }
+              if (updatedData && updatedData.method) {
+                arrivalUpdate.receiptMethod = updatedData.method;
+              }
             }
             break;
           case 'bookingStatus':
@@ -864,12 +895,11 @@ const cookieHeader = req.headers.cookie;
             if (value === 'cancelled') {
               updateData.bookingstatus = 'cancelled';
               arrivalUpdate.externalOfficeStatus = 'cancelled';
-              // حفظ سبب الإلغاء إذا تم إرساله
               if (req.body.cancellationReason) {
                 updateData.ReasonOfCancellation = req.body.cancellationReason;
-                logMessage = `تعديل حالة الحجز في الطلب ${id} من "${oldBooking}" إلى "cancelled" - سبب الإلغاء: ${req.body.cancellationReason}`;
+                logMessage = `إلغاء حجز الطلب #${id} - سبب الإلغاء: ${req.body.cancellationReason}`;
               } else {
-                logMessage = `تعديل حالة الحجز في الطلب ${id} من "${oldBooking}" إلى "cancelled"`;
+                logMessage = `إلغاء حجز الطلب #${id}`;
               }
             } else {
               return res.status(400).json({ error: 'Invalid bookingStatus value' });
@@ -934,12 +964,18 @@ const cookieHeader = req.headers.cookie;
 
         console.log('✅ تم حفظ التعديلات بنجاح');
 
+        const clientName = order.ClientName || (order as any).client?.fullname || '';
+        const workerName = order.HomeMaid?.Name || '';
+        const clientText = clientName ? ` للعميل (${clientName})` : '';
+        const workerText = workerName ? ` - العاملة (${workerName})` : '';
+        const enrichedLogMessage = `${logMessage}${clientText}${workerText}`;
+
         // حفظ في systemUserLogs
         await logToSystemLogs(
           userId,
           'update',
-          logMessage,
-          'order',
+          enrichedLogMessage,
+          workerName || clientName || 'order',
           Number(id),
           pageRoute
         );
@@ -955,15 +991,6 @@ const cookieHeader = req.headers.cookie;
             `تعديل حقل: ${field}`
           );
         }
-
-        eventBus.emit('ACTION', {
-            type: 'تعديل صفحة تتبع طلب ' + order.id,
-            beneficiary: "order",
-            pageRoute: pageRoute,
-            actionType: "update",
-            userId: userId,
-            BeneficiaryId: Number(id),
-          });
 
         console.log('========== نهاية تعديل طلب ==========\n');
         return res.status(200).json({ message: 'Status updated successfully' });
@@ -1400,9 +1427,25 @@ const cookieHeader = req.headers.cookie;
           case 'receipt':
             console.log('📦 تعديل طريقة الاستلام');
             if (updatedData.method) {
+              const methodArabicMap: Record<string, string> = {
+                direct: 'مباشر',
+                indirect: 'غير مباشر',
+                intermediary: 'عن طريق وسيط',
+                airport_escape: 'هروب من المطار',
+              };
               const oldMethod = order.arrivals[0]?.receiptMethod;
+              const oldMethodText = oldMethod ? (methodArabicMap[oldMethod] || oldMethod) : 'غير محدد';
+              const newMethodText = methodArabicMap[updatedData.method] || updatedData.method;
               arrivalUpdate.receiptMethod = updatedData.method;
-              changes.push(`طريقة الاستلام: من "${oldMethod || 'فارغ'}" إلى "${updatedData.method}"`);
+
+              if (updatedData.method === 'airport_escape') {
+                updateData.bookingstatus = 'مغلق لهروب العاملة من المطار';
+                updateData.clientBookingStatus = 'closed';
+                updateData.isContractEnded = true;
+                changes.push(`تسجيل هروب العاملة من المطار في الطلب #${id} وإغلاق الطلب`);
+              } else {
+                changes.push(`طريقة الاستلام: من "${oldMethodText}" إلى "${newMethodText}"`);
+              }
             }
             break;
           case 'deliveryDetails':
@@ -1516,13 +1559,19 @@ const cookieHeader = req.headers.cookie;
         if (changes.length > 0) {
           const sectionDisplayName = section === 'destinations' ? 'الوجهات' : section;
           const changesSummary = changes.join(' | ');
+          const clientName = order.ClientName || (order as any).client?.fullname || '';
+          const workerName = order.HomeMaid?.Name || '';
+          const clientText = clientName ? ` للعميل (${clientName})` : '';
+          const workerText = workerName ? ` - العاملة (${workerName})` : '';
+
           await logToSystemLogs(
             userId,
             'update',
-            `تعديل قسم "${sectionDisplayName}" في الطلب ${id}: ${changesSummary}`,
-            'order',
+            `تعديل قسم "${sectionDisplayName}" في الطلب #${id}${clientText}${workerText}: ${changesSummary}`,
+            workerName || clientName || 'order',
             Number(id),
-            pageRoute
+            pageRoute,
+            `التغييرات: ${changes.join(' | ')}`
           );
 
           // حفظ في سجل أنشطة العاملة
@@ -1537,15 +1586,6 @@ const cookieHeader = req.headers.cookie;
             );
           }
         }
-
-        eventBus.emit('ACTION', {
-          type: "تعديل طلب " + updatedOrder.id,
-          beneficiary: "order",
-          pageRoute: pageRoute,
-          actionType: "update",
-          userId: userId,
-          BeneficiaryId: Number(id),
-        });
 
         console.log('========== نهاية تعديل طلب ==========\n');
         return res.status(200).json({ message: 'Section updated successfully' });

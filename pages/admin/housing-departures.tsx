@@ -42,6 +42,7 @@ import {
 } from 'lucide-react';
 import { FaHospital } from 'react-icons/fa';
 import FailTrialModal from 'components/FailTrialModal';
+import { DateInputField } from 'components/admin/DateTimeInputs';
 import { getCountryFlagUrl } from 'lib/flagHelper';
 
 interface HousedWorkerRow {
@@ -55,6 +56,7 @@ interface HousedWorkerRow {
   deparatureAttachment?: string | null;
   notes_attachment?: string | null;
   Reason: string | null;
+  actionTaken?: string | null;
   Details: string | null;
   employee: string | null;
   transferSponsorshipData?: any;
@@ -378,8 +380,8 @@ export default function HousingDeparturesPage({
   const [rehousingWorker, setRehousingWorker] = useState<HousedWorkerRow | null>(null);
   const [rehousingForm, setRehousingForm] = useState({
     houseentrydate: new Date().toISOString().split('T')[0],
-    Reason: '',
     location: '',
+    notes: '',
   });
   const [isSubmittingRehousing, setIsSubmittingRehousing] = useState(false);
 
@@ -848,7 +850,8 @@ export default function HousingDeparturesPage({
       const payload: any = {
         housedWorkerId: rehousingWorker.id,
         houseentrydate: rehousingForm.houseentrydate,
-        Reason: rehousingForm.Reason.trim() || 'إعادة تسكين بعد مغادرة السكن',
+        notes: rehousingForm.notes.trim() || undefined,
+        departureReasonWas: rehousingWorker.deparatureReason || undefined,
       };
       if (rehousingForm.location) {
         payload.location_id = Number(rehousingForm.location);
@@ -985,7 +988,7 @@ export default function HousingDeparturesPage({
       {toastNotification.show && (
         <div
           dir="rtl"
-          className="fixed top-5 right-5 z-50 animate-in fade-in slide-in-from-top-4 duration-300 pointer-events-auto"
+          className="fixed top-5 right-5 z-[9999] animate-in fade-in slide-in-from-top-4 duration-300 pointer-events-auto"
         >
           <div
             className={`flex items-center gap-3 px-4 py-3 rounded-2xl shadow-lg border backdrop-blur-md transition-all ${
@@ -1355,29 +1358,33 @@ export default function HousingDeparturesPage({
                 {/* From Date Filter (3 cols) */}
                 <div className="sm:col-span-1 lg:col-span-3 flex items-center gap-2">
                   <span className="text-xs sm:text-sm text-gray-600 font-semibold shrink-0">من تاريخ:</span>
-                  <input
-                    type="date"
-                    value={fromDate}
-                    onChange={(e) => {
-                      setFromDate(e.target.value);
-                      setPage(1);
-                    }}
-                    className="w-full h-10 px-2.5 text-xs sm:text-sm bg-gray-50/70 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none text-gray-700 font-medium"
-                  />
+                  <div className="w-full">
+                    <DateInputField
+                      value={fromDate}
+                      onChange={(val) => {
+                        setFromDate(val);
+                        setPage(1);
+                      }}
+                      inputClassName="h-10 text-xs sm:text-sm bg-gray-50/70 rounded-xl"
+                      accentColor="teal"
+                    />
+                  </div>
                 </div>
 
                 {/* To Date Filter (3 cols) */}
                 <div className="sm:col-span-1 lg:col-span-3 flex items-center gap-2">
                   <span className="text-xs sm:text-sm text-gray-600 font-semibold shrink-0">إلى تاريخ:</span>
-                  <input
-                    type="date"
-                    value={toDate}
-                    onChange={(e) => {
-                      setToDate(e.target.value);
-                      setPage(1);
-                    }}
-                    className="w-full h-10 px-2.5 text-xs sm:text-sm bg-gray-50/70 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none text-gray-700 font-medium"
-                  />
+                  <div className="w-full">
+                    <DateInputField
+                      value={toDate}
+                      onChange={(val) => {
+                        setToDate(val);
+                        setPage(1);
+                      }}
+                      inputClassName="h-10 text-xs sm:text-sm bg-gray-50/70 rounded-xl"
+                      accentColor="teal"
+                    />
+                  </div>
                 </div>
 
                 {/* Section Specific Filter (3 cols) */}
@@ -1390,13 +1397,13 @@ export default function HousingDeparturesPage({
                         setFollowUpStatus(e.target.value);
                         setPage(1);
                       }}
-                      className="w-full h-10 pr-3 pl-8 text-xs sm:text-sm bg-amber-50/60 border border-amber-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none text-amber-900 font-bold appearance-none bg-none cursor-pointer"
+                      className="w-full h-11 pr-3 pl-8 text-xs sm:text-sm bg-gray-50/70 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none text-gray-700 font-bold appearance-none bg-none cursor-pointer"
                     >
                       <option value="all">جميع حالات المتابعة الحية</option>
                       <option value="overdue">⚠️ المتأخرات عن العودة فقط (تجاوزن المدة)</option>
                       <option value="active">⏳ سارية ضمن المدة المحددة</option>
                     </select>
-                    <div className="absolute inset-y-0 left-2.5 flex items-center pointer-events-none text-amber-700">
+                    <div className="absolute inset-y-0 left-2.5 flex items-center pointer-events-none text-gray-400">
                       <ChevronDown className="w-4 h-4" />
                     </div>
                   </div>
@@ -1591,7 +1598,7 @@ export default function HousingDeparturesPage({
                               : isTrial
                               ? 'bg-emerald-50/25 hover:bg-emerald-50/50 border-r-4 border-r-emerald-600'
                               : isMed
-                              ? 'bg-rose-50/25 hover:bg-rose-50/50 border-r-4 border-r-rose-600'
+                              ? 'bg-blue-50/20 hover:bg-blue-50/40 border-r-4 border-r-blue-500'
                               : isCompletedTransfer
                               ? 'bg-teal-50/25 hover:bg-teal-50/50 border-r-4 border-r-teal-600'
                               : 'hover:bg-gray-50/60 border-r-4 border-r-transparent'
@@ -1785,12 +1792,12 @@ export default function HousingDeparturesPage({
                               <td className="py-3.5 px-3">
                                 <div className="space-y-1 min-w-0">
                                   <div className="flex items-center gap-1.5">
-                                    <FaHospital className="w-3.5 h-3.5 text-rose-700 shrink-0" />
+                                    <FaHospital className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                                     <strong className="text-gray-900 font-bold block truncate text-xs sm:text-sm" title={worker.medicalDepartureData?.hospitalName}>
                                       {worker.medicalDepartureData?.hospitalName || 'غير محدد'}
                                     </strong>
                                   </div>
-                                  <span className="inline-block px-2 py-0.5 rounded-md bg-rose-50 text-rose-800 border border-rose-200 text-[10px] sm:text-xs font-bold">
+                                  <span className="inline-block px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 text-[10px] sm:text-xs font-bold">
                                     متابعة طبية
                                   </span>
                                 </div>
@@ -1984,7 +1991,7 @@ export default function HousingDeparturesPage({
                                     <div className={`flex items-center justify-center gap-1.5 font-bold text-xs sm:text-sm ${
                                       medStatus?.isOverdue ? 'text-red-700 font-extrabold' : 'text-gray-900'
                                     }`}>
-                                      <Calendar className={`w-3.5 h-3.5 shrink-0 ${medStatus?.isOverdue ? 'text-red-600' : 'text-rose-500'}`} />
+                                      <Calendar className={`w-3.5 h-3.5 shrink-0 ${medStatus?.isOverdue ? 'text-red-600' : 'text-blue-500'}`} />
                                       <span>
                                         {medStatus?.returnDateFormatted || (worker.medicalDepartureData?.expectedReturnDate
                                           ? worker.medicalDepartureData.expectedReturnDate.replace(/-/g, '/')
@@ -2009,7 +2016,7 @@ export default function HousingDeparturesPage({
                                       ) : (
                                         <div className="text-gray-500 flex items-center justify-center gap-1">
                                           <span>المدة:</span>
-                                          <span className="font-bold text-rose-800">
+                                          <span className="font-bold text-gray-800">
                                             {worker.medicalDepartureData?.expectedStayDays
                                               ? `${worker.medicalDepartureData.expectedStayDays} يوم`
                                               : 'غير محددة'}
@@ -2222,8 +2229,8 @@ export default function HousingDeparturesPage({
                                         setRehousingWorker(worker);
                                         setRehousingForm({
                                           houseentrydate: new Date().toISOString().split('T')[0],
-                                          Reason: `إعادة تسكين بعد ${worker.deparatureReason || 'مغادرة السكن'}`,
                                           location: worker.location_id ? String(worker.location_id) : '',
+                                          notes: worker.deparatureReason ? `عودة للسكن بعد الشفاء من (${worker.deparatureReason})` : '',
                                         });
                                       }}
                                       className="p-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-colors cursor-pointer shrink-0"
@@ -2850,18 +2857,13 @@ export default function HousingDeparturesPage({
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-gray-700">
-                  تاريخ إتمام نقل الكفالة <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={finalizeTransferForm.completionDate}
-                  onChange={(e) => setFinalizeTransferForm({ ...finalizeTransferForm, completionDate: e.target.value })}
-                  className="w-full h-10 px-3 bg-gray-50 border border-gray-300 rounded-xl text-xs font-bold focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none"
-                />
-              </div>
+              <DateInputField
+                label="تاريخ إتمام نقل الكفالة"
+                required
+                value={finalizeTransferForm.completionDate}
+                onChange={(val) => setFinalizeTransferForm({ ...finalizeTransferForm, completionDate: val })}
+                accentColor="teal"
+              />
 
               <div className="space-y-1">
                 <label className="block text-xs font-bold text-gray-700">
@@ -2955,46 +2957,66 @@ export default function HousingDeparturesPage({
 
             {/* Form */}
             <form onSubmit={handleRehousingSubmit} className="p-5 space-y-4">
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-gray-700">
-                  تاريخ إعادة التسكين <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={rehousingForm.houseentrydate}
-                  onChange={(e) => setRehousingForm({ ...rehousingForm, houseentrydate: e.target.value })}
-                  className="w-full h-10 px-3 bg-gray-50 border border-gray-300 rounded-xl text-xs font-bold focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none"
-                />
-              </div>
+              <DateInputField
+                label="تاريخ إعادة التسكين"
+                required
+                value={rehousingForm.houseentrydate}
+                onChange={(val) => setRehousingForm({ ...rehousingForm, houseentrydate: val })}
+                accentColor="teal"
+              />
 
               <div className="space-y-1">
                 <label className="block text-xs font-bold text-gray-700">
                   مبنى / غرفة السكن
                 </label>
-                <select
-                  value={rehousingForm.location}
-                  onChange={(e) => setRehousingForm({ ...rehousingForm, location: e.target.value })}
-                  className="w-full h-10 px-3 bg-gray-50 border border-gray-300 rounded-xl text-xs font-bold focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none"
-                >
-                  <option value="">تحديد السكن (اختياري)</option>
-                  {locations.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.location}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    value={rehousingForm.location}
+                    onChange={(e) => setRehousingForm({ ...rehousingForm, location: e.target.value })}
+                    className="w-full h-10 pr-3 pl-9 bg-gray-50 border border-gray-300 rounded-xl text-xs font-bold focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none appearance-none cursor-pointer"
+                  >
+                    <option value="">تحديد السكن (اختياري)</option>
+                    {locations.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.location}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                    <ChevronDown className="w-4 h-4" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Summary Card: Informative reason & action */}
+              <div className="bg-teal-50/70 border border-teal-200/80 rounded-xl p-3 text-xs space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">سبب التسكين الأساسي:</span>
+                  <span className="font-bold text-teal-950">{rehousingWorker.Reason || 'غير محدد'}</span>
+                </div>
+                {rehousingWorker.actionTaken && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500">الإجراء المعتمد:</span>
+                    <span className="font-bold text-teal-950">{rehousingWorker.actionTaken}</span>
+                  </div>
+                )}
+                {rehousingWorker.deparatureReason && (
+                  <div className="flex items-center justify-between border-t border-teal-200/50 pt-1.5 mt-1.5">
+                    <span className="text-gray-500">المغادرة السابقة:</span>
+                    <span className="font-medium text-amber-900">{rehousingWorker.deparatureReason}</span>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1">
                 <label className="block text-xs font-bold text-gray-700">
-                  سبب إعادة التسكين
+                  ملاحظات العودة وإعادة التسكين (اختياري)
                 </label>
                 <input
                   type="text"
-                  placeholder="مثال: انتهاء التجربة، عودة من التجربة، إلخ..."
-                  value={rehousingForm.Reason}
-                  onChange={(e) => setRehousingForm({ ...rehousingForm, Reason: e.target.value })}
+                  placeholder="مثال: عودة من المستشفى بعد الشفاء واستقرار الحالة..."
+                  value={rehousingForm.notes}
+                  onChange={(e) => setRehousingForm({ ...rehousingForm, notes: e.target.value })}
                   className="w-full h-10 px-3 bg-gray-50 border border-gray-300 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-teal-600 outline-none"
                 />
               </div>

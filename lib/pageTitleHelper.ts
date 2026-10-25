@@ -54,6 +54,7 @@ export function getPageTitleArabic(pageRoute: string | undefined): string {
     '/admin/complaints': 'الشكاوى',
     '/admin/categories': 'إدارة الفئات',
     '/admin/track_order': 'تتبع طلب',
+    '/admin/escapes': 'إدارة بلاغات الهروب',
   };
   
   // البحث عن المسار المطابق

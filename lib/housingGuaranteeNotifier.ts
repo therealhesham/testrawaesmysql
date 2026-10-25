@@ -320,10 +320,10 @@ export async function checkAndSendHousingGuaranteeNotifications(options?: {
       </div>
 
       <div style="text-align: center; margin-top: 24px; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;">
-        <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://admins.rawaes.com'}/admin/housing-departures" target="_blank" style="display: inline-block; background-color: #0f766e; color: #ffffff; padding: 12px 24px; border-radius: 8px; font-weight: bold; text-decoration: none; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+        <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://wasl.rawaes.com'}/admin/housing-departures" target="_blank" style="display: inline-block; background-color: #0f766e; color: #ffffff; padding: 12px 24px; border-radius: 8px; font-weight: bold; text-decoration: none; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
           متابعة مغادرات السكن وتجارب النقل &larr;
         </a>
-        <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://admins.rawaes.com'}/admin/housedarrivals" target="_blank" style="display: inline-block; background-color: #1A4D4F; color: #ffffff; padding: 12px 24px; border-radius: 8px; font-weight: bold; text-decoration: none; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+        <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://wasl.rawaes.com'}/admin/housedarrivals" target="_blank" style="display: inline-block; background-color: #1A4D4F; color: #ffffff; padding: 12px 24px; border-radius: 8px; font-weight: bold; text-decoration: none; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
           فتح جدول السكن والتسكين &larr;
         </a>
       </div>
@@ -402,7 +402,7 @@ export async function checkAndSendHousingGuaranteeNotifications(options?: {
   return {
     success: true,
     checkedAt: now.toISOString(),
-    totalActiveHoused: activeWorkers.length,
+    totalActiveHoused: candidateWorkers.length,
     matchingCount: totalAlertCount,
     thresholds,
     notificationsSent,

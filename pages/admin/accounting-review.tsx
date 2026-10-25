@@ -1,10 +1,17 @@
 import Head from 'next/head';
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import axios from 'axios';
 import Layout from 'example/containers/Layout';
 import Select from 'react-select';
 import { jwtDecode } from 'jwt-decode';
+import {
+  ChevronRight,
+  ChevronLeft,
+  ChevronsRight,
+  ChevronsLeft,
+  ChevronDown,
+} from 'lucide-react';
 
 export default function AccountingReviewPage() {
   const router = useRouter();
@@ -14,6 +21,8 @@ export default function AccountingReviewPage() {
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [activeTab, setActiveTab] = useState<'pending' | 'posted'>('pending');
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string>('');
   
@@ -201,6 +210,15 @@ export default function AccountingReviewPage() {
 
     checkAuthAndInit();
   }, [router]);
+
+  // Support direct link from email with ?orderId= or ?search=
+  useEffect(() => {
+    if (!router.isReady) return;
+    const target = router.query.orderId || router.query.search;
+    if (target) {
+      setSearchTerm(String(target).trim());
+    }
+  }, [router.isReady, router.query]);
 
   const fetchOrders = async () => {
     try {
@@ -1138,6 +1156,18 @@ export default function AccountingReviewPage() {
   const totalTax = currentList.reduce((sum, o) => sum + (parseFloat(o.TaxAmount) || 0), 0);
   const totalNet = currentList.reduce((sum, o) => sum + (parseFloat(o.AmountWithoutTax) || 0), 0);
 
+  // Reset pagination on tab or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchTerm]);
+
+  const totalCount = filteredOrders.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const paginatedOrders = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredOrders.slice(start, start + pageSize);
+  }, [filteredOrders, currentPage, pageSize]);
+
   if (checkingAuth) {
     return (
       <Layout>
@@ -1366,7 +1396,7 @@ export default function AccountingReviewPage() {
                 <div className="flex items-center gap-2 text-xs text-gray-500 font-medium">
                   <span>عدد العقود المعروضة:</span>
                   <span className="font-bold text-gray-900 px-2 py-1 bg-white rounded-lg border border-gray-200 shadow-2xs">
-                    {filteredOrders.length} من {currentList.length}
+                    {paginatedOrders.length} من {totalCount}
                   </span>
                 </div>
               </div>
@@ -1414,7 +1444,7 @@ export default function AccountingReviewPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 text-sm">
-                      {filteredOrders.map((order) => (
+                      {paginatedOrders.map((order) => (
                         <tr key={order.id} className="hover:bg-teal-50/30 transition duration-150">
                           <td className="p-4 font-mono font-bold text-gray-900">
                             <span className="px-2 py-1 bg-gray-100 rounded-lg text-xs">
@@ -1440,8 +1470,14 @@ export default function AccountingReviewPage() {
                                   #{order.daftraJournalId || 'مرحل'}
                                 </span>
                               </td>
-                              <td className="p-4 text-center text-xs font-mono text-gray-600">
-                                {order.journalPostedAt ? new Date(order.journalPostedAt).toLocaleDateString('ar-SA') : '-'}
+                              <td className="p-4 text-center text-xs font-mono font-bold text-gray-700" dir="ltr">
+                                {order.journalPostedAt ? (() => {
+                                  const d = new Date(order.journalPostedAt);
+                                  const y = d.getFullYear();
+                                  const m = String(d.getMonth() + 1).padStart(2, '0');
+                                  const day = String(d.getDate()).padStart(2, '0');
+                                  return `${y}/${m}/${day}`;
+                                })() : '-'}
                               </td>
                             </>
                           ) : (
@@ -1543,6 +1579,151 @@ export default function AccountingReviewPage() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+
+              {/* Comprehensive Pagination & Footer Toolbar */}
+              {!loadingOrders && filteredOrders.length > 0 && (
+                <div className="flex flex-col md:flex-row items-center justify-between gap-3 p-3.5 bg-gray-50/70 border-t border-gray-200 text-xs text-gray-700 select-none">
+                  {/* Record count info & Page size selector */}
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {totalCount === 0 ? (
+                      <span className="text-gray-500 font-medium">لا توجد عقود مسجلة</span>
+                    ) : totalPages <= 1 ? (
+                      <span className="text-gray-700 font-medium">
+                        إجمالي النتائج:{' '}
+                        <span className="font-bold text-[#1A4D4F] font-mono text-sm" dir="ltr">
+                          {totalCount}
+                        </span>{' '}
+                        {totalCount === 1 ? 'عقد' : totalCount === 2 ? 'عقدان' : totalCount <= 10 ? 'عقود' : 'عقد'}
+                      </span>
+                    ) : (
+                      <span className="text-gray-700 font-medium">
+                        عرض{' '}
+                        <span className="font-bold text-gray-900 font-mono" dir="ltr">
+                          {(currentPage - 1) * pageSize + 1}
+                        </span>{' '}
+                        -{' '}
+                        <span className="font-bold text-gray-900 font-mono" dir="ltr">
+                          {Math.min(currentPage * pageSize, totalCount)}
+                        </span>{' '}
+                        من إجمالي{' '}
+                        <span className="font-bold text-[#1A4D4F] font-mono text-sm" dir="ltr">
+                          {totalCount}
+                        </span>{' '}
+                        عقد
+                      </span>
+                    )}
+
+                    <div className="flex items-center gap-2 border-r border-gray-200 pr-3 mr-1">
+                      <span className="text-gray-500">لكل صفحة:</span>
+                      <div className="relative inline-flex items-center">
+                        <select
+                          value={pageSize}
+                          onChange={(e) => {
+                            setPageSize(Number(e.target.value));
+                            setCurrentPage(1);
+                          }}
+                          className="appearance-none bg-white border border-gray-300 rounded-lg pr-3 pl-7 py-1 text-xs font-bold text-gray-800 focus:outline-none focus:ring-1 focus:ring-teal-600 cursor-pointer shadow-2xs hover:border-gray-400 transition-colors"
+                        >
+                          <option value={10}>10</option>
+                          <option value={15}>15</option>
+                          <option value={25}>25</option>
+                          <option value={50}>50</option>
+                          <option value={100}>100</option>
+                        </select>
+                        <div className="absolute left-2 inset-y-0 flex items-center pointer-events-none text-gray-400">
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {totalPages > 1 && (
+                      <span className="text-gray-400 border-r border-gray-200 pr-3 mr-1">
+                        صفحة <span className="font-bold font-mono text-gray-800" dir="ltr">{currentPage}</span> من <span className="font-bold font-mono text-gray-800" dir="ltr">{totalPages}</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Pagination buttons */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {/* First Page */}
+                    <button
+                      disabled={currentPage <= 1}
+                      onClick={() => setCurrentPage(1)}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 bg-white hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-white text-gray-700 transition-all cursor-pointer disabled:cursor-not-allowed shadow-2xs"
+                      title="الصفحة الأولى"
+                    >
+                      <ChevronsRight className="w-4 h-4" />
+                    </button>
+
+                    {/* Previous Page */}
+                    <button
+                      disabled={currentPage <= 1}
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      className="h-8 px-2.5 flex items-center gap-1 rounded-lg border border-gray-200 bg-white hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-white text-gray-700 font-bold transition-all cursor-pointer disabled:cursor-not-allowed shadow-2xs"
+                      title="الصفحة السابقة"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                      <span className="hidden sm:inline">السابق</span>
+                    </button>
+
+                    {/* Numeric Page Buttons */}
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1)
+                        .filter((p) => {
+                          if (totalPages <= 7) return true;
+                          return (
+                            p === 1 ||
+                            p === totalPages ||
+                            Math.abs(p - currentPage) <= 1
+                          );
+                        })
+                        .map((p, idx, arr) => {
+                          const prev = arr[idx - 1];
+                          const showEllipsis = prev && p - prev > 1;
+
+                          return (
+                            <React.Fragment key={p}>
+                              {showEllipsis && (
+                                <span className="px-1 text-gray-400 font-mono font-bold select-none">...</span>
+                              )}
+                              <button
+                                onClick={() => setCurrentPage(p)}
+                                className={`min-w-[32px] h-8 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                  p === currentPage
+                                    ? 'bg-[#1A4D4F] text-white border border-[#164044] shadow-2xs'
+                                    : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-100 hover:border-gray-300'
+                                }`}
+                              >
+                                {p}
+                              </button>
+                            </React.Fragment>
+                          );
+                        })}
+                    </div>
+
+                    {/* Next Page */}
+                    <button
+                      disabled={currentPage >= totalPages}
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      className="h-8 px-2.5 flex items-center gap-1 rounded-lg border border-gray-200 bg-white hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-white text-gray-700 font-bold transition-all cursor-pointer disabled:cursor-not-allowed shadow-2xs"
+                      title="الصفحة التالية"
+                    >
+                      <span className="hidden sm:inline">التالي</span>
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+
+                    {/* Last Page */}
+                    <button
+                      disabled={currentPage >= totalPages}
+                      onClick={() => setCurrentPage(totalPages)}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 bg-white hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-white text-gray-700 transition-all cursor-pointer disabled:cursor-not-allowed shadow-2xs"
+                      title="الصفحة الأخيرة"
+                    >
+                      <ChevronsLeft className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

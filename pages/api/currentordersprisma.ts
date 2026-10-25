@@ -254,8 +254,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         OR: [
           {
             bookingstatus: {
-              in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
+              in: ["new_order", "new_orders", "delivered", "cancelled", "rejected", "closed", "مغلق لهروب العاملة من المطار"],
             },
+          },
+          {
+            isContractEnded: true,
           },
           // استبعاد الطلبات التي لديها ملف استلام
           {

@@ -19,9 +19,10 @@ import OrderStepper from 'components/OrderStepper';
 import ErrorModal from 'components/ErrorModal';
 import { CheckCircleIcon } from '@heroicons/react/solid';
 import { CashIcon, CreditCardIcon, CurrencyDollarIcon } from '@heroicons/react/outline';
-import { Calendar, AlarmClock, ArrowRight, Upload, FileText, Trash2, CheckCircle, Clock, AlertTriangle, X } from 'lucide-react';
+import { Calendar, AlarmClock, ArrowRight, Upload, FileText, Trash2, CheckCircle, Clock, AlertTriangle, X, Plane } from 'lucide-react';
 import { FaCog, FaTimes, FaUserCog, FaFileInvoiceDollar } from 'react-icons/fa';
 import Layout from 'example/containers/Layout';
+import { DateInputField, TimeInputField } from 'components/admin/DateTimeInputs';
 import Style from 'styles/Home.module.css';
 import { jwtDecode } from 'jwt-decode';
 import Select from 'react-select'; // Added for autocomplete
@@ -376,6 +377,143 @@ export default function TrackOrder() {
   });
   const [deliveryDetailsErrors, setDeliveryDetailsErrors] = useState<Record<string, string>>({});
   const [isDeliveryDetailsEditMode, setIsDeliveryDetailsEditMode] = useState(false);
+
+  // --- Airport Escape State ---
+  const [showAirportEscapeModal, setShowAirportEscapeModal] = useState(false);
+  const [airportEscapeForm, setAirportEscapeForm] = useState({
+    escapeDate: '',
+    escapeTime: '',
+    notes: '',
+    reportFile: '',
+  });
+  const [isUploadingEscapeReport, setIsUploadingEscapeReport] = useState(false);
+  const [escapeReportFileName, setEscapeReportFileName] = useState('');
+  const [escapeReportUploadError, setEscapeReportUploadError] = useState('');
+  const [isSubmittingAirportEscape, setIsSubmittingAirportEscape] = useState(false);
+
+  const handleEscapeReportFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploadingEscapeReport(true);
+      setEscapeReportUploadError('');
+      setEscapeReportFileName(file.name);
+
+      let uploadedUrl = '';
+      try {
+        const presignRes = await fetch(`/api/upload-presigned-url/escapeReportFile?contentType=${encodeURIComponent(file.type)}`);
+        if (presignRes.ok) {
+          const { url, filePath } = await presignRes.json();
+          const putRes = await fetch(url, {
+            method: 'PUT',
+            body: file,
+            headers: { 'x-amz-acl': 'public-read', 'Content-Type': file.type },
+          });
+          if (putRes.ok) {
+            uploadedUrl = filePath;
+          }
+        }
+      } catch {}
+
+      if (!uploadedUrl) {
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        const res = await fetch('/api/housing/upload-worker-photo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            file: base64,
+            filename: file.name,
+            contentType: file.type || 'application/octet-stream',
+          }),
+        });
+        const json = await res.json();
+        uploadedUrl = json?.url || json?.filePath || '';
+      }
+
+      if (uploadedUrl) {
+        setAirportEscapeForm((prev) => ({ ...prev, reportFile: uploadedUrl }));
+      }
+    } catch (err: any) {
+      setEscapeReportUploadError(err.message || 'فشل في رفع ملف بلاغ الهروب');
+    } finally {
+      setIsUploadingEscapeReport(false);
+    }
+  };
+
+  const handleOpenAirportEscapeModal = () => {
+    let prefillDate = '';
+    let prefillTime = '';
+    if (orderData?.destinations?.arrivalDateTime) {
+      try {
+        const d = new Date(orderData.destinations.arrivalDateTime);
+        if (!isNaN(d.getTime())) {
+          prefillDate = d.toISOString().split('T')[0];
+          prefillTime = d.toTimeString().substring(0, 5);
+        }
+      } catch (e) {}
+    }
+    if (!prefillDate) {
+      prefillDate = new Date().toISOString().split('T')[0];
+      prefillTime = new Date().toTimeString().substring(0, 5);
+    }
+    setAirportEscapeForm({
+      escapeDate: prefillDate,
+      escapeTime: prefillTime,
+      notes: '',
+      reportFile: '',
+    });
+    setEscapeReportFileName('');
+    setEscapeReportUploadError('');
+    setShowAirportEscapeModal(true);
+  };
+
+  const handleSubmitAirportEscape = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!orderData?.homemaidInfo?.id) return;
+    setIsSubmittingAirportEscape(true);
+    try {
+      const res = await fetch('/api/escapes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          escapeType: 'airport',
+          homeMaidId: orderData.homemaidInfo.id,
+          orderId: id,
+          clientId: orderData.clientInfo?.id || null,
+          escapeDate: airportEscapeForm.escapeDate,
+          escapeTime: airportEscapeForm.escapeTime,
+          reportFile: airportEscapeForm.reportFile || null,
+          notes: airportEscapeForm.notes || 'هروب العاملة من المطار عند الوصول',
+        }),
+      });
+
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.message || 'فشل في حفظ بلاغ الهروب من المطار');
+      }
+
+      setShowAirportEscapeModal(false);
+      setShowAlertModal({
+        isOpen: true,
+        message: 'تم تسجيل هروب العاملة من المطار بنجاح واعتماد بلاغ الهروب كمرفق استلام للطلب',
+      });
+      await fetchOrderData();
+    } catch (err: any) {
+      setShowErrorModal({
+        isOpen: true,
+        title: 'خطأ',
+        message: err.message || 'حدث خطأ أثناء تسجيل الهروب من المطار',
+      });
+    } finally {
+      setIsSubmittingAirportEscape(false);
+    }
+  };
 
   // --- Modal States ---
   const [showConfirmModal, setShowConfirmModal] = useState<{
@@ -2994,7 +3132,7 @@ export default function TrackOrder() {
             data={[
               {
                 label: 'طريقة الاستلام',
-                value: orderData.receipt.received ? (
+                value: (orderData.receipt.received || orderData.receipt.method === 'airport_escape' || orderData.bookingStatus === 'مغلق لهروب العاملة من المطار') ? (
                   <div className="text-right">
                     <div className="flex items-center gap-2">
                       <CheckCircleIcon className="w-6 h-6 text-teal-800" aria-label="تم الاستلام" />
@@ -3002,6 +3140,7 @@ export default function TrackOrder() {
                         {orderData.receipt.method === 'direct' ? 'مباشر' :
                          orderData.receipt.method === 'indirect' ? 'غير مباشر' :
                          orderData.receipt.method === 'intermediary' ? 'عن طريق وسيط' :
+                         (orderData.receipt.method === 'airport_escape' || orderData.bookingStatus === 'مغلق لهروب العاملة من المطار') ? 'هروب من المطار' :
                          'غير محدد'}
                       </span>
                     </div>
@@ -3023,10 +3162,10 @@ export default function TrackOrder() {
                                 );
                               }
                               return (
-                                <>
-                                  <AlarmClock className="inline-block w-4 h-4" />
-                                  لا يمكن الاستلام قبل موعد الوصول
-                                </>
+                                  <>
+                                    <AlarmClock className="inline-block w-4 h-4" />
+                                    لا يمكن الاستلام قبل موعد الوصول
+                                  </>
                               );
                             })()
                           : !orderData.destinations?.arrivalDateTime
@@ -3035,8 +3174,8 @@ export default function TrackOrder() {
                         }
                       </span>
                     )}
-                    <div className={`space-y-2 flex flex-row justify-center gap-6 ${!canCompleteStep('receipt') ? 'opacity-50 pointer-events-none' : ''}`}>
-                      <div className="flex items-center  gap-2 text-right">
+                    <div className="space-y-2 flex flex-row flex-wrap justify-center gap-4 sm:gap-6">
+                      <div className={`flex items-center gap-2 text-right ${!canCompleteStep('receipt') ? 'opacity-50 pointer-events-none' : ''}`}>
                         <input
                           type="radio"
                           id="receipt-direct"
@@ -3073,7 +3212,7 @@ export default function TrackOrder() {
                         />
                         <label htmlFor="receipt-direct" className="text-gray-700">مباشر</label>
                       </div>
-                      <div className="flex items-center gap-2 text-right">
+                      <div className={`flex items-center gap-2 text-right ${!canCompleteStep('receipt') ? 'opacity-50 pointer-events-none' : ''}`}>
                         <input
                           type="radio"
                           id="receipt-indirect"
@@ -3110,7 +3249,7 @@ export default function TrackOrder() {
                         />
                         <label htmlFor="receipt-indirect" className="text-gray-700">غير مباشر</label>
                       </div>
-                      <div className="flex items-center gap-2 text-right">
+                      <div className={`flex items-center gap-2 text-right ${!canCompleteStep('receipt') ? 'opacity-50 pointer-events-none' : ''}`}>
                         <input
                           type="radio"
                           id="receipt-intermediary"
@@ -3146,6 +3285,24 @@ export default function TrackOrder() {
                           }}
                         />
                         <label htmlFor="receipt-intermediary" className="text-gray-700">عن طريق وسيط</label>
+                      </div>
+
+                      <div className={`flex items-center gap-2 text-right ${!canCompleteStep('receipt') ? 'opacity-50 pointer-events-none' : ''}`}>
+                        <input
+                          type="radio"
+                          id="receipt-airport-escape"
+                          name="receipt-method"
+                          value="airport_escape"
+                          className="ml-2"
+                          checked={orderData.receipt.method === 'airport_escape' || orderData.bookingStatus === 'مغلق لهروب العاملة من المطار'}
+                          disabled={!canCompleteStep('receipt')}
+                          onChange={(e) => {
+                            if (e.target.checked && canCompleteStep('receipt')) {
+                              handleOpenAirportEscapeModal();
+                            }
+                          }}
+                        />
+                        <label htmlFor="receipt-airport-escape" className="text-gray-700">تسجيل هروب من المطار</label>
                       </div>
                     </div>
                   </div>
@@ -3373,6 +3530,12 @@ export default function TrackOrder() {
                     }
                     setIsDeliveryDetailsEditMode(true);
                   },
+                  disabled: updating,
+                },
+                {
+                  label: 'تسجيل هروب من المطار',
+                  type: 'secondary' as const,
+                  onClick: handleOpenAirportEscapeModal,
                   disabled: updating,
                 },
               ] : []),
@@ -4689,6 +4852,192 @@ export default function TrackOrder() {
           </div>
         )}
         <UnfitChangeModal />
+
+        {/* Airport Escape Modal */}
+        {showAirportEscapeModal && (
+          <div
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+            dir="rtl"
+            onClick={() => setShowAirportEscapeModal(false)}
+          >
+            <div
+              className="bg-white rounded-2xl w-full max-w-md p-5 space-y-4 shadow-2xl border border-gray-100 text-right animate-in zoom-in-95"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b pb-3 border-gray-100">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-teal-50 text-teal-800 rounded-lg">
+                    <Plane className="w-5 h-5 text-teal-700" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-gray-900">تسجيل هروب العاملة من المطار</h3>
+                    <p className="text-[11px] text-gray-500">مرحلة الاستلام بعد الوصول</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAirportEscapeModal(false)}
+                  className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+                >
+                  &times;
+                </button>
+              </div>
+
+              {/* Summary card of worker & client */}
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-2.5 space-y-1 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500">العاملة:</span>
+                  <span className="font-bold text-gray-900">{orderData?.homemaidInfo?.name || '—'}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500">رقم الجواز:</span>
+                  <span className="font-mono text-gray-800 font-bold" dir="ltr">{orderData?.homemaidInfo?.passportNumber || '—'}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500">العميل:</span>
+                  <span className="font-bold text-gray-900">{orderData?.clientInfo?.name || '—'}</span>
+                </div>
+              </div>
+
+              <form onSubmit={handleSubmitAirportEscape} className="space-y-3 text-xs sm:text-sm">
+                <div>
+                  <DateInputField
+                    label="تاريخ الهروب"
+                    required
+                    value={airportEscapeForm.escapeDate}
+                    onChange={(val) =>
+                      setAirportEscapeForm({
+                        ...airportEscapeForm,
+                        escapeDate: val,
+                      })
+                    }
+                    accentColor="teal"
+                  />
+                  <span className="text-[11px] text-gray-400 mt-1 block">
+                    يتم التعبئة تلقائياً بتاريخ الوصول ويمكنك تعديله بحسب وقت الواقعة
+                  </span>
+                </div>
+
+                <TimeInputField
+                  label="وقت الهروب"
+                  value={airportEscapeForm.escapeTime}
+                  onChange={(val) =>
+                    setAirportEscapeForm({
+                      ...airportEscapeForm,
+                      escapeTime: val,
+                    })
+                  }
+                  accentColor="teal"
+                />
+
+                {/* File Upload for Airport Escape Report */}
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">
+                    مرفق بلاغ الهروب (PDF / صورة)
+                  </label>
+                  <input
+                    type="file"
+                    id="airport-escape-report-input"
+                    accept=".pdf,image/jpeg,image/png,image/webp"
+                    onChange={handleEscapeReportFileUpload}
+                    disabled={isUploadingEscapeReport || isSubmittingAirportEscape}
+                    className="hidden"
+                  />
+
+                  {airportEscapeForm.reportFile ? (
+                    <div className="flex items-center justify-between bg-white border border-gray-300 rounded-lg p-2.5">
+                      <div className="flex items-center gap-2 text-xs text-gray-800 font-medium truncate">
+                        <FileText className="w-4 h-4 text-gray-500 shrink-0" />
+                        <span className="truncate max-w-[240px]">{escapeReportFileName || 'تم رفع ملف بلاغ الهروب'}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <a
+                          href={airportEscapeForm.reportFile}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-teal-700 hover:text-teal-900 font-bold underline"
+                        >
+                          معاينة
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAirportEscapeForm((prev) => ({ ...prev, reportFile: '' }));
+                            setEscapeReportFileName('');
+                          }}
+                          className="text-gray-400 hover:text-rose-600 p-1 cursor-pointer"
+                          title="حذف المرفق"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <label
+                      htmlFor="airport-escape-report-input"
+                      className={`flex items-center justify-between w-full p-2.5 bg-white border border-gray-300 hover:border-gray-400 rounded-lg cursor-pointer transition-all text-xs text-gray-500 ${
+                        isUploadingEscapeReport ? 'opacity-50 pointer-events-none' : ''
+                      }`}
+                    >
+                      {isUploadingEscapeReport ? (
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <div className="w-4 h-4 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+                          <span>جاري رفع ملف البلاغ...</span>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="text-gray-400">اختر ملف بلاغ الهروب (PDF أو صورة)...</span>
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md font-bold text-xs border border-gray-200 transition-colors">
+                            <Upload className="w-3.5 h-3.5 text-gray-500" />
+                            <span>رفع ملف</span>
+                          </span>
+                        </>
+                      )}
+                    </label>
+                  )}
+                  {escapeReportUploadError && (
+                    <p className="text-[11px] text-rose-600 font-medium mt-1">{escapeReportUploadError}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">
+                    ملاحظات وتفاصيل الواقعة
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="اكتب تفاصيل واقعة هروب المطار..."
+                    value={airportEscapeForm.notes}
+                    onChange={(e) =>
+                      setAirportEscapeForm({
+                        ...airportEscapeForm,
+                        notes: e.target.value,
+                      })
+                    }
+                    className="w-full p-2.5 bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-teal-600"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowAirportEscapeModal(false)}
+                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-bold"
+                  >
+                    إلغاء
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingAirportEscape}
+                    className="px-5 py-2 bg-teal-800 hover:bg-teal-900 text-white rounded-lg text-xs font-bold shadow-sm disabled:opacity-50 transition-colors"
+                  >
+                    {isSubmittingAirportEscape ? 'جاري الحفظ...' : 'تأكيد وحفظ البلاغ'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );

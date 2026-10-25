@@ -312,7 +312,7 @@ export async function sendAccountingReviewNotification(orderId: number | string,
               </div>
 
               <div style="text-align: center; margin-top: 24px;">
-                <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://rawaes.com'}/admin/accounting-review" target="_blank" style="display: inline-block; background-color: #1A4D4F; color: #ffffff; padding: 13px 32px; border-radius: 8px; font-weight: bold; text-decoration: none; font-size: 15px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://wasl.rawaes.com'}/admin/accounting-review?orderId=${orderId}" target="_blank" style="display: inline-block; background-color: #1A4D4F; color: #ffffff; padding: 13px 32px; border-radius: 8px; font-weight: bold; text-decoration: none; font-size: 15px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
                   فتح صفحة مراجعة وترحيل القيود &larr;
                 </a>
               </div>

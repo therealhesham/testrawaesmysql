@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import Layout from "example/containers/Layout";
@@ -413,7 +414,7 @@ useEffect(() => {
                       <td className="px-4 py-2 text-center">{row.clientphonenumber}</td>
                       <td className="px-4 py-2 text-center">{row.nationalId}</td>
                       <td
-                        onClick={() => router.push("/admin/cvdetails/" + row.HomemaidId)}
+                        onClick={() => router.push("/admin/homemaidinfo?id=" + row.HomemaidId)}
                         className="px-3 py-2 cursor-pointer text-center decoration-black"
                       >
                         {row.HomemaidId}

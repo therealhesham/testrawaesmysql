@@ -1,4 +1,5 @@
 const defaultTheme = require("tailwindcss/defaultTheme");
+const colors = require("tailwindcss/colors");
 const windmill = require("@roketid/windmill-react-ui/config");
 
 module.exports = windmill({
@@ -16,6 +17,10 @@ module.exports = windmill({
         secondary: "#78909C",
         "background-light": "#F8FAFC",
         "background-dark": "#0F172A",
+        amber: colors.amber,
+        emerald: colors.emerald,
+        rose: colors.rose,
+        sky: colors.sky,
       },
       fontFamily: {
         display: ["Tajawal", "sans-serif"],

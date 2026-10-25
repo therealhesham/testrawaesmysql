@@ -1001,8 +1001,10 @@ export default function Table() {
                     <td
                       className={`text-center cursor-pointer text-purple-900 text-lg mb-4 ${Style["almarai-light"]}`}
                       onClick={() => {
-                        const url = "/admin/cvdetails/" + item?.Order.id;
-                        window.open(url, "_blank");
+                        if (item?.Order?.id) {
+                          const url = "/admin/homemaidinfo?id=" + item.Order.id;
+                          window.open(url, "_blank");
+                        }
                       }}
                     >
                       <h1

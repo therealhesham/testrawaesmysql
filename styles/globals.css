@@ -689,6 +689,15 @@ select[class*="appearance-none"] {
   appearance: none !important;
 }
 
+/* Universal RTL Select Arrow Placement - Prevents Arrow Overlapping Arabic Text */
+[dir="rtl"] select:not(.appearance-none),
+html[dir="rtl"] select:not(.appearance-none),
+body[dir="rtl"] select:not(.appearance-none) {
+  background-position: left 0.75rem center !important;
+  padding-left: 2.25rem !important;
+  padding-right: 0.75rem !important;
+}
+
 /* Universal English Numeral & Date Enforcement */
 input,
 select,

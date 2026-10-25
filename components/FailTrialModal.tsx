@@ -24,6 +24,7 @@ export interface FailTrialModalProps {
 }
 
 export const FAIL_TRIAL_REASONS = [
+  'هروب العاملة من تجربة نقل الكفالة',
   'عدم التوافق مع متطلبات العميل',
   'رفض العمل من قبل العاملة',
   'أسباب وظروف عائلية لدى العميل',

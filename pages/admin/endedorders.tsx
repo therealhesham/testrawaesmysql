@@ -28,10 +28,12 @@ interface OrderData {
   clientID?: number | null;
   HomemaidId?: number | null;
   isContractEnded?: boolean | null;
+  bookingstatus?: string | null;
   client?: {
     id: number;
     fullname?: string | null;
     phonenumber?: string | null;
+    nationalId?: string | null;
   } | null;
   HomeMaid?: {
     id: number;
@@ -70,9 +72,9 @@ function getRemainingDays(endDateString: string | null | undefined): number | nu
 
 /** نص عرض المتبقي من الضمان - المصدر الوحيد: KingdomentryDate + 90 يوم */
 function getWarrantyDisplayText(order: OrderData): string {
+  if (order.bookingstatus === 'مغلق لهروب العاملة من المطار' || order.isContractEnded) return 'انتهت فترة الضمان';
   const endDate = getWarrantyEndDate(order.arrivals?.[0]?.KingdomentryDate as string);
   const remainingDays = getRemainingDays(endDate);
-  if (order.isContractEnded) return 'انتهت فترة الضمان';
   if (remainingDays === null) return 'غير محدد';
   if (remainingDays >= 0) return `متبقي ${remainingDays} يوم`;
   return `انتهى منذ ${Math.abs(remainingDays)} يوم`;
@@ -87,6 +89,9 @@ function getWarrantyColorClass(text: string): string {
 
 /** مدة المعاملة: من تاريخ العقد (DateOfApplication) إلى تاريخ الاستلام (deliveryDate) - كما في track_order */
 function getTransactionDuration(order: OrderData): string {
+  if (order.bookingstatus === 'مغلق لهروب العاملة من المطار' || order.bookingstatus?.includes('هروب')) {
+    return 'مغلق (هروب من المطار)';
+  }
   const startDate = order.arrivals?.[0]?.DateOfApplication;  // تاريخ العقد
   const endDate = order.DeliveryDetails?.[0]?.deliveryDate;  // تاريخ الاستلام
   if (!startDate) return 'لم تنتهِ بعد';

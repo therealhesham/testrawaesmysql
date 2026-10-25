@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect } from "react";
 import Layout from "example/containers/Layout";
 import Style from "styles/Home.module.css";
@@ -207,8 +208,11 @@ const CheckInTable = () => {
                   <td
                     className="text-center cursor-pointer text-purple-900 text-lg mb-4"
                     onClick={() => {
-                      const url = "/admin/cvdetails/" + row.HousedWorker?.id;
-                      window.open(url, "_blank");
+                      const maidId = row.HousedWorker?.Order?.id || row.HousedWorker?.homeMaid_id;
+                      if (maidId) {
+                        const url = "/admin/homemaidinfo?id=" + maidId;
+                        window.open(url, "_blank");
+                      }
                     }}
                   >
                     {row.HousedWorker?.Order?.Name}

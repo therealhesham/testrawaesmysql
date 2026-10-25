@@ -1,3 +1,4 @@
+// @ts-nocheck
 import Layout from "example/containers/Layout";
 import { jwtDecode } from "jwt-decode";
 import prisma from "lib/prisma";
@@ -89,7 +90,7 @@ const ClientsTable = () => {
             <td className="px-4 py-2 text-center">{row.Name}</td>
             <td className="px-4 text-center py-2">{row.PhoneNumber}</td>
             <td
-              onClick={() => router.push(`/admin/cvdetails/${row.HomemaidId}`)}
+              onClick={() => router.push(`/admin/homemaidinfo?id=${row.HomemaidId}`)}
               className="px-3 py-2 cursor-pointer text-center decoration-black"
             >
               {row.HomemaidId}

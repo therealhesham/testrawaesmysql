@@ -112,9 +112,9 @@ export function getOrderFinancialStatus(order: any): OrderFinancialStatusInfo {
     return {
       code: 'no_statement',
       label: 'لا يوجد سجل مالي',
-      badgeBg: 'bg-slate-100',
-      badgeText: 'text-slate-700',
-      badgeBorder: 'border-slate-300',
+      badgeBg: 'bg-white',
+      badgeText: 'text-gray-800',
+      badgeBorder: 'border-gray-200',
       tooltip: 'لم يتم إنشاء كشف حساب أو سجل مالي لهذا الطلب بعد في النظام.',
       icon: '📋',
       total: rawTotal,
@@ -164,9 +164,9 @@ export function getOrderFinancialStatus(order: any): OrderFinancialStatusInfo {
       return {
         code: 'paid_full_two',
         label: 'مسدد بالكامل (اكتملت 3 دفعات)',
-        badgeBg: 'bg-teal-100',
-        badgeText: 'text-teal-800',
-        badgeBorder: 'border-teal-300',
+        badgeBg: 'bg-white',
+        badgeText: 'text-gray-800',
+        badgeBorder: 'border-gray-200',
         tooltip: 'كان الطلب مجدولاً على 3 دفعات، وتم سداد كامل المستحقات واكتمال الدفعات بنجاح.',
         icon: '🔵',
         total: totalDebit,
@@ -179,9 +179,9 @@ export function getOrderFinancialStatus(order: any): OrderFinancialStatusInfo {
       return {
         code: 'paid_full_two',
         label: 'مسدد بالكامل (اكتملت الدفعتين)',
-        badgeBg: 'bg-teal-100',
-        badgeText: 'text-teal-800',
-        badgeBorder: 'border-teal-300',
+        badgeBg: 'bg-white',
+        badgeText: 'text-gray-800',
+        badgeBorder: 'border-gray-200',
         tooltip: 'كان الطلب مجدولاً على دفعتين، وتم سداد كامل المستحقات واكتمال الدفعتين بنجاح.',
         icon: '🔵',
         total: totalDebit,
@@ -194,9 +194,9 @@ export function getOrderFinancialStatus(order: any): OrderFinancialStatusInfo {
       return {
         code: 'paid_full_single',
         label: 'مسدد بالكامل (دفعة واحدة)',
-        badgeBg: 'bg-emerald-100',
-        badgeText: 'text-emerald-800',
-        badgeBorder: 'border-emerald-300',
+        badgeBg: 'bg-white',
+        badgeText: 'text-gray-800',
+        badgeBorder: 'border-gray-200',
         tooltip: 'تم سداد كامل قيمة العقد دفعة واحدة بنجاح، ولا توجد أي مستحقات متبقية على العميل.',
         icon: '🟢',
         total: totalDebit,
@@ -213,9 +213,9 @@ export function getOrderFinancialStatus(order: any): OrderFinancialStatusInfo {
     return {
       code: 'unpaid',
       label: 'معلق (لم يُسدد أي مبلغ)',
-      badgeBg: 'bg-red-100',
-      badgeText: 'text-red-900',
-      badgeBorder: 'border-red-300',
+      badgeBg: 'bg-white',
+      badgeText: 'text-gray-800',
+      badgeBorder: 'border-gray-200',
       tooltip: 'يوجد سجل محاسبي مسجل للطلب ولكن لم يتم استلام أو سداد أي دفعة حتى الآن (المبلغ معلق بالكامل).',
       icon: '🔴',
       total: totalDebit,
@@ -265,9 +265,9 @@ export function getOrderFinancialStatus(order: any): OrderFinancialStatusInfo {
     return {
       code: 'two_installments_with_sanad',
       label: `${systemName} — ${remainingInstallmentsText} (سند لأمر موثق)`,
-      badgeBg: 'bg-amber-100',
-      badgeText: 'text-amber-900',
-      badgeBorder: 'border-amber-400',
+      badgeBg: 'bg-white',
+      badgeText: 'text-gray-800',
+      badgeBorder: 'border-gray-200',
       tooltip: `${installmentsTooltipDetail || (isThreeInstallments ? 'العقد بنظام 3 دفعات' : 'العقد بنظام أقساط')} مع وجود سند لأمر موثق ومرفوع نظامياً.`,
       icon: '🟠',
       total: totalDebit,
@@ -280,9 +280,9 @@ export function getOrderFinancialStatus(order: any): OrderFinancialStatusInfo {
     return {
       code: 'two_installments_no_sanad',
       label: `${systemName} — ${remainingInstallmentsText} (بدون سند لأمر ⚠️)`,
-      badgeBg: 'bg-purple-100',
-      badgeText: 'text-purple-900',
-      badgeBorder: 'border-purple-400',
+      badgeBg: 'bg-white',
+      badgeText: 'text-gray-800',
+      badgeBorder: 'border-gray-200',
       tooltip: `تنبيه هام: ${installmentsTooltipDetail || (isThreeInstallments ? 'العقد بنظام 3 دفعات' : 'العقد بنظام أقساط')} ولكن ملف سند لأمر غير مرفوع في النظام! يتطلب اتخاذ إجراء.`,
       icon: '🟣',
       total: totalDebit,
@@ -309,9 +309,9 @@ export const FINANCIAL_STATUS_FILTER_OPTIONS: {
     label: 'جميع الحالات المالية (عرض الكل)',
     shortLabel: 'الكل',
     icon: '✨',
-    badgeBg: 'bg-gray-100',
+    badgeBg: 'bg-white',
     badgeText: 'text-gray-700',
-    badgeBorder: 'border-gray-300',
+    badgeBorder: 'border-gray-200',
     description: 'عرض كافة السجلات دون أي تصفية',
   },
   {
@@ -319,9 +319,9 @@ export const FINANCIAL_STATUS_FILTER_OPTIONS: {
     label: 'مسدد بالكامل (دفعة واحدة)',
     shortLabel: 'مسدد (دفعة واحدة)',
     icon: '🟢',
-    badgeBg: 'bg-emerald-50 text-emerald-800',
-    badgeText: 'text-emerald-800',
-    badgeBorder: 'border-emerald-300',
+    badgeBg: 'bg-white',
+    badgeText: 'text-gray-800',
+    badgeBorder: 'border-gray-200',
     description: 'تم سداد كامل العقد دفعة واحدة (متبقي: 0)',
   },
   {
@@ -329,9 +329,9 @@ export const FINANCIAL_STATUS_FILTER_OPTIONS: {
     label: 'مسدد بالكامل (اكتملت الدفعتين)',
     shortLabel: 'مسدد (اكتملت الدفعتين)',
     icon: '🔵',
-    badgeBg: 'bg-teal-50 text-teal-800',
-    badgeText: 'text-teal-800',
-    badgeBorder: 'border-teal-300',
+    badgeBg: 'bg-white',
+    badgeText: 'text-gray-800',
+    badgeBorder: 'border-gray-200',
     description: 'نظام دفعتين وتم سداد الدفعتين بالكامل',
   },
   {
@@ -339,9 +339,9 @@ export const FINANCIAL_STATUS_FILTER_OPTIONS: {
     label: 'دفعتين — متبقي دفعة (مع سند لأمر)',
     shortLabel: 'متبقي دفعة (مع سند)',
     icon: '🟠',
-    badgeBg: 'bg-amber-50 text-amber-900',
-    badgeText: 'text-amber-900',
-    badgeBorder: 'border-amber-400',
+    badgeBg: 'bg-white',
+    badgeText: 'text-gray-800',
+    badgeBorder: 'border-gray-200',
     description: 'متبقي دفعة ثانية مع وجود سند لأمر موثق',
   },
   {
@@ -349,9 +349,9 @@ export const FINANCIAL_STATUS_FILTER_OPTIONS: {
     label: 'دفعتين — متبقي دفعة (بدون سند لأمر ⚠️)',
     shortLabel: 'متبقي دفعة (بدون سند ⚠️)',
     icon: '🟣',
-    badgeBg: 'bg-purple-50 text-purple-900',
-    badgeText: 'text-purple-900',
-    badgeBorder: 'border-purple-400',
+    badgeBg: 'bg-white',
+    badgeText: 'text-gray-800',
+    badgeBorder: 'border-gray-200',
     description: 'متبقي دفعة ثانية وملف السند غير مرفوع',
   },
   {
@@ -359,9 +359,9 @@ export const FINANCIAL_STATUS_FILTER_OPTIONS: {
     label: 'معلق (لم يُسدد أي مبلغ)',
     shortLabel: 'معلق (غير مسدد)',
     icon: '🔴',
-    badgeBg: 'bg-red-50 text-red-900',
-    badgeText: 'text-red-900',
-    badgeBorder: 'border-red-300',
+    badgeBg: 'bg-white',
+    badgeText: 'text-gray-800',
+    badgeBorder: 'border-gray-200',
     description: 'يوجد سجل مالي مسجل ولكن لم يدفع أي مبلغ',
   },
   {
@@ -369,9 +369,9 @@ export const FINANCIAL_STATUS_FILTER_OPTIONS: {
     label: 'لا يوجد سجل مالي',
     shortLabel: 'بدون سجل مالي',
     icon: '📋',
-    badgeBg: 'bg-slate-100 text-slate-700',
-    badgeText: 'text-slate-700',
-    badgeBorder: 'border-slate-300',
+    badgeBg: 'bg-white',
+    badgeText: 'text-gray-800',
+    badgeBorder: 'border-gray-200',
     description: 'لم يتم إنشاء كشف حساب أو سجل مالي بعد',
   },
 ];
@@ -1637,7 +1637,7 @@ const exportedData = async ()=>{
                                         <div className="relative inline-block group text-right">
                                           {/* شارة الحالة المالية */}
                                           <div
-                                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border cursor-help shadow-sm transition-all duration-150 hover:shadow ${finStatus.badgeBg} ${finStatus.badgeText} ${finStatus.badgeBorder}`}
+                                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border cursor-help shadow-xs transition-all duration-150 hover:shadow ${finStatus.badgeBg} ${finStatus.badgeText} ${finStatus.badgeBorder}`}
                                           >
                                             <span className="text-sm leading-none">{finStatus.icon}</span>
                                             <span className="whitespace-nowrap">{finStatus.label}</span>
@@ -1647,7 +1647,13 @@ const exportedData = async ()=>{
                                           {finStatus.remaining > 0 && finStatus.code !== 'no_statement' && (
                                             <div className="text-xs text-gray-500 mt-1 flex items-center gap-1.5 whitespace-nowrap">
                                               <span>متبقي:</span>
-                                              <span className="font-semibold text-rose-700">{finStatus.remaining.toLocaleString()} ر.س</span>
+                                              <span className="font-semibold text-gray-700">
+                                                {finStatus.remaining.toLocaleString(undefined, {
+                                                  minimumFractionDigits: finStatus.remaining % 1 !== 0 ? 2 : 0,
+                                                  maximumFractionDigits: 2,
+                                                })}{' '}
+                                                ر.س
+                                              </span>
                                               {finStatus.hasSanad && finStatus.sanadUrl && (
                                                 <a
                                                   href={finStatus.sanadUrl}
@@ -2046,8 +2052,11 @@ export async function getStaticProps() {
           OR: [
             {
               bookingstatus: {
-                in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
+                in: ["new_order", "new_orders", "delivered", "cancelled", "rejected", "closed", "مغلق لهروب العاملة من المطار"],
               },
+            },
+            {
+              isContractEnded: true,
             },
             // استبعاد الطلبات التي لديها ملف استلام
             {
@@ -2120,8 +2129,11 @@ export async function getStaticProps() {
           OR: [
             {
               bookingstatus: {
-                in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
+                in: ["new_order", "new_orders", "delivered", "cancelled", "rejected", "closed", "مغلق لهروب العاملة من المطار"],
               },
+            },
+            {
+              isContractEnded: true,
             },
             // استبعاد الطلبات التي لديها ملف استلام
             {
@@ -2165,8 +2177,11 @@ export async function getStaticProps() {
           OR: [
             {
               bookingstatus: {
-                in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
+                in: ["new_order", "new_orders", "delivered", "cancelled", "rejected", "closed", "مغلق لهروب العاملة من المطار"],
               },
+            },
+            {
+              isContractEnded: true,
             },
             // استبعاد الطلبات التي لديها ملف استلام
             {
@@ -2190,8 +2205,11 @@ export async function getStaticProps() {
           OR: [
             {
               bookingstatus: {
-                in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
+                in: ["new_order", "new_orders", "delivered", "cancelled", "rejected", "closed", "مغلق لهروب العاملة من المطار"],
               },
+            },
+            {
+              isContractEnded: true,
             },
             // استبعاد الطلبات التي لديها ملف استلام
             {

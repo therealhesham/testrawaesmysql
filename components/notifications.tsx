@@ -95,7 +95,7 @@ export default function NotificationDropdown() {
 
   // Handle number click in message
   const handleNumberClick = (number: string) => {
-  console.log(`/cvdetails/${number}`);
+    window.open(`/admin/homemaidinfo?id=${number}`, '_blank');
   };
 
   // Format message with clickable numbers

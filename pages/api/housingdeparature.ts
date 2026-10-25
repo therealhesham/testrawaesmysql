@@ -742,6 +742,8 @@ export default async function handler(
         finalReason = deparatureReason || 'مغادرة لتجربة نقل خدمات';
       } else if (deparatureType === 'final_transfer') {
         finalReason = deparatureReason || 'مغادرة نقل خدمات';
+      } else if (deparatureType === 'escape') {
+        finalReason = deparatureReason || 'الهروب من السكن';
       }
 
       // Check if scheduled deportation is in the future
@@ -875,6 +877,7 @@ export default async function handler(
           transferSponsorshipData: transferSponsorshipData || null,
           medicalDepartureData: medicalDepartureData || null,
           deportationData: deportationData || null,
+          escapeData: deparatureType === 'escape' ? req.body.escapeData || null : null,
           checkIns: {
             updateMany: {
               where: { isActive: true },
@@ -897,6 +900,104 @@ export default async function handler(
           });
         } catch (maidErr) {
           console.error('Error updating homemaid status for medical departure:', maidErr);
+        }
+      }
+
+      // 🏃‍♂️ مسار الهروب من السكن (تسجيل في سجلات الهروب دون تغيير إقامة العاملة)
+      if (deparatureType === 'escape' && actualHomeMaidId) {
+        try {
+          const escData = req.body.escapeData || {};
+          const escDate = finalHousingDate ? new Date(finalHousingDate) : new Date();
+
+          const targetMaidId = Number(actualHomeMaidId);
+          const arr = await prisma.arrivallist.findFirst({
+            where: {
+              OR: [
+                { HomemaIdnumber: targetMaidId },
+                { Order: { HomemaidId: targetMaidId } },
+                { Order: { HomemaidIdCopy: targetMaidId } },
+              ],
+              KingdomentryDate: { not: null },
+            },
+            orderBy: { id: 'desc' },
+            select: {
+              KingdomentryDate: true,
+              OrderId: true,
+              SponsorIdnumber: true,
+              Order: {
+                select: { id: true, clientID: true },
+              },
+            },
+          });
+
+          let arrivalDate = arr?.KingdomentryDate ? new Date(arr.KingdomentryDate) : null;
+          let resolvedOrderId = arr?.OrderId || arr?.Order?.id || null;
+          let resolvedClientId = arr?.SponsorIdnumber || arr?.Order?.clientID || null;
+
+          if (!arrivalDate) {
+            const ticket = await prisma.tickets_details.findFirst({
+              where: {
+                OR: [
+                  { order: { HomemaidId: targetMaidId } },
+                  { order: { HomemaidIdCopy: targetMaidId } },
+                ],
+                arrival_date: { not: null },
+              },
+              orderBy: { id: 'desc' },
+              select: {
+                arrival_date: true,
+                order_id: true,
+                order: { select: { id: true, clientID: true } },
+              },
+            });
+            if (ticket?.arrival_date) {
+              arrivalDate = new Date(ticket.arrival_date);
+              resolvedOrderId = resolvedOrderId || ticket.order_id || ticket.order?.id || null;
+              resolvedClientId = resolvedClientId || ticket.order?.clientID || null;
+            }
+          }
+
+          let daysSinceArrival: number | null = null;
+          let isWithinWarranty = false;
+          if (arrivalDate) {
+            const startDay = new Date(arrivalDate.getFullYear(), arrivalDate.getMonth(), arrivalDate.getDate()).getTime();
+            const escapeDay = new Date(escDate.getFullYear(), escDate.getMonth(), escDate.getDate()).getTime();
+            daysSinceArrival = Math.max(0, Math.round((escapeDay - startDay) / (1000 * 60 * 60 * 24)));
+            isWithinWarranty = daysSinceArrival <= 90;
+          }
+
+          const userInfo = getUserFromCookies(req);
+          await (prisma as any).workerEscape.create({
+            data: {
+              escapeType: 'housing',
+              homeMaidId: targetMaidId,
+              orderId: resolvedOrderId,
+              clientId: resolvedClientId,
+              housedWorkerId: workerIdNum,
+              escapeDate: escDate,
+              escapeTime: escData.escapeTime || null,
+              arrivalDate,
+              daysSinceArrival,
+              isWithinWarranty,
+              visaFeeRequired: false,
+              visaFeeAmount: 0,
+              visaFeeStatus: 'none',
+              notes: escData.notes || 'هروب العاملة من السكن',
+              createdById: userInfo.userId || null,
+            },
+          });
+
+          // تحديث حالة العاملة في جدول homemaid
+          try {
+            await prisma.homemaid.update({
+              where: { id: targetMaidId },
+              data: { bookingstatus: 'هروب من السكن' },
+            });
+          } catch (maidStatusErr) {
+            console.error('Error updating homemaid booking status to escape:', maidStatusErr);
+          }
+        } catch (escErr) {
+          console.error('Error creating worker escape record from housing departure:', escErr);
         }
       }
 
@@ -1130,13 +1231,66 @@ export default async function handler(
       // 📝 إضافة سجل Logs
       try {
         const logUsername = await getValidLogUsername(req);
-        const actionText = `تسجيل مغادرة عاملة - النوع: ${deparatureType || 'عادي'} - السبب: ${finalReason} بتاريخ ${finalHousingDate}`;
+
+        // Helper لتنسيق التاريخ بصيغة عربية نظيفة YYYY/MM/DD بدون أي ISO
+        const formatCleanDate = (dateVal: string | null | undefined) => {
+          if (!dateVal) return new Date().toISOString().split('T')[0].replace(/-/g, '/');
+          try {
+            const d = new Date(dateVal);
+            if (isNaN(d.getTime())) return String(dateVal).split('T')[0].replace(/-/g, '/');
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}/${m}/${day}`;
+          } catch {
+            return String(dateVal).split('T')[0].replace(/-/g, '/');
+          }
+        };
+
+        const cleanDepartureDate = formatCleanDate(finalHousingDate);
+        let logStatus = "مغادرة السكن";
+        let logReason = finalReason || "مغادرة السكن";
+        let actionText = `تسجيل مغادرة من السكن بتاريخ ${cleanDepartureDate} - السبب: ${finalReason}`;
+
+        if (deparatureType === 'escape') {
+          const escData = req.body.escapeData || {};
+          const escDateFormatted = formatCleanDate(escData.escapeDate || finalHousingDate);
+          const escTime = escData.escapeTime ? ` الساعة ${escData.escapeTime}` : '';
+          const escNotes = escData.notes && String(escData.notes).trim() ? ` - تفاصيل الواقعة: ${String(escData.notes).trim()}` : '';
+
+          logStatus = "هروب من السكن";
+          logReason = "الهروب من السكن";
+          actionText = `تسجيل واقعة هروب عن طريق السكن (وليس عبر بلاغات الهروب) بتاريخ ${escDateFormatted}${escTime}${escNotes} - تم تفريغ السكن وإدراج العاملة في سجل بلاغات الهروب الموحد`;
+        } else if (deparatureType === 'trial_transfer') {
+          const tsd = (transferSponsorshipData as any) || {};
+          const sponsorInfo = tsd.newSponsorName ? ` للكفيل الجديد (${tsd.newSponsorName})` : '';
+          const periodInfo = tsd.trialPeriodDays ? ` لمدة ${tsd.trialPeriodDays} يوم` : '';
+          logStatus = "تجربة نقل كفالة";
+          logReason = "مغادرة لتجربة نقل خدمات";
+          actionText = `تسجيل مغادرة من السكن لتجربة نقل خدمات${sponsorInfo}${periodInfo} بتاريخ ${cleanDepartureDate}`;
+        } else if (deparatureType === 'deportation') {
+          const dd = (deportationData as any) || {};
+          const flightDate = formatCleanDate(dd.externaldeparatureDate || finalHousingDate);
+          const flightTime = dd.externaldeparatureTime ? ` الساعة ${dd.externaldeparatureTime}` : '';
+          const destInfo = dd.externalArrivalCity ? ` إلى ${dd.externalArrivalCity}` : '';
+          const reasonInfo = dd.externalReason ? ` - سبب الترحيل: ${dd.externalReason}` : (finalReason ? ` - السبب: ${finalReason}` : '');
+          logStatus = "ترحيل من السكن";
+          logReason = "ترحيل العاملة";
+          actionText = `تسجيل مغادرة وترحيل العاملة من السكن${destInfo} بتاريخ ${flightDate}${flightTime}${reasonInfo}`;
+        } else if (deparatureType === 'medical') {
+          const md = (medicalDepartureData as any) || {};
+          const diag = md?.diagnosis ? ` - التشخيص الطبي: ${md.diagnosis}` : '';
+          logStatus = "مغادرة مرضية";
+          logReason = "مغادرة مرضية";
+          actionText = `تسجيل مغادرة مرضية للعاملة من السكن بتاريخ ${cleanDepartureDate}${diag}`;
+        }
+
         await prisma.logs.create({
           data: {
             homemaidId: actualHomeMaidId ? Number(actualHomeMaidId) : undefined,
             Details: actionText,
-            reason: "مغادرة السكن",
-            Status: "مغادرة السكن",
+            reason: logReason,
+            Status: logStatus,
             userId: logUsername,
           } 
         });

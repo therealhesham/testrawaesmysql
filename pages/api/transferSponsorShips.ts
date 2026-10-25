@@ -408,14 +408,29 @@ case 'GET':
                 ],
               },
             ],
+            NOT: { transferStage: 'فشلت التجربة' },
+            AND: [
+              {
+                OR: [
+                  { ExperimentRate: null },
+                  { ExperimentRate: { not: 'فاشلة' } },
+                ],
+              },
+            ],
           });
         } else if (tab === 'completed') {
           andConditions.push({
-            transferStage: { in: ['تم نقل الكفالة', 'نقل الخدمات', 'انشاء العقد', 'انشاء الطلب'] },
+            OR: [
+              { transferStage: { in: ['تم نقل الكفالة', 'نقل الخدمات', 'انشاء العقد', 'انشاء الطلب'] } },
+              { ExperimentRate: 'ناجحة' },
+            ],
           });
         } else if (tab === 'failed') {
           andConditions.push({
-            transferStage: { in: ['فشلت التجربة'] },
+            OR: [
+              { transferStage: { in: ['فشلت التجربة'] } },
+              { ExperimentRate: 'فاشلة' },
+            ],
           });
         }
         // tab === 'all' لا يضيف قيد على المرحلة
@@ -499,6 +514,7 @@ case 'GET':
           select: {
             id: true,
             transferStage: true,
+            ExperimentRate: true,
             ExperimentStart: true,
           },
         });
@@ -509,10 +525,11 @@ case 'GET':
 
         for (const t of allTransfersSummary) {
           const stage = t.transferStage || '';
-          if (['تم نقل الكفالة', 'نقل الخدمات', 'انشاء العقد', 'انشاء الطلب'].includes(stage)) {
-            completedCount++;
-          } else if (stage === 'فشلت التجربة') {
+          const rate = t.ExperimentRate || '';
+          if (stage === 'فشلت التجربة' || rate === 'فاشلة') {
             failedCount++;
+          } else if (['تم نقل الكفالة', 'نقل الخدمات', 'انشاء العقد', 'انشاء الطلب'].includes(stage) || rate === 'ناجحة') {
+            completedCount++;
           } else if (
             ['في المرحلة التجريبية', 'فترة التجربة', 'تقييم التجربة'].includes(stage) ||
             (t.ExperimentStart && !['تم نقل الكفالة', 'نقل الخدمات', 'فشلت التجربة'].includes(stage))
@@ -761,6 +778,74 @@ case 'GET':
                 },
               });
             }
+
+            // إذا كان سبب الفشل هو الهروب، يتم التوثيق التلقائي في جدول الهروب
+            if (String(failReason || '').includes('هروب') && targetHomeMaidId) {
+              try {
+                const tId = Number(targetHomeMaidId);
+                const arr = await prisma.arrivallist.findFirst({
+                  where: {
+                    OR: [
+                      { HomemaIdnumber: tId },
+                      { Order: { HomemaidId: tId } },
+                      { Order: { HomemaidIdCopy: tId } },
+                    ],
+                    KingdomentryDate: { not: null },
+                  },
+                  orderBy: { id: 'desc' },
+                  select: { KingdomentryDate: true },
+                });
+
+                let arrivalDate = arr?.KingdomentryDate ? new Date(arr.KingdomentryDate) : null;
+                if (!arrivalDate) {
+                  const ticket = await prisma.tickets_details.findFirst({
+                    where: {
+                      OR: [
+                        { order: { HomemaidId: tId } },
+                        { order: { HomemaidIdCopy: tId } },
+                      ],
+                      arrival_date: { not: null },
+                    },
+                    orderBy: { id: 'desc' },
+                    select: { arrival_date: true },
+                  });
+                  if (ticket?.arrival_date) {
+                    arrivalDate = new Date(ticket.arrival_date);
+                  }
+                }
+                let daysSinceArrival: number | null = null;
+                let isWithinWarranty = false;
+                if (arrivalDate) {
+                  const startDay = new Date(arrivalDate.getFullYear(), arrivalDate.getMonth(), arrivalDate.getDate()).getTime();
+                  const escapeDay = new Date(retDate.getFullYear(), retDate.getMonth(), retDate.getDate()).getTime();
+                  daysSinceArrival = Math.max(0, Math.round((escapeDay - startDay) / (1000 * 60 * 60 * 24)));
+                  isWithinWarranty = daysSinceArrival <= 90;
+                }
+
+                const uId = getUserIdFromReq(req);
+                await (prisma as any).workerEscape.create({
+                  data: {
+                    escapeType: 'trial_transfer',
+                    homeMaidId: Number(targetHomeMaidId),
+                    clientId: targetClientId ? Number(targetClientId) : null,
+                    transferId: transfer?.id ? Number(transfer.id) : null,
+                    escapeDate: retDate,
+                    arrivalDate,
+                    daysSinceArrival,
+                    isWithinWarranty,
+                    visaFeeRequired: false,
+                    visaFeeAmount: 0,
+                    visaFeeStatus: 'none',
+                    workerWageAmount: numTotalCost,
+                    trialDaysCount: numTrialDays,
+                    notes: `هروب أثناء تجربة نقل الكفالة - أجرة مستحقة: ${numTotalCost} ر.س عن ${numTrialDays} يوم. ${notes || ''}`,
+                    createdById: uId ? Number(uId) : null,
+                  },
+                });
+              } catch (escErr) {
+                console.error('Error creating worker escape log from trial transfer:', escErr);
+              }
+            }
           } catch (hwErr) {
             console.error('Error updating housedworker on trial fail:', hwErr);
           }
@@ -970,6 +1055,14 @@ case 'GET':
           return res.status(400).json({ error: 'معرف العاملة، الكفيل الجديد، والكفيل السابق مطلوبين للطلب' });
         }
 
+        let effectiveStage = transferStage;
+        let effectiveRate = ExperimentRate;
+        if (effectiveRate === 'فاشلة') {
+          effectiveStage = 'فشلت التجربة';
+        } else if (effectiveStage === 'فشلت التجربة' && !effectiveRate) {
+          effectiveRate = 'فاشلة';
+        }
+
         const existingTransfer = await prisma.transferSponsorShips.findFirst({
           where: {
             HomeMaidId: Number(HomeMaidId),
@@ -993,14 +1086,14 @@ case 'GET':
               promissoryNoteFile: promissoryNoteFile !== undefined ? promissoryNoteFile : undefined,
               ExperimentStart: ExperimentStart ? new Date(ExperimentStart) : undefined,
               ExperimentEnd: ExperimentEnd ? new Date(ExperimentEnd) : undefined,
-              ExperimentRate,
+              ExperimentRate: effectiveRate,
               Notes,
               TransferOperationNumber: TransferOperationNumber ? TransferOperationNumber : null,
               ContractDate: ContractDate ? new Date(ContractDate) : undefined,
               EntryDate: EntryDate ? new Date(EntryDate) : undefined,
               ExperimentDuration: ExperimentDuration ? ExperimentDuration : undefined,
               WorkDuration,
-              transferStage,
+              transferStage: effectiveStage,
               NationalID,
               TransferingDate,
               file,
@@ -1029,14 +1122,14 @@ case 'GET':
               promissoryNoteFile: promissoryNoteFile || null,
               ExperimentStart: ExperimentStart ? new Date(ExperimentStart) : null,
               ExperimentEnd: ExperimentEnd ? new Date(ExperimentEnd) : null,
-              ExperimentRate,
+              ExperimentRate: effectiveRate,
               Notes,
               TransferOperationNumber: TransferOperationNumber ? TransferOperationNumber : null,
               ContractDate: ContractDate ? new Date(ContractDate) : null,
               EntryDate: EntryDate ? new Date(EntryDate) : null,
               ExperimentDuration: ExperimentDuration ? ExperimentDuration : null,
               WorkDuration,
-              transferStage,
+              transferStage: effectiveStage,
               NationalID,
               TransferingDate,
               file,
@@ -1302,6 +1395,20 @@ case 'GET':
           changesList.push(`الكفيل السابق: تم التغيير`);
         }
 
+        let effectivePutStage = transferStage;
+        let effectivePutRate = ExperimentRate;
+        const determinedRate = effectivePutRate !== undefined ? effectivePutRate : existing.ExperimentRate;
+        if (determinedRate === 'فاشلة') {
+          if (effectivePutStage === undefined || ['في المرحلة التجريبية', 'فترة التجربة', 'تقييم التجربة'].includes(effectivePutStage)) {
+            effectivePutStage = 'فشلت التجربة';
+          }
+          if (effectivePutRate === undefined) {
+            effectivePutRate = 'فاشلة';
+          }
+        } else if (effectivePutStage === 'فشلت التجربة') {
+          effectivePutRate = 'فاشلة';
+        }
+
         const transfer: any = await prisma.transferSponsorShips.update({
           where: { id: Number(id) },
           data: {
@@ -1319,12 +1426,12 @@ case 'GET':
             promissoryNoteFile: promissoryNoteFile !== undefined ? promissoryNoteFile : undefined,
             ExperimentStart: ExperimentStart ? new Date(ExperimentStart) : undefined,
             ExperimentEnd: ExperimentEnd ? new Date(ExperimentEnd) : undefined,
-            ExperimentRate,
+            ExperimentRate: effectivePutRate,
             ContractDate: ContractDate ? new Date(ContractDate) : undefined,
             ExperimentDuration: ExperimentDuration ? ExperimentDuration : undefined,
             WorkDuration,
             Notes,
-            transferStage,
+            transferStage: effectivePutStage,
             NationalID: NationalID !== undefined ? (NationalID && String(NationalID).trim() ? String(NationalID).trim() : null) : undefined,
             TransferingDate,
             file,
