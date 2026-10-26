@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'; // أضف useCallback
 import { useRouter } from 'next/router';
 import { DocumentDownloadIcon, TableIcon } from '@heroicons/react/outline';
-import { Search, ChevronDown, X, Columns, Hash, Phone, CreditCard, Book, FileText, Filter, Check } from 'lucide-react';
+import { Search, ChevronDown, X, Columns, Hash, Phone, CreditCard, Book, FileText, Filter, Check, Calendar } from 'lucide-react';
 import Layout from 'example/containers/Layout';
 import Style from "styles/Home.module.css";
 import { jwtDecode } from 'jwt-decode';
@@ -1588,6 +1588,13 @@ const exportedData = async ()=>{
                                           <span className="flex items-center gap-1" title="رقم الجوال"><Phone className="w-3.5 h-3.5 text-gray-400" />{booking.client?.phonenumber || 'غير متوفر'}</span>
                                           <span className="text-gray-300">|</span>
                                           <span className="flex items-center gap-1" title="الهوية الوطنية"><CreditCard className="w-3.5 h-3.5 text-gray-400" />{booking.client?.nationalId || 'غير متوفر'}</span>
+                                          <span className="text-gray-300">|</span>
+                                          <span className="flex items-center gap-1" title="تاريخ ميلاد العميل" dir="ltr">
+                                            <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                                            {booking.client?.dateofbirth
+                                              ? new Date(booking.client.dateofbirth).toISOString().split('T')[0].replace(/-/g, '/')
+                                              : 'غير متوفر'}
+                                          </span>
                                         </div>
                                       </td>
                                     );

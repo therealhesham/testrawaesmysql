@@ -538,13 +538,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         console.error('Error updating homemaid on escape creation:', maidErr);
       }
 
-      // Case A: Housing Escape
-      if (escapeType === 'housing' && housedWorkerId) {
-        try {
+      // Case A: Housing Departure on Escape (for all escape types if worker is in housing)
+      try {
+        const targetHwId = housedWorkerId ? Number(housedWorkerId) : null;
+        const activeHoused = targetHwId
+          ? await prisma.housedworker.findUnique({ where: { id: targetHwId } })
+          : await prisma.housedworker.findFirst({
+              where: {
+                homeMaid_id: Number(maidId),
+                deparatureHousingDate: null,
+              },
+              orderBy: { id: 'desc' },
+            });
+
+        if (activeHoused) {
+          const escapeDepReason =
+            escapeType === 'housing'
+              ? 'الهروب من السكن'
+              : escapeType === 'trial_transfer'
+              ? 'الهروب أثناء التجربة'
+              : escapeType === 'airport'
+              ? 'هروب من المطار'
+              : 'الهروب من العميل';
+
           await (prisma as any).housedworker.update({
-            where: { id: Number(housedWorkerId) },
+            where: { id: activeHoused.id },
             data: {
-              deparatureReason: 'الهروب من السكن',
+              deparatureReason: escapeDepReason,
               deparatureHousingDate: new Date(escapeDate),
               isActive: false,
               escapeData: {
@@ -558,12 +578,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
           // Free up active check-in bed in housing
           await prisma.checkIn.updateMany({
-            where: { housedWorkerId: Number(housedWorkerId), isActive: true },
+            where: { housedWorkerId: activeHoused.id, isActive: true },
             data: { isActive: false },
           });
-        } catch (hErr) {
-          console.error('Error updating housing on escape:', hErr);
+
+          if (createdEscape && !createdEscape.housedWorkerId) {
+            await (prisma as any).workerEscape.update({
+              where: { id: createdEscape.id },
+              data: { housedWorkerId: activeHoused.id },
+            });
+          }
         }
+      } catch (hErr) {
+        console.error('Error updating housing on escape:', hErr);
       }
 
       // Case B: Airport Escape -> If reportFile is provided, treat it as deliveryFile in DeliveryDetails & close order

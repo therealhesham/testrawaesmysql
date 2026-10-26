@@ -87,6 +87,7 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
     nationalId: '',
     city: '',
     clientSource: '',
+    dateofbirth: '',
     hasVisa: 'yes',
     visaNumber: '',
     nationality: '',
@@ -479,6 +480,7 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
         nationalId: formData.nationalId,
         city: formData.city,
         clientSource: formData.clientSource,
+        dateofbirth: formData.dateofbirth || null,
       };
 
       // إضافة بيانات التأشيرة فقط إذا كان لدى العميل تأشيرة
@@ -505,6 +507,7 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
         nationalId: '',
         city: '',
         clientSource: '',
+        dateofbirth: '',
         hasVisa: 'yes',
         visaNumber: '',
         nationality: '',
@@ -740,6 +743,17 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
                   </select>
                 </div>
                 {errors.clientSource && <p className="text-red-500 text-xs mt-1">{errors.clientSource}</p>}
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="dateofbirth" className="block text-sm font-medium text-text-dark">تاريخ الميلاد </label>
+                <input
+                  type="date"
+                  id="dateofbirth"
+                  name="dateofbirth"
+                  value={formData.dateofbirth}
+                  onChange={handleInputChange}
+                  className="w-full bg-background-light border border-border-color rounded-md py-2 px-4 text-sm text-text-dark"
+                />
               </div>
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-text-dark">هل لدى العميل تأشيرة؟</label>

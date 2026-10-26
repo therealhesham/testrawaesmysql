@@ -16,6 +16,7 @@ interface ClientInfo {
   phonenumber: string;
   nationalId: string;
   city: string;
+  dateofbirth?: string | null;
 }
 
 interface OrderData {
@@ -130,6 +131,7 @@ export default function Home() {
     phonenumber: '',
     nationalId: '',
     city: '',
+    dateofbirth: '',
   });
   const [visaInfo, setVisaInfo] = useState<VisaData>({
     id: 0,
@@ -164,6 +166,7 @@ export default function Home() {
     phonenumber: '',
     nationalId: '',
     city: '',
+    dateofbirth: '',
   });
   const [nationalities, setNationalities] = useState<Array<{ value: string; label: string }>>([]);
   const [professions, setProfessions] = useState<Array<{ id: number; name: string; gender?: string | null }>>([]);
@@ -595,7 +598,7 @@ const arabicRegionMap: { [key: string]: string } = {
               )}
             </div>
             <form onSubmit={updateClientInfo}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div className="flex flex-col">
                   <label className="text-sm text-gray-600 mb-1">رقم العميل &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp; اسم العميل </label>
                    <div className="flex items-center gap-2">
@@ -677,6 +680,21 @@ const arabicRegionMap: { [key: string]: string } = {
                       </option>
                     ))}
                   </select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-sm text-gray-600 mb-1">تاريخ الميلاد</label>
+                  <input
+                    type="date"
+                    dir="ltr"
+                    className={`p-2 border border-gray-300 rounded-md text-center font-mono focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+                      !isEditMode ? 'bg-gray-100 cursor-not-allowed' : ''
+                    }`}
+                    value={clientInfo.dateofbirth ? new Date(clientInfo.dateofbirth).toISOString().split('T')[0] : ''}
+                    onChange={(e) =>
+                      setClientInfo({ ...clientInfo, dateofbirth: e.target.value })
+                    }
+                    readOnly={!isEditMode}
+                  />
                 </div>
               </div>
               {isEditMode && (

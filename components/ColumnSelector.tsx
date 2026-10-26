@@ -3,7 +3,7 @@ import { ArrowLeftIcon } from "@heroicons/react/outline";
 
 interface ColumnSelectorProps {
   visibleColumns: { [key: string]: boolean };
-  setVisibleColumns: (columns: { [key: string]: boolean }) => void;
+  setVisibleColumns: any;
   columns: Array<{ key: string; label: string }>;
   buttonText?: string;
   buttonStyle?: string;
@@ -19,7 +19,7 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
   const [isOpen, setIsOpen] = useState(false);
 
   const toggleColumn = (columnKey: string) => {
-    setVisibleColumns((prev) => ({
+    setVisibleColumns((prev: any) => ({
       ...prev,
       [columnKey]: !prev[columnKey]
     }));

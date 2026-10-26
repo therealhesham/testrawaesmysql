@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === "POST") {
     try {
-      const { fullname, phonenumber, nationalId, city, clientSource, nationality, gender, profession, visaFile, visaNumber } = req.body;
+      const { fullname, phonenumber, nationalId, city, clientSource, nationality, gender, profession, visaFile, visaNumber, dateofbirth } = req.body;
 
       // Basic validation
       if (!fullname || !phonenumber || !nationalId) {
@@ -21,6 +21,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         nationalId,
         city,
         Source: clientSource,
+        dateofbirth: dateofbirth ? new Date(dateofbirth) : null,
       };
 
       // إنشاء التأشيرة فقط إذا كانت البيانات موجودة وليست فارغة
@@ -58,7 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             });
           }
           console.log(cookies.authToken)
-          const token = jwtDecode(cookies.authToken);
+          const token: any = cookies.authToken ? jwtDecode(cookies.authToken) : null;
       
       const { fullname, phonenumber, city, date, clientId, nationalId } = req.query;
       const filters: any = {};
@@ -126,6 +127,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           nationalId: true,
           city: true,
           email: true,
+          dateofbirth: true,
           createdAt: true,
           notes: true,
           notes_date: true,
@@ -174,7 +176,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
            beneficiary: "client",
            pageRoute: pageRoute,
            actionType: "view",
-           userId: Number(token.id),
+           userId: Number(token?.id || 0),
          });  
    
       res.status(200).json({

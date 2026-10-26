@@ -758,12 +758,16 @@ case 'GET':
                 isFailedTrial: true,
               };
 
+              const isEscapeReason = String(failReason || '').includes('هروب') ||
+                String(targetHw.Order?.bookingstatus || '').includes('هروب');
+
               await prisma.housedworker.update({
                 where: { id: targetHw.id },
                 data: {
-                  deparatureHousingDate: null,
-                  deparatureReason: null,
-                  houseentrydate: retDate,
+                  deparatureHousingDate: isEscapeReason ? (retDate || new Date()) : null,
+                  deparatureReason: isEscapeReason ? 'الهروب أثناء التجربة' : null,
+                  isActive: !isEscapeReason,
+                  houseentrydate: isEscapeReason ? targetHw.houseentrydate : retDate,
                   transferSponsorshipData: updatedTsd as any,
                 } as any,
               });

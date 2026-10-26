@@ -28,6 +28,7 @@ interface Client {
   phonenumber: string | null;
   nationalId: string | null;
   city: string | null;
+  dateofbirth?: string | null;
   createdat: string | null;
   orders: Order[];
   _count: { orders: number };
@@ -61,7 +62,7 @@ const Customers = ({ hasPermission, hasDeletePermission }: Props) => {
   const [clientToDelete, setClientToDelete] = useState<number | null>(null);
   useEffect(() => {
     const authToken = localStorage.getItem('token');
-    const decoder = authToken ? jwtDecode(authToken) : null;
+    const decoder = authToken ? (jwtDecode(authToken) as any) : null;
     setUserName(decoder?.username || '');
   }, [userName]);
   const [expandedClientId, setExpandedClientId] = useState<number | null>(null);
@@ -336,7 +337,7 @@ const arabicRegionMap: { [key: string]: string } = {
   };
 
   const handleAddNotes = (clientId: number, clientName: string) => {
-    setSelectedClient({ id: clientId, fullname: clientName as string });
+    setSelectedClient({ id: clientId, fullname: clientName } as any);
     setIsNotesModalOpen(true);
   };
 
@@ -401,7 +402,8 @@ const arabicRegionMap: { [key: string]: string } = {
     setIsDeleteModalOpen(true);
   };
 
-  const translateBookingStatus = (status: string) => {
+  const translateBookingStatus = (status: string | null | undefined) => {
+    if (!status) return '-';
     const statusTranslations: { [key: string]: string } = {
       'pending': 'قيد الانتظار',
       'office_link_approved': 'موافقة الربط مع إدارة المكاتب',
@@ -618,7 +620,7 @@ const arabicRegionMap: { [key: string]: string } = {
       { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 15 },
       { wch: 20 }, { wch: 15 }, { wch: 10 }
     ];
-    XLSX.utils.sheet_add_aoa(worksheet, [['الرقم', 'الاسم', 'رقم الجوال', 'الهوية', 'المدينة', 'عدد الطلبات', 'تاريخ آخر طلب']], { origin: 'A1', direction: 'rtl' });
+    XLSX.utils.sheet_add_aoa(worksheet, [['الرقم', 'الاسم', 'رقم الجوال', 'الهوية', 'المدينة', 'عدد الطلبات', 'تاريخ آخر طلب']], { origin: 'A1' });
     XLSX.utils.book_append_sheet(workbook, worksheet, 'قائمة العملاء');
     XLSX.writeFile(workbook, 'قائمة العملاء.xlsx');
   };
@@ -766,7 +768,7 @@ const arabicRegionMap: { [key: string]: string } = {
                     </div>
                     <ColumnSelector
                       visibleColumns={visibleColumns}
-                      setVisibleColumns={setVisibleColumns}
+                      setVisibleColumns={setVisibleColumns as any}
                       columns={columnDefinitions}
                       buttonText="الأعمدة"
                       buttonStyle="bg-white justify-between py-2 px-4 rounded-lg border border-gray-200 flex items-center gap-1 text-gray hover:bg-gray-50 transition-colors"
@@ -842,7 +844,7 @@ const arabicRegionMap: { [key: string]: string } = {
                                 {visibleColumns.lastOrderDate && (
                                   <td className="text-nowrap text-center p-4">
                                     {client.orders[client.orders.length - 1]?.createdAt
-                                      ? new Date(client.orders[client.orders.length - 1]?.createdAt).toLocaleDateString()
+                                      ? new Date(client.orders[client.orders.length - 1]!.createdAt!).toLocaleDateString()
                                       : '-'}
                                   </td>
                                 )}
@@ -1217,6 +1219,16 @@ const EditClientModal: React.FC<{
 <option value = "Ahad Rafidah">أحد رفيدة</option>
 <option value = "Sarat Abidah">سراة عبيدة</option>
             </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-dark">تاريخ الميلاد</label>
+            <input
+              type="date"
+              name="dateofbirth"
+              value={formData.dateofbirth ? new Date(formData.dateofbirth).toISOString().split('T')[0] : ''}
+              onChange={handleChange}
+              className="w-full bg-gray-50 border border-border-color rounded-md py-2 px-4 text-sm text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-dark"
+            />
           </div>
           <div className="flex justify-end gap-2">
             <button

@@ -238,6 +238,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             fullname: true,
             phonenumber: true,
             nationalId: true,
+            dateofbirth: true,
           },
         },
         HomeMaid: {

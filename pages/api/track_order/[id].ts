@@ -146,6 +146,7 @@ console.log(id)
               fullname: true,
               phonenumber: true,
               email: true,
+              dateofbirth: true,
             },
           },
           HomeMaid: {
@@ -300,6 +301,7 @@ console.log(id)
           name: order.client?.fullname || 'N/A',
           phone: order.client?.phonenumber || 'N/A',
           email: order.client?.email || 'N/A',
+          dateofbirth: order.client?.dateofbirth ? order.client.dateofbirth.toISOString().split('T')[0] : null,
         },
         homemaidInfo: {
           id: homemaidSource?.id?.toString() || 'N/A',

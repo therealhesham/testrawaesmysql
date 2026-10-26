@@ -46,7 +46,7 @@ export interface OrderTicketDetail {
 
 interface OrderData {
   orderId: string;
-  clientInfo: { id?: string; name: string; phone: string; email: string };
+  clientInfo: { id?: string; name: string; phone: string; email: string; dateofbirth?: string | null };
   homemaidInfo: { id: string; name: string; passportNumber: string; nationality: string; externalOffice: string };
   applicationInfo: { applicationDate: string; applicationTime: string };
   orderFiles?: { orderDocument?: string | null; contract?: string | null };
@@ -2454,6 +2454,7 @@ export default function TrackOrder() {
               { label: 'اسم العميل', value: valOrEmpty(orderData.clientInfo.name) },
               { label: 'رقم الهاتف', value: valOrEmpty(orderData.clientInfo.phone), fieldType: 'phone' },
               { label: 'البريد الإلكتروني', value: valOrEmpty(orderData.clientInfo.email) },
+              { label: 'تاريخ الميلاد', value: valOrEmpty(orderData.clientInfo.dateofbirth ? new Date(orderData.clientInfo.dateofbirth).toISOString().split('T')[0] : '') },
               { label: 'رقم الطلب', value: orderData.orderId },
             ]}
             gridCols={3}

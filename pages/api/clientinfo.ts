@@ -47,9 +47,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if(req.method === 'POST'){
     const { id, fullname, phonenumber } = req.body;
+    const updateData = { ...req.body };
+    delete updateData.id;
+    if ('dateofbirth' in updateData) {
+      updateData.dateofbirth = updateData.dateofbirth ? new Date(updateData.dateofbirth) : null;
+    }
     const client = await prisma.client.update({
       where: { id: Number(id) },
-      data: req.body,
+      data: updateData,
     });
     if (fullname || phonenumber) {
       await prisma.neworder.updateMany({
@@ -101,10 +106,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(200).json({data:client});
   }
   if(req.method === 'PUT'){
-    const { id, fullname, phonenumber, nationalId, city } = req.body;
+    const { id, fullname, phonenumber, nationalId, city, dateofbirth } = req.body;
     const client = await prisma.client.update({
       where: { id: Number(id) },
-      data:{fullname, phonenumber, nationalId, city},
+      data: {
+        fullname,
+        phonenumber,
+        nationalId,
+        city,
+        dateofbirth: dateofbirth ? new Date(dateofbirth) : null,
+      },
     });
     if (fullname || phonenumber) {
       await prisma.neworder.updateMany({
@@ -119,9 +130,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if(req.method === 'PATCH'){
     const { id, fullname, phonenumber } = req.body;
+    const updateData = { ...req.body };
+    delete updateData.id;
+    if ('dateofbirth' in updateData) {
+      updateData.dateofbirth = updateData.dateofbirth ? new Date(updateData.dateofbirth) : null;
+    }
     const client = await prisma.client.update({
       where: { id: Number(id) },
-      data: req.body,
+      data: updateData,
     });
     if (fullname || phonenumber) {
       await prisma.neworder.updateMany({
