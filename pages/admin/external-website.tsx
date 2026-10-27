@@ -33,7 +33,11 @@ import {
   FaThumbsUp,
   FaShieldAlt,
   FaHeart,
-  FaSave
+  FaSave,
+  FaSyncAlt,
+  FaChevronLeft,
+  FaChevronRight,
+  FaArrowLeft
 } from "react-icons/fa";
 
 interface ToastState {
@@ -116,6 +120,27 @@ const AVAILABLE_ICONS = [
   { id: "heart", label: "وفاء ورعاية (Heart)", icon: FaHeart }
 ];
 
+const PRESET_INTERVALS = [
+  { label: "0.5 ث", value: 500, tag: "نصف ثانية" },
+  { label: "1 ث", value: 1000 },
+  { label: "2 ث", value: 2000 },
+  { label: "3 ث", value: 3000 },
+  { label: "4 ث", value: 4000, tag: "افتراضي" },
+  { label: "5 ث", value: 5000 },
+  { label: "6 ث", value: 6000 },
+  { label: "8 ث", value: 8000 },
+  { label: "10 ث", value: 10000, tag: "الحد الأقصى" }
+];
+
+const formatSlideInterval = (ms: number) => {
+  if (ms <= 500) return "0.5 ثانية (نصف ثانية)";
+  if (ms === 1000) return "ثانية واحدة (1s)";
+  if (ms === 2000) return "ثانيتان (2s)";
+  const s = ms / 1000;
+  if (s >= 3 && s <= 10 && Number.isInteger(s)) return `${s} ثوانٍ`;
+  return `${s} ثانية`;
+};
+
 export default function ExternalWebsiteControl() {
   const [activeTab, setActiveTab] = useState<"banner" | "stats" | "cards">("banner");
 
@@ -153,10 +178,24 @@ export default function ExternalWebsiteControl() {
   // --- Banner State ---
   const [bannerUrl, setBannerUrl] = useState<string>("/banner.png");
   const [showBorder, setShowBorder] = useState<boolean>(true);
+  const [autoSlide, setAutoSlide] = useState<boolean>(true);
+  const [slideInterval, setSlideInterval] = useState<number>(4000);
+  const [slideIntervals, setSlideIntervals] = useState<number[]>([]);
+  const [activeIntervalPopover, setActiveIntervalPopover] = useState<number | null>(null);
+  const [activeBanners, setActiveBanners] = useState<string[]>([]);
+  const [previewSlide, setPreviewSlide] = useState<number>(0);
   const [bannerLoading, setBannerLoading] = useState<boolean>(true);
   const [bannerUploading, setBannerUploading] = useState<boolean>(false);
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
   const [imgError, setImgError] = useState<boolean>(false);
+
+  // Helper to get duration of a specific slide index
+  const getSlideDuration = (index: number) => {
+    if (slideIntervals && slideIntervals[index] !== undefined && slideIntervals[index] >= 500) {
+      return slideIntervals[index];
+    }
+    return slideInterval || 4000;
+  };
 
   // --- Banner History (Media Library) ---
   const [bannerHistory, setBannerHistory] = useState<BannerHistoryItem[]>([]);
@@ -194,6 +233,20 @@ export default function ExternalWebsiteControl() {
       const border = data?.showBorder !== undefined ? data.showBorder : true;
       setBannerUrl(url);
       setShowBorder(border);
+      if (data?.heroBannerUrls && Array.isArray(data.heroBannerUrls)) {
+        setActiveBanners(data.heroBannerUrls);
+      } else {
+        setActiveBanners([url]);
+      }
+      if (data?.autoSlide !== undefined) {
+        setAutoSlide(data.autoSlide);
+      }
+      if (data?.slideInterval !== undefined) {
+        setSlideInterval(data.slideInterval);
+      }
+      if (data?.slideIntervals && Array.isArray(data.slideIntervals)) {
+        setSlideIntervals(data.slideIntervals);
+      }
       setImgError(false);
       if (data?.stats) {
         setStats(data.stats);
@@ -205,6 +258,16 @@ export default function ExternalWebsiteControl() {
       setBannerLoading(false);
     }
   };
+
+  // Preview timer for dashboard (using per-slide dynamic interval)
+  useEffect(() => {
+    if (!autoSlide || activeBanners.length <= 1) return;
+    const currentDuration = getSlideDuration(previewSlide);
+    const timer = setTimeout(() => {
+      setPreviewSlide((prev) => (prev + 1) % activeBanners.length);
+    }, currentDuration);
+    return () => clearTimeout(timer);
+  }, [autoSlide, activeBanners.length, previewSlide, slideInterval, slideIntervals]);
 
   // Fetch Banner History
   const fetchHistory = async () => {
@@ -244,24 +307,64 @@ export default function ExternalWebsiteControl() {
   }, [bannerUrl]);
 
   // Save Banner Setting
-  const handleSaveBanner = async (newUrl?: string, newBorder?: boolean) => {
+  const handleSaveBanner = async (
+    newUrl?: string, 
+    newBorder?: boolean,
+    newAutoSlide?: boolean,
+    newInterval?: number,
+    newBanners?: string[],
+    newIntervals?: number[]
+  ) => {
     const targetUrl = newUrl !== undefined ? newUrl : bannerUrl;
     const targetBorder = newBorder !== undefined ? newBorder : showBorder;
+    const targetAutoSlide = newAutoSlide !== undefined ? newAutoSlide : autoSlide;
+    const targetInterval = newInterval !== undefined ? newInterval : slideInterval;
+    const targetBanners = newBanners !== undefined ? newBanners : activeBanners;
+    const targetIntervals = newIntervals !== undefined 
+      ? newIntervals 
+      : (slideIntervals.length > 0 ? slideIntervals : targetBanners.map(() => targetInterval));
+
     try {
       const { data } = await axios.post("/api/website-settings", {
         heroBannerUrl: targetUrl.trim() || "/banner.png",
-        showBorder: targetBorder
+        heroBannerUrls: targetBanners,
+        showBorder: targetBorder,
+        autoSlide: targetAutoSlide,
+        slideInterval: targetInterval,
+        slideIntervals: targetIntervals
       });
       const saved = data?.heroBannerUrl || targetUrl.trim() || "/banner.png";
       setBannerUrl(saved);
       setShowBorder(data?.showBorder !== undefined ? data.showBorder : targetBorder);
+      if (data?.heroBannerUrls) setActiveBanners(data.heroBannerUrls);
+      if (data?.autoSlide !== undefined) setAutoSlide(data.autoSlide);
+      if (data?.slideInterval !== undefined) setSlideInterval(data.slideInterval);
+      if (data?.slideIntervals) setSlideIntervals(data.slideIntervals);
       setImgError(false);
       fetchHistory();
-      showToast("تم تحديث البانر بنجاح وتطبيقه في الموقع!", "success");
+      showToast("تم تحديث إعدادات البانر بنجاح وتطبيقها في الموقع!", "success");
     } catch (err: any) {
       console.error("Error saving banner:", err);
       showToast(err.response?.data?.error || "حدث خطأ أثناء حفظ الإعدادات", "error");
     }
+  };
+
+  // Update specific slide interval
+  const handleUpdateSlideInterval = async (index: number, newDuration: number) => {
+    const clamped = Math.min(10000, Math.max(500, newDuration));
+    const updated = activeBanners.map((_, i) => (i === index ? clamped : getSlideDuration(i)));
+    setSlideIntervals(updated);
+    await handleSaveBanner(bannerUrl, showBorder, true, slideInterval, activeBanners, updated);
+  };
+
+  // Apply uniform interval across all slides
+  const handleApplyUniformInterval = async (duration: number) => {
+    const clamped = Math.min(10000, Math.max(500, duration));
+    setSlideInterval(clamped);
+    const updated = activeBanners.map(() => clamped);
+    setSlideIntervals(updated);
+    await handleSaveBanner(bannerUrl, showBorder, true, clamped, activeBanners, updated);
+    showToast(`تم تعيين وقت (${formatSlideInterval(clamped)}) لجميع السلايدات بنجاح!`, "success");
   };
 
   // Save Stats Setting
@@ -299,7 +402,53 @@ export default function ExternalWebsiteControl() {
   // Select a previously uploaded banner from history
   const handleSelectHistoryImage = async (imgUrl: string) => {
     if (imgUrl === bannerUrl) return;
-    await handleSaveBanner(imgUrl, showBorder);
+    const updatedBanners = activeBanners.includes(imgUrl) ? activeBanners : [imgUrl, ...activeBanners];
+    const updatedIntervals = activeBanners.includes(imgUrl)
+      ? activeBanners.map((_, i) => getSlideDuration(i))
+      : [4000, ...activeBanners.map((_, i) => getSlideDuration(i))];
+    setActiveBanners(updatedBanners);
+    setSlideIntervals(updatedIntervals);
+    await handleSaveBanner(imgUrl, showBorder, autoSlide, slideInterval, updatedBanners, updatedIntervals);
+  };
+
+  // Toggle image inclusion in auto-slider
+  const handleToggleSliderBanner = async (imgUrl: string) => {
+    let updated: string[];
+    let updatedIntervals: number[];
+    if (activeBanners.includes(imgUrl)) {
+      if (activeBanners.length <= 1) {
+        showToast("يجب الإبقاء على صورة واحدة على الأقل في السلايدر", "error");
+        return;
+      }
+      const removeIdx = activeBanners.indexOf(imgUrl);
+      updated = activeBanners.filter((_, i) => i !== removeIdx);
+      updatedIntervals = activeBanners.map((_, i) => getSlideDuration(i)).filter((_, i) => i !== removeIdx);
+    } else {
+      updated = [...activeBanners, imgUrl];
+      updatedIntervals = [...activeBanners.map((_, i) => getSlideDuration(i)), 4000];
+    }
+    setActiveBanners(updated);
+    setSlideIntervals(updatedIntervals);
+    await handleSaveBanner(bannerUrl, showBorder, autoSlide, slideInterval, updated, updatedIntervals);
+  };
+
+  // Reorder slides (move slide left or right in sequence)
+  const handleMoveSlide = async (index: number, direction: 'prev' | 'next') => {
+    const targetIndex = direction === 'next' ? index + 1 : index - 1;
+    if (targetIndex < 0 || targetIndex >= activeBanners.length) return;
+    const updated = [...activeBanners];
+    const temp = updated[index];
+    updated[index] = updated[targetIndex];
+    updated[targetIndex] = temp;
+    setActiveBanners(updated);
+
+    const updatedIntervals = activeBanners.map((_, i) => getSlideDuration(i));
+    const tempInt = updatedIntervals[index];
+    updatedIntervals[index] = updatedIntervals[targetIndex];
+    updatedIntervals[targetIndex] = tempInt;
+    setSlideIntervals(updatedIntervals);
+
+    await handleSaveBanner(bannerUrl, showBorder, true, slideInterval, updated, updatedIntervals);
   };
 
   // Delete an image from history
@@ -334,7 +483,9 @@ export default function ExternalWebsiteControl() {
       onConfirm: async () => {
         setShowBorder(true);
         setImgError(false);
-        await handleSaveBanner("/banner.png", true);
+        setActiveBanners(["/banner.png"]);
+        setSlideIntervals([4000]);
+        await handleSaveBanner("/banner.png", true, autoSlide, 4000, ["/banner.png"], [4000]);
       }
     });
   };
@@ -357,7 +508,15 @@ export default function ExternalWebsiteControl() {
             const uploadedUrl = res.data.url;
             setBannerUrl(uploadedUrl);
             setImgError(false);
-            await handleSaveBanner(uploadedUrl, showBorder);
+            const updatedBanners = activeBanners.includes(uploadedUrl) 
+              ? activeBanners 
+              : [...activeBanners, uploadedUrl];
+            const updatedIntervals = activeBanners.includes(uploadedUrl)
+              ? activeBanners.map((_, i) => getSlideDuration(i))
+              : [...activeBanners.map((_, i) => getSlideDuration(i)), 4000];
+            setActiveBanners(updatedBanners);
+            setSlideIntervals(updatedIntervals);
+            await handleSaveBanner(uploadedUrl, showBorder, autoSlide, slideInterval, updatedBanners, updatedIntervals);
           } else {
             throw new Error(res.data?.error || "فشل في حفظ الصورة");
           }
@@ -384,7 +543,7 @@ export default function ExternalWebsiteControl() {
   };
 
   // Handle Drag and Drop
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = (e: React.DragEvent<HTMLElement>) => {
     e.preventDefault();
     setIsDragOver(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
@@ -630,132 +789,299 @@ export default function ExternalWebsiteControl() {
                 </button>
               </div>
 
+              {/* --- MODE SELECTION (تصميم مدمج وخفيف) --- */}
+              <div className="px-5 py-3 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-gray-800">نوع البانر المعروض في الموقع:</span>
+                  <span className="text-[11px] text-gray-500">(اختر نمطاً واحداً ليعمل في الواجهة الرئيسية)</span>
+                </div>
+
+                {/* Compact Segmented Switcher */}
+                <div className="inline-flex p-1 bg-gray-200/90 rounded-xl border border-gray-300 gap-1 w-full sm:w-auto">
+                  {/* Mode 1: Static */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (autoSlide) {
+                        setAutoSlide(false);
+                        handleSaveBanner(bannerUrl, showBorder, false, slideInterval, activeBanners);
+                      }
+                    }}
+                    className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${
+                      !autoSlide
+                        ? "bg-white text-blue-700 shadow-sm border border-gray-200"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    <FaImage className={!autoSlide ? "text-blue-600" : "text-gray-400"} />
+                    <span>صورة ثابتة</span>
+                    {!autoSlide && (
+                      <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+                    )}
+                  </button>
+
+                  {/* Mode 2: Animated Slider */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!autoSlide) {
+                        setAutoSlide(true);
+                        handleSaveBanner(bannerUrl, showBorder, true, slideInterval, activeBanners);
+                      }
+                    }}
+                    className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${
+                      autoSlide
+                        ? "bg-white text-emerald-700 shadow-sm border border-gray-200"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    <FaSyncAlt className={autoSlide ? "text-emerald-600" : "text-gray-400"} />
+                    <span>سلايدر متحرك</span>
+                    {autoSlide && (
+                      <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+                    )}
+                  </button>
+                </div>
+              </div>
+
               <div className="p-6 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                 
                 {/* Controls (7 Cols) */}
                 <div className="lg:col-span-7 space-y-6">
-                  
-                  {/* Gold Border Switch */}
-                  <div className="bg-gray-50 p-5 rounded-2xl border border-gray-200 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-start gap-3">
-                        <div className={`p-2.5 rounded-xl ${showBorder ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-200 text-gray-600'}`}>
-                          <FaBorderAll className="text-xl" />
+                  {!autoSlide ? (
+                    /* --- STATIC BANNER CONTROLS --- */
+                    <>
+                      <div className="p-4 bg-blue-50/70 rounded-2xl border border-blue-200 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="p-2.5 bg-blue-600 text-white rounded-xl shadow-sm">
+                            <FaImage className="text-lg" />
+                          </span>
+                          <div>
+                            <h4 className="text-sm font-bold text-blue-950">إعدادات الصورة الثابتة</h4>
+                            <p className="text-xs text-blue-800/80">تظهر هذه الصورة منفردة بدون أي حركة أو تنقل تلقائي في الواجهة</p>
+                          </div>
                         </div>
-                        <div>
-                          <label 
-                            htmlFor="borderToggle" 
-                            className="block text-sm font-bold text-gray-900 cursor-pointer select-none"
+                        <span className="text-xs bg-blue-600 text-white font-bold px-3 py-1 rounded-full shadow-sm">
+                          مفعل في الموقع
+                        </span>
+                      </div>
+
+                      {/* Gold Border Switch */}
+                      <div className="bg-gray-50 p-5 rounded-2xl border border-gray-200 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-start gap-3">
+                            <div className={`p-2.5 rounded-xl ${showBorder ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-200 text-gray-600'}`}>
+                              <FaBorderAll className="text-xl" />
+                            </div>
+                            <div>
+                              <label 
+                                htmlFor="borderToggle" 
+                                className="block text-sm font-bold text-gray-900 cursor-pointer select-none"
+                              >
+                                الإطار الزخرفي حول الصورة
+                              </label>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                {showBorder 
+                                  ? 'الإطار الذهبي والظل مفعل حول الصورة' 
+                                  : 'تم إلغاء الإطار وتظهر الصورة بدون حدود'}
+                              </p>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={showBorder}
+                            onClick={() => {
+                              const val = !showBorder;
+                              setShowBorder(val);
+                              handleSaveBanner(bannerUrl, val, false, slideInterval, activeBanners);
+                            }}
+                            className={`relative inline-flex h-7 w-14 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                              showBorder ? 'bg-yellow-600' : 'bg-gray-300'
+                            }`}
                           >
-                            الإطار الزخرفي حول الصورة
-                          </label>
-                          <p className="text-xs text-gray-500 mt-0.5">
-                            {showBorder 
-                              ? 'الإطار الذهبي والظل مفعل حول الصورة' 
-                              : 'تم إلغاء الإطار وتظهر الصورة بدون حدود'}
-                          </p>
+                            <span
+                              aria-hidden="true"
+                              className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                showBorder ? 'translate-x-0' : '-translate-x-7'
+                              }`}
+                            />
+                          </button>
                         </div>
                       </div>
 
-                      {/* Custom Switch Toggle */}
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={showBorder}
-                        onClick={() => {
-                          const val = !showBorder;
-                          setShowBorder(val);
-                          handleSaveBanner(bannerUrl, val);
-                        }}
-                        className={`relative inline-flex h-7 w-14 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                          showBorder ? 'bg-yellow-600' : 'bg-gray-300'
-                        }`}
-                      >
-                        <span
-                          aria-hidden="true"
-                          className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            showBorder ? 'translate-x-0' : '-translate-x-7'
+                      {/* Direct File Upload for Static Image */}
+                      <div className="bg-gray-50 p-5 sm:p-6 rounded-2xl border border-gray-200 shadow-sm">
+                        <label className="block text-sm font-bold text-gray-900 mb-1">
+                          رفع وتعيين صورة ثابتة جديدة
+                        </label>
+                        <p className="text-xs text-gray-500 mb-4">
+                          اختر صورة من جهازك وسيتم اعتمادها كصورة رئيسية ثابتة وحفظها في المكتبة تلقائياً:
+                        </p>
+
+                        <div
+                          onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                          onDragLeave={() => setIsDragOver(false)}
+                          onDrop={handleDrop}
+                          className={`relative flex flex-col items-center justify-center p-8 sm:p-10 border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-200 ${
+                            isDragOver
+                              ? "border-blue-600 bg-blue-50/70 scale-[1.01]"
+                              : bannerUploading
+                              ? "border-blue-400 bg-blue-50 cursor-not-allowed"
+                              : "border-blue-300 bg-white hover:bg-blue-50/30 hover:border-blue-500"
                           }`}
-                        />
-                      </button>
-                    </div>
-                  </div>
+                        >
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleFileChange}
+                            disabled={bannerUploading}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                          />
 
-                  {/* Direct File Upload Zone */}
-                  <div className="bg-gray-50 p-5 sm:p-6 rounded-2xl border border-gray-200 shadow-sm">
-                    <label className="block text-sm font-bold text-gray-900 mb-1">
-                      رفع صورة جديدة
-                    </label>
-                    <p className="text-xs text-gray-500 mb-4">
-                      اختر صورة من جهازك وسيتم تطبيقها وحفظها في مكتبة الصور تلقائياً:
-                    </p>
-
-                    <div
-                      onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-                      onDragLeave={() => setIsDragOver(false)}
-                      onDrop={handleDrop}
-                      className={`relative flex flex-col items-center justify-center p-8 sm:p-10 border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-200 ${
-                        isDragOver
-                          ? "border-blue-600 bg-blue-50/70 scale-[1.01]"
-                          : bannerUploading
-                          ? "border-blue-400 bg-blue-50 cursor-not-allowed"
-                          : "border-blue-300 bg-white hover:bg-blue-50/30 hover:border-blue-500"
-                      }`}
-                    >
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFileChange}
-                        disabled={bannerUploading}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
-                      />
-
-                      {bannerUploading ? (
-                        <div className="flex flex-col items-center gap-3 text-blue-700 py-4">
-                          <FaSpinner className="animate-spin text-3xl" />
-                          <span className="text-sm font-bold">جاري رفع وتحديث الصورة...</span>
+                          {bannerUploading ? (
+                            <div className="flex flex-col items-center gap-3 text-blue-700 py-4">
+                              <FaSpinner className="animate-spin text-3xl" />
+                              <span className="text-sm font-bold">جاري رفع وتحديث الصورة...</span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center gap-3 text-gray-700 py-4">
+                              <div className="p-4 bg-blue-50 text-blue-600 rounded-2xl border border-blue-100 shadow-sm">
+                                <FaUpload className="text-2xl" />
+                              </div>
+                              <div className="text-center">
+                                <span className="text-sm font-bold text-gray-900 block mb-1">
+                                  اضغط هنا لاختيار صورة ثابتة من جهازك أو اسحبها إلى هنا
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  يتم الحفظ والتطبيق كصورة ثابتة فوراً بمجرد اختيارها
+                                </span>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      ) : (
-                        <div className="flex flex-col items-center gap-3 text-gray-700 py-4">
-                          <div className="p-4 bg-blue-50 text-blue-600 rounded-2xl border border-blue-100 shadow-sm">
-                            <FaUpload className="text-2xl" />
-                          </div>
-                          <div className="text-center">
-                            <span className="text-sm font-bold text-gray-900 block mb-1">
-                              اضغط هنا لاختيار صورة من جهازك أو اسحبها إلى هنا
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              يتم الحفظ والتطبيق تلقائياً بمجرد اختيار الصورة
-                            </span>
+
+                        <div className="mt-4 p-3.5 bg-blue-50/80 rounded-xl border border-blue-200 flex items-center gap-3">
+                          <FaRulerCombined className="text-blue-600 text-lg flex-shrink-0" />
+                          <div className="text-xs text-blue-900 leading-relaxed font-medium">
+                            <strong>المقاس الموصى به للصورة:</strong> <span className="font-bold font-mono" dir="ltr">600 × 400 px</span> (نسبة أبعاد عرضية <span className="font-bold font-mono" dir="ltr">3:2</span>) بخلفية بيضاء أو شفافة.
                           </div>
                         </div>
-                      )}
-                    </div>
-
-                    {/* Recommended Dimensions Box */}
-                    <div className="mt-4 p-3.5 bg-blue-50/80 rounded-xl border border-blue-200 flex items-center gap-3">
-                      <FaRulerCombined className="text-blue-600 text-lg flex-shrink-0" />
-                      <div className="text-xs text-blue-900 leading-relaxed font-medium">
-                        <strong>المقاس الموصى به للصورة:</strong> <span className="font-bold font-mono" dir="ltr">600 × 400 px</span> (نسبة أبعاد عرضية <span className="font-bold font-mono" dir="ltr">3:2</span>) بخلفية بيضاء أو شفافة.
                       </div>
-                    </div>
-                  </div>
+                    </>
+                  ) : (
+                    /* --- ANIMATED SLIDER CONTROLS --- */
+                    <>
+                      <div className="p-4 bg-emerald-50/70 rounded-2xl border border-emerald-200 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="p-2.5 bg-emerald-600 text-white rounded-xl shadow-sm">
+                            <FaSyncAlt className="text-lg" />
+                          </span>
+                          <div>
+                            <h4 className="text-sm font-bold text-emerald-950">إعدادات البانر المتحرك (السلايدر)</h4>
+                            <p className="text-xs text-emerald-800/80">تتبدل الصور تلقائياً بانسيابية وفقاً للسرعة المحددة في الصفحة الرئيسية</p>
+                          </div>
+                        </div>
+                        <span className="text-xs bg-emerald-600 text-white font-bold px-3 py-1 rounded-full shadow-sm">
+                          مفعل في الموقع
+                        </span>
+                      </div>
 
+                      {/* Compact Information Card for Per-Slide Control */}
+                      <div className="bg-gray-50 p-4 sm:p-5 rounded-2xl border border-gray-200 shadow-sm space-y-3">
+                        <div className="flex items-start gap-3">
+                          <div className="p-2.5 bg-emerald-100 text-emerald-700 rounded-xl">
+                            <FaSyncAlt className="text-lg" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="text-sm font-bold text-gray-900">
+                              التحكم في وقت كل شريحة بشكل مستقل
+                            </h4>
+                            <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                              تم وضع أدوات التحكم بالسرعة لتكون مباشرة بين كل صورة وأخرى في مخطط السلايدات بالأسفل. يمكنك الآن تخصيص وقت ظهور كل شريحة (من 0.5 ثانية إلى 10 ثوانٍ) بكل سهولة عبر أزرار <strong>(-)</strong> و <strong>(+)</strong> أو النقر على التوقيت لاختيار سرعة محددة.
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Optional Quick Uniform Interval Setter */}
+                        <div className="pt-2 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <span className="text-[11px] font-bold text-gray-600">
+                            تطبيق وقت موحد لجميع السلايدات دفعة واحدة:
+                          </span>
+                          <div className="flex flex-wrap gap-1">
+                            {[1000, 2000, 3000, 4000, 5000, 10000].map((t) => (
+                              <button
+                                key={t}
+                                type="button"
+                                onClick={() => handleApplyUniformInterval(t)}
+                                className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white hover:bg-emerald-50 text-gray-700 hover:text-emerald-700 border border-gray-300 transition"
+                              >
+                                {t === 4000 ? '4 ث (افتراضي)' : `${t / 1000} ث`}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Gold Border Switch for Slider */}
+                      <div className="bg-gray-50 p-5 rounded-2xl border border-gray-200 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-start gap-3">
+                            <div className={`p-2.5 rounded-xl ${showBorder ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-200 text-gray-600'}`}>
+                              <FaBorderAll className="text-xl" />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-bold text-gray-900 cursor-pointer select-none">
+                                الإطار الزخرفي حول السلايدر
+                              </label>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                {showBorder 
+                                  ? 'الإطار الذهبي والظل مفعل حول السلايدر' 
+                                  : 'السلايدر يظهر بدون حدود أو إطار'}
+                              </p>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={showBorder}
+                            onClick={() => {
+                              const val = !showBorder;
+                              setShowBorder(val);
+                              handleSaveBanner(bannerUrl, val, true, slideInterval, activeBanners);
+                            }}
+                            className={`relative inline-flex h-7 w-14 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                              showBorder ? 'bg-yellow-600' : 'bg-gray-300'
+                            }`}
+                          >
+                            <span
+                              aria-hidden="true"
+                              className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                showBorder ? 'translate-x-0' : '-translate-x-7'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
 
-                {/* Live Preview (5 Cols) */}
+                {/* Live Preview (5 Cols - معاينة مصغرة أنيقة تتيح وضع المخطط تحتها بعرض كامل) */}
                 <div className="lg:col-span-5 flex flex-col items-center">
-                  <div className="w-full bg-gray-50 p-6 rounded-3xl border border-gray-200 shadow-sm flex flex-col items-center">
+                  <div className={`w-full bg-gray-50 ${autoSlide ? 'p-4 sm:p-5' : 'p-6'} rounded-3xl border border-gray-200 shadow-sm flex flex-col items-center`}>
                     
                     {/* Preview Card Header */}
-                    <div className="w-full flex items-center justify-between mb-4">
+                    <div className="w-full flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span>
                         <span className="text-xs font-bold text-gray-800">
                           معاينة مباشرة
                         </span>
                       </div>
-                      <span className={`text-xs px-3 py-1 rounded-full font-bold border ${
+                      <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold border ${
                         showBorder 
                           ? 'text-yellow-800 bg-yellow-100 border-yellow-300' 
                           : 'text-gray-700 bg-gray-200 border-gray-300'
@@ -766,42 +1092,64 @@ export default function ExternalWebsiteControl() {
 
                     {/* Image Card Container */}
                     <div 
-                      className={`relative w-full rounded-2xl overflow-hidden bg-white flex items-center justify-center p-3 transition-all duration-300 ${
-                        showBorder ? 'shadow-xl' : 'shadow-sm border border-gray-200'
+                      className={`relative w-full rounded-2xl overflow-hidden bg-white flex items-center justify-center p-2 transition-all duration-300 ${
+                        showBorder ? 'shadow-lg' : 'shadow-sm border border-gray-200'
                       }`}
                       style={{ 
-                        minHeight: '220px', 
-                        border: showBorder ? '4px solid #ECC383' : undefined,
-                        boxShadow: showBorder ? '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)' : undefined
+                        aspectRatio: '2005 / 638',
+                        maxHeight: '160px',
+                        border: showBorder ? '3px solid #ECC383' : undefined,
+                        boxShadow: showBorder ? '0 8px 20px -4px rgba(0, 0, 0, 0.1), 0 6px 8px -4px rgba(0, 0, 0, 0.08)' : undefined
                       }}
                     >
                       {bannerLoading ? (
-                        <div className="flex flex-col items-center gap-2 text-gray-500 py-8">
+                        <div className="flex flex-col items-center gap-2 text-gray-500 py-6">
                           <FaSpinner className="animate-spin text-2xl text-blue-600" />
                           <span className="text-xs font-bold">جاري جلب الصورة...</span>
                         </div>
                       ) : imgError ? (
-                        <div className="flex flex-col items-center gap-2 text-red-500 py-8 text-center p-4">
-                          <FaImage className="text-4xl text-gray-400" />
+                        <div className="flex flex-col items-center gap-2 text-red-500 py-6 text-center p-4">
+                          <FaImage className="text-3xl text-gray-400" />
                           <span className="text-xs font-bold text-red-600">تعذر عرض الصورة</span>
                         </div>
                       ) : (
-                        <img
-                          src={bannerUrl || "/banner.png"}
-                          alt="بانر روائس للاستقدام"
-                          className="w-full h-auto max-h-56 object-contain rounded-xl"
-                          onError={() => setImgError(true)}
-                        />
+                        <div className="relative w-full h-full flex flex-col items-center justify-center">
+                          <img
+                            src={
+                              (autoSlide && activeBanners.length > 0 
+                                ? activeBanners[previewSlide] 
+                                : bannerUrl) || "/banner.png"
+                            }
+                            alt="بانر روائس للاستقدام"
+                            className="w-full h-full object-contain rounded-xl transition-all duration-500"
+                            onError={() => setImgError(true)}
+                          />
+
+                          {autoSlide && activeBanners.length > 1 && (
+                            <div className="absolute bottom-1 flex justify-center items-center gap-1.5 z-10" dir="rtl">
+                              {activeBanners.map((_, idx) => (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  onClick={() => setPreviewSlide(idx)}
+                                  className={`rounded-full h-1.5 transition-all duration-300 ${
+                                    idx === previewSlide ? 'w-5 bg-blue-600' : 'w-1.5 bg-gray-400/80'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
 
                     {/* Quick Link Button */}
-                    <div className="w-full mt-4 border-t pt-4 border-gray-200">
+                    <div className="w-full mt-3 border-t pt-3 border-gray-200">
                       <a
                         href="http://localhost:3001"
                         target="_blank"
                         rel="noreferrer"
-                        className="w-full flex items-center justify-center gap-2 text-xs font-bold text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 border border-blue-200 py-2.5 px-4 rounded-xl transition-colors shadow-sm"
+                        className="w-full flex items-center justify-center gap-2 text-xs font-bold text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 border border-blue-200 py-2 px-3 rounded-xl transition-colors shadow-xs"
                       >
                         <FaExternalLinkAlt className="text-xs" />
                         <span>فتح موقع العملاء للمعاينة</span>
@@ -809,6 +1157,281 @@ export default function ExternalWebsiteControl() {
                     </div>
                   </div>
                 </div>
+
+                {/* --- FULL WIDTH ROW (lg:col-span-12): SLIDES TIMELINE & SEQUENCE (ترتيب وتنظيم السلايدات كالمخطط بالعرض الكامل تحت المعاينة والإعدادات) --- */}
+                {autoSlide && (
+                  <div className="lg:col-span-12 w-full bg-gray-50 p-5 sm:p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-200 pb-3">
+                      <div>
+                        <h4 className="text-sm sm:text-base font-bold text-gray-900 flex items-center gap-2">
+                          <span>ترتيب وتنظيم السلايدات</span>
+                          <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full border border-emerald-300">
+                            {activeBanners.length} شرائح
+                          </span>
+                        </h4>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          تسلسل ظهور الصور بالترتيب من اليمين إلى اليسار مع زمن الانتقال المباشر بين كل شريحة
+                        </p>
+                      </div>
+
+                      <span className="text-[11px] text-gray-500 bg-white border border-gray-200 px-2.5 py-1 rounded-lg">
+                        استخدم الأسهم لتغيير ترتيب السلايدات، أو علامة (X) للحذف
+                      </span>
+                    </div>
+
+                    {/* Horizontal Flow Container matching user drawing taking full width */}
+                    <div className="overflow-x-auto pb-4 pt-2" dir="rtl">
+                      <div className="flex items-start gap-3 sm:gap-4 min-w-max px-1">
+                        {activeBanners.map((img, idx) => (
+                          <React.Fragment key={idx}>
+                            {/* Slide Card Column */}
+                            <div className="flex flex-col items-center gap-2">
+                              {/* The Rectangular Slide Card */}
+                              <div className="relative group w-40 sm:w-48 h-26 sm:h-30 bg-white rounded-2xl border-2 border-emerald-500/70 shadow-md hover:shadow-lg transition-all duration-200 p-1.5 flex flex-col justify-between overflow-hidden">
+                                {/* Thumbnail */}
+                                <div className="w-full h-full rounded-xl overflow-hidden bg-gray-50 flex items-center justify-center">
+                                  <img
+                                    src={img}
+                                    alt={`السلايد ${idx + 1}`}
+                                    className="w-full h-full object-contain"
+                                    onError={(e) => { (e.target as HTMLImageElement).src = '/banner.png'; }}
+                                  />
+                                </div>
+
+                                {/* Top Controls Overlay */}
+                                <div className="absolute top-2 left-2 right-2 flex items-center justify-between pointer-events-none">
+                                  {/* Order Badge */}
+                                  <span className="pointer-events-auto text-[10px] bg-black/60 text-white font-mono font-bold px-2 py-0.5 rounded-md backdrop-blur-sm shadow">
+                                    #{idx + 1}
+                                  </span>
+
+                                  {/* Remove Button */}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleSliderBanner(img)}
+                                    className="pointer-events-auto w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center text-xs transition shadow-md"
+                                    title="إزالة هذا السلايد"
+                                  >
+                                    <FaTimes />
+                                  </button>
+                                </div>
+
+                                {/* Bottom Reorder Bar on hover */}
+                                <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                  {/* Move previous in sequence (Right in RTL - points outwards to the Right) */}
+                                  <button
+                                    type="button"
+                                    disabled={idx === 0}
+                                    onClick={() => handleMoveSlide(idx, 'prev')}
+                                    className="pointer-events-auto p-1 rounded-md bg-white/95 hover:bg-white text-gray-700 hover:text-emerald-700 shadow text-xs disabled:opacity-30 disabled:cursor-not-allowed"
+                                    title="نقل لليمين (للشريحة السابقة)"
+                                  >
+                                    <FaChevronRight />
+                                  </button>
+
+                                  {/* Move next in sequence (Left in RTL - points outwards to the Left) */}
+                                  <button
+                                    type="button"
+                                    disabled={idx === activeBanners.length - 1}
+                                    onClick={() => handleMoveSlide(idx, 'next')}
+                                    className="pointer-events-auto p-1 rounded-md bg-white/95 hover:bg-white text-gray-700 hover:text-emerald-700 shadow text-xs disabled:opacity-30 disabled:cursor-not-allowed"
+                                    title="نقل لليسار (للشريحة التالية)"
+                                  >
+                                    <FaChevronLeft />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Under-Card Label matching drawing: السلايد 1, السلايد 2 */}
+                              <div className="text-center">
+                                <span className="text-xs sm:text-sm font-bold text-gray-900 block">
+                                  السلايد {idx + 1}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Flow / Transition Arrow Connector with Per-Slide Timing Controls */}
+                            <div className="relative flex flex-col items-center justify-center self-center px-1.5 py-1">
+                              {/* Timing Stepper Pill */}
+                              <div className="flex items-center gap-1 bg-white border border-emerald-300 rounded-xl p-1 shadow-sm hover:shadow transition">
+                                {/* Minus Step Button (- 0.5s) */}
+                                <button
+                                  type="button"
+                                  disabled={getSlideDuration(idx) <= 500}
+                                  onClick={() => handleUpdateSlideInterval(idx, getSlideDuration(idx) - 500)}
+                                  className="w-5 h-5 rounded-md bg-gray-100 hover:bg-emerald-100 text-gray-700 hover:text-emerald-800 font-bold text-[11px] flex items-center justify-center transition disabled:opacity-20 disabled:cursor-not-allowed"
+                                  title="إنقاص نصف ثانية"
+                                >
+                                  -
+                                </button>
+
+                                {/* Clickable Badge showing Duration - opens popover */}
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveIntervalPopover(activeIntervalPopover === idx ? null : idx)}
+                                  className="px-2 py-0.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[11px] font-mono font-bold border border-emerald-200 flex items-center gap-1 transition cursor-pointer"
+                                  title="انقر لتعديل وقت هذه الشريحة"
+                                >
+                                  <span>⏱</span>
+                                  <span>{getSlideDuration(idx) / 1000}s</span>
+                                </button>
+
+                                {/* Plus Step Button (+ 0.5s) */}
+                                <button
+                                  type="button"
+                                  disabled={getSlideDuration(idx) >= 10000}
+                                  onClick={() => handleUpdateSlideInterval(idx, getSlideDuration(idx) + 500)}
+                                  className="w-5 h-5 rounded-md bg-gray-100 hover:bg-emerald-100 text-gray-700 hover:text-emerald-800 font-bold text-[11px] flex items-center justify-center transition disabled:opacity-20 disabled:cursor-not-allowed"
+                                  title="زيادة نصف ثانية"
+                                >
+                                  +
+                                </button>
+                              </div>
+
+                              {/* Direction Indicator */}
+                              <div className="flex items-center gap-1 text-emerald-600 mt-1">
+                                <span className="text-[9px] text-gray-500 font-medium">
+                                  {idx === activeBanners.length - 1 ? 'إلى البداية' : `إلى #${idx + 2}`}
+                                </span>
+                                <FaArrowLeft className="text-[10px] animate-pulse" />
+                              </div>
+
+                              {/* Popover for fast presets & slider */}
+                              {activeIntervalPopover === idx && (
+                                <div 
+                                  className="absolute z-50 top-full mt-2 w-64 bg-white rounded-2xl shadow-2xl border-2 border-emerald-500 p-3 text-right"
+                                  dir="rtl"
+                                >
+                                  <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-2">
+                                    <span className="text-xs font-bold text-gray-900">
+                                      وقت عرض السلايد {idx + 1}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setActiveIntervalPopover(null)}
+                                      className="text-gray-400 hover:text-red-500 text-xs p-1"
+                                    >
+                                      <FaTimes />
+                                    </button>
+                                  </div>
+
+                                  <div className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg mb-2 text-center border border-emerald-200">
+                                    ⏱ {formatSlideInterval(getSlideDuration(idx))}
+                                  </div>
+
+                                  {/* Slider inside popover */}
+                                  <div className="mb-3 px-1">
+                                    <input
+                                      type="range"
+                                      min="500"
+                                      max="10000"
+                                      step="500"
+                                      value={getSlideDuration(idx)}
+                                      onChange={(e) => {
+                                        const val = Number(e.target.value);
+                                        const updated = activeBanners.map((_, i) => (i === idx ? val : getSlideDuration(i)));
+                                        setSlideIntervals(updated);
+                                      }}
+                                      onMouseUp={() => {
+                                        handleUpdateSlideInterval(idx, getSlideDuration(idx));
+                                      }}
+                                      onTouchEnd={() => {
+                                        handleUpdateSlideInterval(idx, getSlideDuration(idx));
+                                      }}
+                                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+                                    />
+                                    <div className="flex justify-between text-[9px] text-gray-400 mt-1">
+                                      <span>0.5 ث</span>
+                                      <span>5 ث</span>
+                                      <span>10 ث</span>
+                                    </div>
+                                  </div>
+
+                                  {/* Presets Chips */}
+                                  <div className="text-[10px] font-bold text-gray-600 mb-1">اختيار مباشر:</div>
+                                  <div className="grid grid-cols-3 gap-1">
+                                    {PRESET_INTERVALS.map((preset) => (
+                                      <button
+                                        key={preset.value}
+                                        type="button"
+                                        onClick={() => {
+                                          handleUpdateSlideInterval(idx, preset.value);
+                                          setActiveIntervalPopover(null);
+                                        }}
+                                        className={`py-1 px-1.5 rounded-md text-[10px] font-bold transition text-center ${
+                                          getSlideDuration(idx) === preset.value
+                                            ? 'bg-emerald-600 text-white shadow-xs'
+                                            : 'bg-gray-50 border border-gray-200 text-gray-700 hover:bg-emerald-50 hover:border-emerald-300'
+                                        }`}
+                                      >
+                                        {preset.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </React.Fragment>
+                        ))}
+
+                        {/* --- THE ADD (+) SLIDE CARD (مطابق تماماً لرسمة المستخدم) --- */}
+                        <div className="flex flex-col items-center gap-2">
+                          <label
+                            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                            onDragLeave={() => setIsDragOver(false)}
+                            onDrop={handleDrop}
+                            className={`relative w-40 sm:w-48 h-26 sm:h-30 rounded-2xl border-2 border-dashed transition-all duration-200 p-2 flex flex-col items-center justify-center cursor-pointer ${
+                              isDragOver
+                                ? "border-emerald-600 bg-emerald-100/70 scale-105"
+                                : bannerUploading
+                                ? "border-emerald-400 bg-emerald-50 cursor-not-allowed"
+                                : "border-emerald-400 hover:border-emerald-600 bg-emerald-50/40 hover:bg-emerald-50/80 shadow-xs hover:shadow-md"
+                            }`}
+                          >
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleFileChange}
+                              disabled={bannerUploading}
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                            />
+
+                            {bannerUploading ? (
+                              <div className="flex flex-col items-center gap-1.5 text-emerald-700">
+                                <FaSpinner className="animate-spin text-xl" />
+                                <span className="text-[10px] font-bold">جاري الرفع...</span>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center gap-1.5 text-emerald-700">
+                                <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 border-2 border-emerald-300 flex items-center justify-center text-lg font-bold shadow-sm">
+                                  <FaPlus />
+                                </div>
+                                <span className="text-[10px] font-bold text-emerald-800 text-center">
+                                  رفع أو إسقاط صورة
+                                </span>
+                              </div>
+                            )}
+                          </label>
+
+                          {/* Label underneath */}
+                          <div className="text-center">
+                            <span className="text-xs sm:text-sm font-bold text-emerald-800 block">
+                              إضافة سلايد
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tips footer */}
+                    <div className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-100 flex items-center gap-2 text-xs text-emerald-900">
+                      <FaRulerCombined className="text-emerald-600 flex-shrink-0" />
+                      <div>
+                        <strong>المقاس الموصى به:</strong> <span className="font-bold font-mono" dir="ltr">600 × 400 px</span> (نسبة أبعاد 3:2) بخلفية بيضاء أو شفافة. يمكنك أيضاً ضم أي صورة من سجل الصور بالأسفل بنقرة واحدة.
+                      </div>
+                    </div>
+                  </div>
+                )}
 
               </div>
             </div>
@@ -823,7 +1446,9 @@ export default function ExternalWebsiteControl() {
                   <div>
                     <h3 className="text-lg font-bold text-gray-900">سجل الصور السابقة (مكتبة الصور)</h3>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      الصور التي تم رفعها سابقاً محفوظة هنا، يمكنك إعادة تعيين أي منها كبانر رئيسي بنقرة واحدة
+                      {!autoSlide 
+                        ? 'اختر أي صورة محفوظة لتعيينها مباشرة كصورة رئيسية ثابتة في الموقع' 
+                        : 'حدد أي الصور ترغب في ضمها أو استبعادها من دورة السلايدر التلقائي'}
                     </p>
                   </div>
                 </div>
@@ -849,27 +1474,38 @@ export default function ExternalWebsiteControl() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {bannerHistory.map((item) => {
-                    const isActive = item.imageUrl === bannerUrl;
+                    const isMainStatic = item.imageUrl === bannerUrl;
+                    const isInSlider = activeBanners.includes(item.imageUrl);
                     return (
                       <div
                         key={item.id}
                         className={`group relative bg-gray-50 rounded-2xl p-3 border-2 transition-all duration-200 flex flex-col justify-between ${
-                          isActive 
-                            ? 'border-blue-600 shadow-md bg-blue-50/30' 
-                            : 'border-gray-200 hover:border-gray-400 hover:shadow'
+                          !autoSlide
+                            ? isMainStatic ? 'border-blue-600 shadow-md bg-blue-50/30' : 'border-gray-200 hover:border-gray-400 hover:shadow'
+                            : isInSlider ? 'border-emerald-600 shadow-md bg-emerald-50/30' : 'border-gray-200 hover:border-gray-400 hover:shadow'
                         }`}
                       >
-                        {/* Status Badge */}
+                        {/* Status Badges */}
                         <div className="flex items-center justify-between mb-2">
-                          {isActive ? (
-                            <span className="text-xs bg-blue-600 text-white font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
-                              <FaCheck className="text-[10px]" /> البانر النشط حالياً
-                            </span>
-                          ) : (
-                            <span className="text-[11px] text-gray-500 font-medium">
-                              صورة محفوظة
-                            </span>
-                          )}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {!autoSlide ? (
+                              isMainStatic ? (
+                                <span className="text-[11px] bg-blue-600 text-white font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+                                  <FaCheck className="text-[9px]" /> الصورة الثابتة الحالية
+                                </span>
+                              ) : (
+                                <span className="text-[11px] text-gray-500 font-medium">صورة محفوظة</span>
+                              )
+                            ) : (
+                              isInSlider ? (
+                                <span className="text-[11px] bg-emerald-600 text-white font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+                                  <FaSyncAlt className="text-[9px]" /> في السلايدر
+                                </span>
+                              ) : (
+                                <span className="text-[11px] bg-gray-200 text-gray-600 font-medium px-2 py-0.5 rounded-full">مستبعدة من السلايدر</span>
+                              )
+                            )}
+                          </div>
 
                           <button
                             type="button"
@@ -893,27 +1529,44 @@ export default function ExternalWebsiteControl() {
                           />
                         </div>
 
-                        {/* Action Button */}
-                        <button
-                          type="button"
-                          onClick={() => handleSelectHistoryImage(item.imageUrl)}
-                          disabled={isActive}
-                          className={`w-full py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all ${
-                            isActive
-                              ? 'bg-blue-100 text-blue-800 cursor-default'
-                              : 'bg-white hover:bg-blue-600 hover:text-white text-gray-700 border border-gray-300 shadow-sm'
-                          }`}
-                        >
-                          {isActive ? (
-                            <>
-                              <FaCheckCircle className="text-blue-600" /> البانر الحالي للموقع
-                            </>
+                        {/* Action Buttons tailored to active mode */}
+                        <div className="flex flex-col gap-1.5">
+                          {!autoSlide ? (
+                            <button
+                              type="button"
+                              onClick={() => handleSelectHistoryImage(item.imageUrl)}
+                              disabled={isMainStatic}
+                              className={`w-full py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all ${
+                                isMainStatic
+                                  ? 'bg-blue-100 text-blue-800 cursor-default'
+                                  : 'bg-white hover:bg-blue-600 hover:text-white text-gray-700 border border-gray-300 shadow-sm'
+                              }`}
+                            >
+                              {isMainStatic ? (
+                                <>
+                                  <FaCheckCircle className="text-blue-600" /> الصورة الثابتة المعتمدة
+                                </>
+                              ) : (
+                                <>
+                                  <FaImage /> تعيين كصورة ثابتة للموقع
+                                </>
+                              )}
+                            </button>
                           ) : (
-                            <>
-                              <FaImage /> تفعيل كبانر رئيسي
-                            </>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleSliderBanner(item.imageUrl)}
+                              className={`w-full py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all ${
+                                isInSlider
+                                  ? 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100'
+                                  : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'
+                              }`}
+                            >
+                              <FaSyncAlt className="text-xs" />
+                              {isInSlider ? 'إزالة من السلايدر المتحرك' : 'إضافة إلى السلايدر المتحرك'}
+                            </button>
                           )}
-                        </button>
+                        </div>
                       </div>
                     );
                   })}
