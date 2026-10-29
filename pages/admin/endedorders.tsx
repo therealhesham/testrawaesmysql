@@ -116,6 +116,14 @@ export default function Dashboard() {
   const [rentalCount, setRentalCount] = useState(0);
   const [nationality, setNationality] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
   const [ratingStatus, setRatingStatus] = useState('all');
   const [starsCount, setStarsCount] = useState('all');
   const [fromDate, setFromDate] = useState('');
@@ -232,8 +240,8 @@ export default function Dashboard() {
       if (nationality) {
         url.searchParams.set('Nationality', nationality);
       }
-      if (searchTerm) {
-        url.searchParams.set('searchTerm', searchTerm);
+      if (debouncedSearchTerm) {
+        url.searchParams.set('searchTerm', debouncedSearchTerm);
       }
       if (ratingStatus !== 'all') url.searchParams.set('ratingStatus', ratingStatus);
       if (starsCount !== 'all') url.searchParams.set('starsCount', starsCount);
@@ -266,7 +274,7 @@ export default function Dashboard() {
         url.searchParams.set('page', '1');
         url.searchParams.set('typeOfContract', type);
         if (nationality) url.searchParams.set('Nationality', nationality);
-        if (searchTerm) url.searchParams.set('searchTerm', searchTerm);
+        if (debouncedSearchTerm) url.searchParams.set('searchTerm', debouncedSearchTerm);
         if (ratingStatus !== 'all') url.searchParams.set('ratingStatus', ratingStatus);
         if (starsCount !== 'all') url.searchParams.set('starsCount', starsCount);
         if (fromDate) url.searchParams.set('fromDate', fromDate);
@@ -305,7 +313,7 @@ export default function Dashboard() {
     return () => {
       abortController.abort();
     };
-  }, [contractType, nationality, searchTerm, ratingStatus, starsCount, fromDate, toDate, warrantyStatus]);
+  }, [contractType, nationality, debouncedSearchTerm, ratingStatus, starsCount, fromDate, toDate, warrantyStatus]);
 
   useEffect(() => {
     const authToken = localStorage.getItem('token');
@@ -725,15 +733,31 @@ export default function Dashboard() {
                 <div className="flex flex-wrap items-center gap-2.5 justify-start flex-grow">
                   
                   {/* Search */}
-                  <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 flex-grow min-w-[200px] max-w-[300px] focus-within:border-teal-700 focus-within:ring-2 focus-within:ring-teal-700/10 transition-all shadow-sm">
+                  <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 flex-grow min-w-[220px] max-w-[340px] focus-within:border-teal-700 focus-within:ring-2 focus-within:ring-teal-700/10 transition-all shadow-sm">
                     <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
                     <input
                       type="text"
-                      placeholder="بحث"
+                      placeholder="بحث باسم العاملة، العميل، الهوية، الجواز، الجوال..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="bg-transparent border-none outline-none text-xs text-gray-800 placeholder-gray-400 w-full font-medium"
+                      className="bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus:border-transparent text-xs text-gray-800 placeholder-gray-400 w-full font-medium shadow-none"
+                      style={{ outline: 'none', boxShadow: 'none' }}
                     />
+                    {searchTerm && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSearchTerm('');
+                          setDebouncedSearchTerm('');
+                        }}
+                        className="text-gray-400 hover:text-gray-600 transition-colors p-0.5 flex-shrink-0"
+                        title="مسح البحث"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
 
                   {/* Nationality */}
@@ -796,6 +820,7 @@ export default function Dashboard() {
                   onClick={() => {
                     setNationality('');
                     setSearchTerm('');
+                    setDebouncedSearchTerm('');
                     setRatingStatus('all');
                     setStarsCount('all');
                     setFromDate('');
