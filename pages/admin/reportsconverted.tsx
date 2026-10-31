@@ -15,6 +15,7 @@ import ExcelJS from 'exceljs';
 import { FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons';
 import { jwtDecode } from 'jwt-decode';
 import Select from 'react-select';
+import { ChevronDown } from 'lucide-react';
 import type { HomemaidListStats } from 'lib/homemaidListStats';
 
 // Dynamically import Leaflet components (SSR-safe)
@@ -1328,11 +1329,53 @@ export default function Home() {
   };
 
   const donutChart1Data = {
-    labels: ['جديد', 'قيد التنفيذ', 'مكتمل', 'ملغي'],
+    labels: [
+      'مقبولة (مكتملة ومستلمة)',
+      'مقبولة (جارية قيد الإجراء)',
+      'مرفوضة',
+      'ملغاة',
+      'جديدة (قيد الانتظار)',
+    ],
     datasets: [{
-      data: [ordersStatsData?.new_order || 0, ordersStatsData?.in_progress || 0, ordersStatsData?.delivered || 0, ordersStatsData?.cancelled || 0],
-      backgroundColor: ["#600000", "#F8DADA", "lightblue", tertiaryColor],
+      data: [
+        ordersStatsData?.delivered || 0,
+        ordersStatsData?.in_progress || 0,
+        ordersStatsData?.rejected || 0,
+        ordersStatsData?.cancelled || 0,
+        ordersStatsData?.new_order || 0,
+      ],
+      backgroundColor: [
+        '#10b981', // أخضر زمردي للمكتملة
+        '#0f766e', // تيل داكن للجارية
+        '#ef4444', // أحمر للمرفوضة
+        '#f59e0b', // عنبري للملغاة
+        '#6366f1', // نيلي للجديدة
+      ],
+      borderWidth: 2,
+      borderColor: '#ffffff',
     }],
+  };
+
+  const ordersConversionDonutOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        callbacks: {
+          label: (context: any) => {
+            const label = context.label || '';
+            const value = Number(context.raw || 0);
+            const total = Number(ordersStatsData?.totalOrders || 1);
+            const percentage = ((value / total) * 100).toFixed(1);
+            return ` ${label}: ${value} طلب (${percentage}%)`;
+          },
+        },
+      },
+    },
+    cutout: '70%',
   };
 
   const lineChart1Data = {
@@ -1716,10 +1759,48 @@ export default function Home() {
 
   // Table data for modals
   const ordersTableData = [
-    { الحالة: 'جديد', العدد: ordersStatsData?.new_order || 0 },
-    { الحالة: 'قيد التنفيذ', العدد: ordersStatsData?.in_progress || 0 },
-    { الحالة: 'مكتمل', العدد: ordersStatsData?.delivered || 0 },
-    { الحالة: 'ملغي', العدد: ordersStatsData?.cancelled || 0 },
+    {
+      'الحالة والتصنيف': 'إجمالي الطلبات المسجلة في الفترة',
+      'العدد': ordersStatsData?.totalOrders ?? 0,
+      'النسبة المئوية': '100%',
+      'التفصيل والوصف': 'كافة الطلبات الجديدة التي تم إنشاؤها في هذه الفترة',
+    },
+    {
+      'الحالة والتصنيف': 'طلبات تم قبولها (إجمالي المقبولة)',
+      'العدد': ordersStatsData?.accepted ?? 0,
+      'النسبة المئوية': `${ordersStatsData?.rates?.acceptanceRate ?? 0}%`,
+      'التفصيل والوصف': 'تمت الموافقة عليها (تشمل المعاملات الجارية والمكتملة)',
+    },
+    {
+      'الحالة والتصنيف': '  ↳ مقبولة: مكتملة وتم الاستلام',
+      'العدد': ordersStatsData?.delivered ?? 0,
+      'النسبة المئوية': `${ordersStatsData?.totalOrders ? ((ordersStatsData.delivered / ordersStatsData.totalOrders) * 100).toFixed(1) : 0}%`,
+      'التفصيل والوصف': 'تم استلام العاملة وإتمام العقد بنجاح',
+    },
+    {
+      'الحالة والتصنيف': '  ↳ مقبولة: جارية قيد الإجراء',
+      'العدد': ordersStatsData?.in_progress ?? 0,
+      'النسبة المئوية': `${ordersStatsData?.totalOrders ? ((ordersStatsData.in_progress / ordersStatsData.totalOrders) * 100).toFixed(1) : 0}%`,
+      'التفصيل والوصف': 'جارية في مراحل التأشيرة والفحص والتصاريح والربط',
+    },
+    {
+      'الحالة والتصنيف': 'طلبات مرفوضة',
+      'العدد': ordersStatsData?.rejected ?? 0,
+      'النسبة المئوية': `${ordersStatsData?.rates?.rejectionRate ?? 0}%`,
+      'التفصيل والوصف': 'تم رفضها من قبل الإدارة',
+    },
+    {
+      'الحالة والتصنيف': 'طلبات ملغاة',
+      'العدد': ordersStatsData?.cancelled ?? 0,
+      'النسبة المئوية': `${ordersStatsData?.rates?.cancellationRate ?? 0}%`,
+      'التفصيل والوصف': 'تم إلغاء العقد أو الحجز',
+    },
+    {
+      'الحالة والتصنيف': 'طلبات جديدة (قيد الانتظار)',
+      'العدد': ordersStatsData?.new_order ?? 0,
+      'النسبة المئوية': `${ordersStatsData?.rates?.pendingRate ?? 0}%`,
+      'التفصيل والوصف': 'لا تزال بانتظار قرار القبول أو الرفض',
+    },
   ];
 
   const growthRateTableData = lineChart1Data.labels.map((label: string, i: number) => ({
@@ -2159,58 +2240,298 @@ export default function Home() {
 
           {/* Row 1: إحصائيات الطلبات ومعدل النمو */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-            <div className="bg-white rounded-xl p-6 shadow-sm">
-              <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-                <div className="flex items-center gap-4">
-                  <select
-                    value={ordersPeriod}
-                    onChange={(e) => setOrdersPeriod(e.target.value)}
-                    className="bg-white text-black  py-1 rounded text-sm"
-                  >
-                    <option value="week">أسبوعي</option>
-                    <option value="month">شهري</option>
-                    <option value="year">سنوي</option>
-                    <option value="custom">مخصص</option>
-                  </select>
-                  {ordersPeriod === 'month' && (
-                    <select
-                      value={ordersMonthSelection}
-                      onChange={(e) => setOrdersMonthSelection(e.target.value)}
-                      className="bg-white text-black py-1 rounded text-sm border"
-                    >
-                      <option value="current">الشهر الحالي</option>
-                      <option value="previous">الشهر السابق</option>
-                    </select>
-                  )}
-                  {ordersPeriod === 'custom' && (
-                    <div className="flex gap-2">
-                      <input
-                        type="date"
-                        value={ordersStartDate}
-                        onChange={(e) => setOrdersStartDate(e.target.value)}
-                        className="border rounded px-2 py-1"
-                      />
-                      <input
-                        type="date"
-                        value={ordersEndDate}
-                        onChange={(e) => setOrdersEndDate(e.target.value)}
-                        className="border rounded px-2 py-1"
-                      />
+            {/* بطاقة مسار ومصير الطلبات الجديدة */}
+            <div className="bg-white rounded-xl p-6 shadow-sm flex flex-col justify-between">
+              <div>
+                {/* الرأس والفلاتر */}
+                <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-5 pb-4 border-b border-gray-200">
+                  <div className="flex flex-col items-start text-right">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-bold text-gray-800">مسار ومصير الطلبات الجديدة</h3>
+                      <span className="bg-teal-50 text-teal-700 text-xs px-2.5 py-0.5 rounded-full font-bold">
+                        أين تذهب الطلبات؟
+                      </span>
                     </div>
-                  )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      إحصائية تحويل الطلبات الواردة (كم قُبل، كم رُفض، كم أُلغي، وكم اكتمل)
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* اختيار الفترة */}
+                    <div className="relative">
+                      <select
+                        value={ordersPeriod}
+                        onChange={(e) => setOrdersPeriod(e.target.value)}
+                        className="appearance-none bg-gray-50 hover:bg-gray-100 text-gray-800 py-1.5 pr-3 pl-8 rounded-lg text-xs border border-gray-200 focus:outline-none focus:border-teal-700 cursor-pointer font-medium transition-colors"
+                        dir="rtl"
+                      >
+                        <option value="month">شهري</option>
+                        <option value="week">أسبوعي</option>
+                        <option value="year">سنوي</option>
+                        <option value="all">كل الأوقات</option>
+                        <option value="custom">مخصص</option>
+                      </select>
+                      <ChevronDown className="w-3.5 h-3.5 pointer-events-none text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    </div>
+
+                    {ordersPeriod === 'month' && (
+                      <div className="relative">
+                        <select
+                          value={ordersMonthSelection}
+                          onChange={(e) => setOrdersMonthSelection(e.target.value)}
+                          className="appearance-none bg-gray-50 hover:bg-gray-100 text-gray-800 py-1.5 pr-3 pl-8 rounded-lg text-xs border border-gray-200 focus:outline-none focus:border-teal-700 cursor-pointer font-medium transition-colors"
+                          dir="rtl"
+                        >
+                          <option value="current">الشهر الحالي</option>
+                          <option value="previous">الشهر السابق</option>
+                          <option value="last30">آخر 30 يوم</option>
+                        </select>
+                        <ChevronDown className="w-3.5 h-3.5 pointer-events-none text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      </div>
+                    )}
+
+                    {ordersPeriod === 'custom' && (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="date"
+                          value={ordersStartDate}
+                          onChange={(e) => setOrdersStartDate(e.target.value)}
+                          className="border border-gray-200 bg-gray-50 rounded-lg px-2 py-1 text-xs text-gray-700 focus:outline-none focus:border-teal-700"
+                        />
+                        <span className="text-xs text-gray-400">-</span>
+                        <input
+                          type="date"
+                          value={ordersEndDate}
+                          onChange={(e) => setOrdersEndDate(e.target.value)}
+                          className="border border-gray-200 bg-gray-50 rounded-lg px-2 py-1 text-xs text-gray-700 focus:outline-none focus:border-teal-700"
+                        />
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => openModal('إحصائيات مسار ومصير الطلبات الجديدة', ['الحالة والتصنيف', 'العدد', 'النسبة المئوية', 'التفصيل والوصف'], ordersTableData)}
+                      className="bg-teal-800 hover:bg-teal-900 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shadow-sm"
+                    >
+                      عرض الجدول
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <h3 className="text-base font-semibold text-gray-800">إحصائيات الطلبات</h3>
-                  <button
-                    onClick={() => openModal('إحصائيات الطلبات', ['الحالة', 'العدد'], ordersTableData)}
-                    className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
-                  >
-                    عرض الجدول
-                  </button>
+
+                {/* بطاقات الإحصائيات السريعة */}
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
+                  {/* إجمالي الوارد */}
+                  <div className="bg-gray-50 border border-gray-200/70 rounded-xl p-2.5 text-right">
+                    <span className="text-[11px] font-medium text-gray-500 block">إجمالي الوارد</span>
+                    <span className="text-lg font-bold text-gray-900 block mt-0.5">{ordersStatsData?.totalOrders ?? 0}</span>
+                    <span className="text-[10px] text-gray-400">100% من الطلبات</span>
+                  </div>
+
+                  {/* المقبولة */}
+                  <div className="bg-emerald-50/70 border border-emerald-200/70 rounded-xl p-2.5 text-right">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-emerald-800">تم القبول</span>
+                      <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded font-bold">
+                        {ordersStatsData?.rates?.acceptanceRate ?? 0}%
+                      </span>
+                    </div>
+                    <span className="text-lg font-bold text-emerald-700 block mt-0.5">{ordersStatsData?.accepted ?? 0}</span>
+                    <span className="text-[10px] text-emerald-600">
+                      {ordersStatsData?.delivered ?? 0} مكتمل • {ordersStatsData?.in_progress ?? 0} جاري
+                    </span>
+                  </div>
+
+                  {/* المرفوضة */}
+                  <div className="bg-rose-50/70 border border-rose-200/70 rounded-xl p-2.5 text-right">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-rose-800">مرفوضة</span>
+                      <span className="text-[10px] bg-rose-100 text-rose-800 px-1.5 py-0.2 rounded font-bold">
+                        {ordersStatsData?.rates?.rejectionRate ?? 0}%
+                      </span>
+                    </div>
+                    <span className="text-lg font-bold text-rose-700 block mt-0.5">{ordersStatsData?.rejected ?? 0}</span>
+                    <span className="text-[10px] text-rose-600">رُفضت من الإدارة</span>
+                  </div>
+
+                  {/* الملغاة */}
+                  <div className="bg-amber-50/70 border border-amber-200/70 rounded-xl p-2.5 text-right">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-amber-800">ملغاة</span>
+                      <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded font-bold">
+                        {ordersStatsData?.rates?.cancellationRate ?? 0}%
+                      </span>
+                    </div>
+                    <span className="text-lg font-bold text-amber-700 block mt-0.5">{ordersStatsData?.cancelled ?? 0}</span>
+                    <span className="text-[10px] text-amber-600">إلغاء حجز أو عقد</span>
+                  </div>
+
+                  {/* قيد الانتظار */}
+                  <div className="bg-indigo-50/70 border border-indigo-200/70 rounded-xl p-2.5 text-right col-span-2 sm:col-span-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-indigo-800">قيد الانتظار</span>
+                      <span className="text-[10px] bg-indigo-100 text-indigo-800 px-1.5 py-0.2 rounded font-bold">
+                        {ordersStatsData?.rates?.pendingRate ?? 0}%
+                      </span>
+                    </div>
+                    <span className="text-lg font-bold text-indigo-700 block mt-0.5">{ordersStatsData?.new_order ?? 0}</span>
+                    <span className="text-[10px] text-indigo-600">جديدة بانتظار القرار</span>
+                  </div>
                 </div>
-              </div>
-              <div className="relative h-64">
-                <Doughnut data={donutChart1Data} options={donutOptions} />
+
+                {/* شريط التوزيع البصري */}
+                <div className="mb-4 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                  <div className="flex justify-between items-center text-xs mb-1.5 font-medium text-gray-700">
+                    <span>شريط مسار وتوزيع الطلبات:</span>
+                    <span className="text-emerald-700 font-bold text-[11px]">
+                      معدل القبول: {ordersStatsData?.rates?.acceptanceRate ?? 0}%
+                    </span>
+                  </div>
+                  <div className="h-3 w-full bg-gray-200 rounded-full overflow-hidden flex" dir="ltr">
+                    {/* مكتملة */}
+                    {(ordersStatsData?.delivered ?? 0) > 0 && (
+                      <div
+                        style={{ width: `${(ordersStatsData.delivered / (ordersStatsData.totalOrders || 1)) * 100}%` }}
+                        className="bg-emerald-500 h-full transition-all duration-500"
+                        title={`مكتملة ومستلمة: ${ordersStatsData.delivered}`}
+                      />
+                    )}
+                    {/* قيد الإجراء */}
+                    {(ordersStatsData?.in_progress ?? 0) > 0 && (
+                      <div
+                        style={{ width: `${(ordersStatsData.in_progress / (ordersStatsData.totalOrders || 1)) * 100}%` }}
+                        className="bg-teal-700 h-full transition-all duration-500"
+                        title={`جارية قيد الإجراء: ${ordersStatsData.in_progress}`}
+                      />
+                    )}
+                    {/* مرفوضة */}
+                    {(ordersStatsData?.rejected ?? 0) > 0 && (
+                      <div
+                        style={{ width: `${(ordersStatsData.rejected / (ordersStatsData.totalOrders || 1)) * 100}%` }}
+                        className="bg-rose-500 h-full transition-all duration-500"
+                        title={`مرفوضة: ${ordersStatsData.rejected}`}
+                      />
+                    )}
+                    {/* ملغاة */}
+                    {(ordersStatsData?.cancelled ?? 0) > 0 && (
+                      <div
+                        style={{ width: `${(ordersStatsData.cancelled / (ordersStatsData.totalOrders || 1)) * 100}%` }}
+                        className="bg-amber-500 h-full transition-all duration-500"
+                        title={`ملغاة: ${ordersStatsData.cancelled}`}
+                      />
+                    )}
+                    {/* قيد الانتظار */}
+                    {(ordersStatsData?.new_order ?? 0) > 0 && (
+                      <div
+                        style={{ width: `${(ordersStatsData.new_order / (ordersStatsData.totalOrders || 1)) * 100}%` }}
+                        className="bg-indigo-500 h-full transition-all duration-500"
+                        title={`جديدة قيد الانتظار: ${ordersStatsData.new_order}`}
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* الرسم البياني وقائمة التفاصيل التفاعلية */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                  <div className="relative h-56 flex items-center justify-center">
+                    <Doughnut data={donutChart1Data} options={ordersConversionDonutOptions} />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                      <span className="text-2xl font-black text-gray-800">{ordersStatsData?.totalOrders ?? 0}</span>
+                      <span className="text-[11px] text-gray-500 font-medium">طلب وارد</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 text-right">
+                    {/* مقبولة: مكتملة */}
+                    <div
+                      onClick={() => router.push('/admin/endedorders')}
+                      className="flex items-center justify-between p-2 rounded-lg hover:bg-emerald-50/50 cursor-pointer border border-gray-100 hover:border-emerald-200 transition-all text-xs"
+                      title="انقر للانتقال للطلبات المكتملة"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 flex-shrink-0" />
+                        <span className="font-semibold text-gray-800">مقبولة (مكتملة ومستلمة)</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 font-bold text-gray-900">
+                        <span>{ordersStatsData?.delivered ?? 0}</span>
+                        <span className="text-[11px] text-gray-400 font-normal">
+                          ({ordersStatsData?.totalOrders ? ((ordersStatsData.delivered / ordersStatsData.totalOrders) * 100).toFixed(1) : 0}%)
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* مقبولة: جارية قيد الإجراء */}
+                    <div
+                      onClick={() => router.push('/admin/currentorderstest')}
+                      className="flex items-center justify-between p-2 rounded-lg hover:bg-teal-50/50 cursor-pointer border border-gray-100 hover:border-teal-200 transition-all text-xs"
+                      title="انقر للانتقال لطلبات قيد الإجراء"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-teal-700 flex-shrink-0" />
+                        <span className="font-semibold text-gray-800">مقبولة (جارية قيد الإجراء)</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 font-bold text-gray-900">
+                        <span>{ordersStatsData?.in_progress ?? 0}</span>
+                        <span className="text-[11px] text-gray-400 font-normal">
+                          ({ordersStatsData?.totalOrders ? ((ordersStatsData.in_progress / ordersStatsData.totalOrders) * 100).toFixed(1) : 0}%)
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* مرفوضة */}
+                    <div
+                      onClick={() => router.push('/admin/rejectedorders')}
+                      className="flex items-center justify-between p-2 rounded-lg hover:bg-rose-50/50 cursor-pointer border border-gray-100 hover:border-rose-200 transition-all text-xs"
+                      title="انقر للانتقال للطلبات المرفوضة"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-rose-500 flex-shrink-0" />
+                        <span className="font-semibold text-gray-800">طلبات مرفوضة</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 font-bold text-rose-700">
+                        <span>{ordersStatsData?.rejected ?? 0}</span>
+                        <span className="text-[11px] text-gray-400 font-normal">
+                          ({ordersStatsData?.rates?.rejectionRate ?? 0}%)
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* ملغاة */}
+                    <div
+                      onClick={() => router.push('/admin/cancelledcontracts')}
+                      className="flex items-center justify-between p-2 rounded-lg hover:bg-amber-50/50 cursor-pointer border border-gray-100 hover:border-amber-200 transition-all text-xs"
+                      title="انقر للانتقال للطلبات الملغاة"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500 flex-shrink-0" />
+                        <span className="font-semibold text-gray-800">طلبات ملغاة</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 font-bold text-amber-700">
+                        <span>{ordersStatsData?.cancelled ?? 0}</span>
+                        <span className="text-[11px] text-gray-400 font-normal">
+                          ({ordersStatsData?.rates?.cancellationRate ?? 0}%)
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* جديدة قيد الانتظار */}
+                    <div
+                      onClick={() => router.push('/admin/neworders')}
+                      className="flex items-center justify-between p-2 rounded-lg hover:bg-indigo-50/50 cursor-pointer border border-gray-100 hover:border-indigo-200 transition-all text-xs"
+                      title="انقر للانتقال للطلبات الجديدة"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 flex-shrink-0" />
+                        <span className="font-semibold text-gray-800">جديدة (قيد الانتظار)</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 font-bold text-indigo-700">
+                        <span>{ordersStatsData?.new_order ?? 0}</span>
+                        <span className="text-[11px] text-gray-400 font-normal">
+                          ({ordersStatsData?.rates?.pendingRate ?? 0}%)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             <div className="bg-white rounded-xl p-6 shadow-sm">
