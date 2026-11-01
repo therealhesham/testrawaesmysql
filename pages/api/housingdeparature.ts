@@ -260,12 +260,36 @@ export default async function handler(
         return reason.includes('تم نقل الكفالة');
       };
 
+      const isEscapedWorker = (w: any) => {
+        const reason = (w.deparatureReason || '');
+        const bookingStatus = (w.Order?.bookingstatus || '');
+        const hasEscapeData = Boolean(w.escapeData);
+        const hasOrderEscapes = Array.isArray(w.Order?.workerEscapes) && w.Order.workerEscapes.length > 0;
+        const hasNewOrderEscapes = Array.isArray(w.Order?.NewOrder?.[0]?.workerEscapes) && w.Order.NewOrder[0].workerEscapes.length > 0;
+        const tsd = w.transferSponsorshipData;
+        const isFailedDueToEscape = Boolean(tsd?.isFailedTrial && String(tsd?.failReason || '').includes('هروب'));
+        const isStatusEscaped = tsd?.status === 'escaped' || tsd?.status === 'cancelled';
+        return hasEscapeData ||
+               reason.includes('هروب') ||
+               bookingStatus.includes('هروب') ||
+               hasOrderEscapes ||
+               hasNewOrderEscapes ||
+               isFailedDueToEscape ||
+               isStatusEscaped;
+      };
+
       const isTrialWorker = (w: any) => {
-        return Boolean(w.transferSponsorshipData) && !isCompletedTransfer(w);
+        return Boolean(w.transferSponsorshipData) &&
+               !isCompletedTransfer(w) &&
+               !isEscapedWorker(w) &&
+               !w.transferSponsorshipData?.isFailedTrial;
       };
 
       const isMedicalWorker = (w: any) => {
-        return Boolean(w.medicalDepartureData) && !w.deportationData && !isCompletedTransfer(w);
+        return Boolean(w.medicalDepartureData) &&
+               !w.deportationData &&
+               !isCompletedTransfer(w) &&
+               !isEscapedWorker(w);
       };
 
       const isTemporaryWorker = (w: any) => isTrialWorker(w) || isMedicalWorker(w);
@@ -328,6 +352,16 @@ export default async function handler(
           Order: {
             include: {
               office: true,
+              workerEscapes: {
+                select: {
+                  id: true,
+                  escapeType: true,
+                  escapeDate: true,
+                  status: true,
+                  notes: true,
+                  createdAt: true,
+                },
+              },
               transferSponsorShips: {
                 include: {
                   NewClient: {
@@ -345,6 +379,16 @@ export default async function handler(
                   id: true,
                   clientID: true,
                   arrivals: { select: { id: true, KingdomentryDate: true, KingdomentryTime: true, GuaranteeDurationEnd: true, InternalmusanedContract: true, externalmusanedContract: true } },
+                  workerEscapes: {
+                    select: {
+                      id: true,
+                      escapeType: true,
+                      escapeDate: true,
+                      status: true,
+                      notes: true,
+                      createdAt: true,
+                    },
+                  },
                   typeOfContract: true,
                   ClientName: true,
                   PhoneNumber: true,
@@ -364,6 +408,50 @@ export default async function handler(
           HousedWorkerNotes: true,
         },
       });
+
+      // Self-healing: if worker has recorded escape but housedworker was not updated
+      for (const w of allDepartedWorkers) {
+        if (isEscapedWorker(w) && !(w.deparatureReason || '').includes('هروب')) {
+          const latestEscape = (w.Order as any)?.workerEscapes?.[0] || (w.Order as any)?.NewOrder?.[0]?.workerEscapes?.[0];
+          const escapeType = latestEscape?.escapeType;
+          const escapeReason = escapeType === 'trial_transfer' || w.transferSponsorshipData
+            ? 'الهروب أثناء التجربة'
+            : escapeType === 'housing'
+            ? 'الهروب من السكن'
+            : escapeType === 'airport'
+            ? 'هروب من المطار'
+            : 'الهروب من العميل';
+
+          w.deparatureReason = escapeReason;
+          w.isActive = false;
+          if (!w.escapeData && latestEscape) {
+            w.escapeData = {
+              escapeDate: latestEscape.escapeDate,
+              notes: latestEscape.notes || null,
+              recordedAt: latestEscape.createdAt || new Date().toISOString(),
+            };
+          }
+          if (w.transferSponsorshipData && !(w.transferSponsorshipData as any).isFailedTrial) {
+            w.transferSponsorshipData = {
+              ...(typeof w.transferSponsorshipData === 'object' ? (w.transferSponsorshipData as any) : {}),
+              isFailedTrial: true,
+              failReason: escapeReason,
+              status: 'escaped',
+            };
+          }
+
+          // Persist to database in background so it stays permanently clean
+          prisma.housedworker.update({
+            where: { id: w.id },
+            data: {
+              deparatureReason: escapeReason,
+              isActive: false,
+              escapeData: w.escapeData as any,
+              transferSponsorshipData: w.transferSponsorshipData as any,
+            },
+          }).catch(err => console.error('Error auto-syncing escaped housedworker:', err));
+        }
+      }
 
       // Filter by category
       let filteredWorkers = allDepartedWorkers;

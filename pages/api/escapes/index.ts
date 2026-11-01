@@ -546,7 +546,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           : await prisma.housedworker.findFirst({
               where: {
                 homeMaid_id: Number(maidId),
-                deparatureHousingDate: null,
+                OR: [
+                  { deparatureHousingDate: null },
+                  { isActive: true },
+                  { transferSponsorshipData: { not: Prisma.JsonNull } },
+                ],
               },
               orderBy: { id: 'desc' },
             });
@@ -565,7 +569,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             where: { id: activeHoused.id },
             data: {
               deparatureReason: escapeDepReason,
-              deparatureHousingDate: new Date(escapeDate),
+              deparatureHousingDate: activeHoused.deparatureHousingDate || new Date(escapeDate),
               isActive: false,
               escapeData: {
                 escapeDate,
@@ -573,6 +577,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 notes: notes || null,
                 recordedAt: new Date().toISOString(),
               },
+              ...(activeHoused.transferSponsorshipData ? {
+                transferSponsorshipData: {
+                  ...(typeof activeHoused.transferSponsorshipData === 'object' ? activeHoused.transferSponsorshipData : {}),
+                  isFailedTrial: true,
+                  failReason: escapeDepReason,
+                  status: 'escaped',
+                }
+              } : {}),
             },
           });
 

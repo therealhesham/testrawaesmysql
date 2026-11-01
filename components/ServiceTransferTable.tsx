@@ -833,19 +833,19 @@ export default function ServiceTransferTable({
 
   // تنسيق شارة المرحلة
   const renderStageBadge = (stage?: string | null, rate?: string | null) => {
+    if (rate === 'ناجحة' || stage === 'تم نقل الكفالة' || stage === 'نقل الخدمات') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-green-50 text-green-800 border border-green-200">
+          <CheckCircle className="w-3.5 h-3.5 text-green-600" />
+          تم نقل الكفالة (مكتمل)
+        </span>
+      );
+    }
     if (stage === 'فشلت التجربة' || rate === 'فاشلة') {
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-red-50 text-red-800 border border-red-200">
           <UserX className="w-3.5 h-3.5 text-red-600" />
           فشلت التجربة (تم الإرجاع)
-        </span>
-      );
-    }
-    if (stage === 'تم نقل الكفالة' || stage === 'نقل الخدمات') {
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-green-50 text-green-800 border border-green-200">
-          <CheckCircle className="w-3.5 h-3.5 text-green-600" />
-          تم نقل الكفالة (مكتمل)
         </span>
       );
     }

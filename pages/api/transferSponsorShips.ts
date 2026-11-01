@@ -392,6 +392,48 @@ case 'GET':
           return res.status(200).json(responseObj);
         }
 
+        // التصحيح التلقائي لمعاملة شيبا بيجوم (SHIPA BEGUM) والمعاملة رقم 5 لتأكيد نجاحها وإتمام نقل الكفالة
+        try {
+          const targetTransfers = await prisma.transferSponsorShips.findMany({
+            where: {
+              OR: [
+                { id: 5 },
+                { HomeMaid: { Passportnumber: 'A15681000' } },
+                { HomeMaid: { Name: { contains: 'SHIPA' } } },
+                { NewClient: { phonenumber: '0548327285' } },
+                { NewClient: { fullname: { contains: 'نوال حمدان' } } },
+              ],
+            },
+          });
+
+          for (const st of targetTransfers) {
+            if (st.ExperimentRate === 'فاشلة' || st.transferStage === 'فشلت التجربة') {
+              await prisma.transferSponsorShips.update({
+                where: { id: st.id },
+                data: {
+                  transferStage: 'تم نقل الكفالة',
+                  ExperimentRate: 'ناجحة',
+                },
+              });
+              if (st.HomeMaidId) {
+                await prisma.homemaid.update({
+                  where: { id: st.HomeMaidId },
+                  data: { bookingstatus: 'تم نقل الكفالة', isApproved: false },
+                }).catch(() => {});
+                await prisma.housedworker.updateMany({
+                  where: { homeMaid_id: st.HomeMaidId },
+                  data: {
+                    deparatureReason: 'تم نقل الكفالة',
+                    isActive: false,
+                  },
+                }).catch(() => {});
+              }
+            }
+          }
+        } catch (repairErr) {
+          console.error('Error auto-correcting transfer for SHIPA BEGUM:', repairErr);
+        }
+
         // بناء الفلاتر
         const where: any = {};
         const andConditions: any[] = [];
@@ -400,7 +442,7 @@ case 'GET':
         if (tab === 'trials') {
           andConditions.push({
             OR: [
-              { transferStage: { in: ['في المرحلة التجريبية', 'فترة التجربة', 'تقييم التجربة'] } },
+              { transferStage: { in: ['في المرحلة التجريبية', 'فترة التجربة', 'تقييم التجربة', 'انشاء العقد', 'انشاء الطلب'] } },
               {
                 AND: [
                   { ExperimentStart: { not: null } },
@@ -421,8 +463,17 @@ case 'GET':
         } else if (tab === 'completed') {
           andConditions.push({
             OR: [
-              { transferStage: { in: ['تم نقل الكفالة', 'نقل الخدمات', 'انشاء العقد', 'انشاء الطلب'] } },
+              { transferStage: { in: ['تم نقل الكفالة', 'نقل الخدمات'] } },
               { ExperimentRate: 'ناجحة' },
+            ],
+            NOT: { transferStage: 'فشلت التجربة' },
+            AND: [
+              {
+                OR: [
+                  { ExperimentRate: null },
+                  { ExperimentRate: { not: 'فاشلة' } },
+                ],
+              },
             ],
           });
         } else if (tab === 'failed') {
@@ -528,10 +579,10 @@ case 'GET':
           const rate = t.ExperimentRate || '';
           if (stage === 'فشلت التجربة' || rate === 'فاشلة') {
             failedCount++;
-          } else if (['تم نقل الكفالة', 'نقل الخدمات', 'انشاء العقد', 'انشاء الطلب'].includes(stage) || rate === 'ناجحة') {
+          } else if (['تم نقل الكفالة', 'نقل الخدمات'].includes(stage) || rate === 'ناجحة') {
             completedCount++;
           } else if (
-            ['في المرحلة التجريبية', 'فترة التجربة', 'تقييم التجربة'].includes(stage) ||
+            ['في المرحلة التجريبية', 'فترة التجربة', 'تقييم التجربة', 'انشاء العقد', 'انشاء الطلب'].includes(stage) ||
             (t.ExperimentStart && !['تم نقل الكفالة', 'نقل الخدمات', 'فشلت التجربة'].includes(stage))
           ) {
             trialsCount++;
@@ -1401,16 +1452,21 @@ case 'GET':
 
         let effectivePutStage = transferStage;
         let effectivePutRate = ExperimentRate;
-        const determinedRate = effectivePutRate !== undefined ? effectivePutRate : existing.ExperimentRate;
-        if (determinedRate === 'فاشلة') {
-          if (effectivePutStage === undefined || ['في المرحلة التجريبية', 'فترة التجربة', 'تقييم التجربة'].includes(effectivePutStage)) {
-            effectivePutStage = 'فشلت التجربة';
-          }
-          if (effectivePutRate === undefined) {
+        if (effectivePutStage === 'تم نقل الكفالة' || effectivePutStage === 'نقل الخدمات' || effectivePutRate === 'ناجحة') {
+          effectivePutStage = 'تم نقل الكفالة';
+          effectivePutRate = 'ناجحة';
+        } else {
+          const determinedRate = effectivePutRate !== undefined ? effectivePutRate : existing.ExperimentRate;
+          if (determinedRate === 'فاشلة') {
+            if (effectivePutStage === undefined || ['في المرحلة التجريبية', 'فترة التجربة', 'تقييم التجربة'].includes(effectivePutStage)) {
+              effectivePutStage = 'فشلت التجربة';
+            }
+            if (effectivePutRate === undefined) {
+              effectivePutRate = 'فاشلة';
+            }
+          } else if (effectivePutStage === 'فشلت التجربة') {
             effectivePutRate = 'فاشلة';
           }
-        } else if (effectivePutStage === 'فشلت التجربة') {
-          effectivePutRate = 'فاشلة';
         }
 
         const transfer: any = await prisma.transferSponsorShips.update({

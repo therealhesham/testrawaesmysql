@@ -38,7 +38,8 @@ import {
   ShieldCheck,
   ShieldAlert,
   Shield,
-  FileCheck
+  FileCheck,
+  AlertTriangle,
 } from 'lucide-react';
 import { FaHospital } from 'react-icons/fa';
 import FailTrialModal from 'components/FailTrialModal';
@@ -62,12 +63,15 @@ interface HousedWorkerRow {
   transferSponsorshipData?: any;
   medicalDepartureData?: any;
   deportationData?: any;
+  escapeData?: any;
   Order?: {
     id?: number;
     Name?: string;
     phone?: string | null;
     Nationalitycopy?: string | null;
     Passportnumber?: string | null;
+    bookingstatus?: string | null;
+    workerEscapes?: Array<any>;
     office?: {
       Country?: string | null;
       title?: string | null;
@@ -1582,9 +1586,15 @@ export default function HousingDeparturesPage({
                       // Determine badge style for departure reason
                       const reasonText = worker.deparatureReason || 'مغادرة السكن';
                       const isCompletedTransfer = reasonText.includes('تم نقل الكفالة');
-                      const isTrial = !isCompletedTransfer && Boolean(tsd);
-                      const isMed = !isCompletedTransfer && !worker.deportationData && Boolean(worker.medicalDepartureData);
-                      const isDeport = Boolean(worker.deportationData) || reasonText.includes('ترحيل') || reasonText.includes('خارجية');
+                      const isEscaped = Boolean(worker.escapeData) ||
+                        reasonText.includes('هروب') ||
+                        Boolean((worker.Order as any)?.workerEscapes?.length) ||
+                        Boolean((worker.Order as any)?.bookingstatus?.includes('هروب')) ||
+                        Boolean(tsd?.isFailedTrial && String(tsd?.failReason || '').includes('هروب')) ||
+                        tsd?.status === 'escaped';
+                      const isTrial = !isCompletedTransfer && !isEscaped && Boolean(tsd) && !tsd?.isFailedTrial;
+                      const isMed = !isCompletedTransfer && !isEscaped && !worker.deportationData && Boolean(worker.medicalDepartureData);
+                      const isDeport = !isEscaped && (Boolean(worker.deportationData) || reasonText.includes('ترحيل') || reasonText.includes('خارجية'));
                       const isExpiredTrial = isTrial && Boolean(trialStatus?.isExpired) && activeSection === 'temporary';
                       const isOverdueMed = isMed && Boolean(medStatus?.isOverdue) && activeSection === 'temporary';
                       const isOverdue = isExpiredTrial || isOverdueMed;
@@ -1595,6 +1605,8 @@ export default function HousingDeparturesPage({
                           className={`transition-colors ${
                             isOverdue
                               ? 'bg-red-50/40 hover:bg-red-50/70 border-r-4 border-r-red-600'
+                              : isEscaped
+                              ? 'bg-amber-50/30 hover:bg-amber-50/50 border-r-4 border-r-amber-500'
                               : isTrial
                               ? 'bg-emerald-50/25 hover:bg-emerald-50/50 border-r-4 border-r-emerald-600'
                               : isMed
@@ -2117,6 +2129,24 @@ export default function HousingDeparturesPage({
                                         <CheckCircle2 className="w-3.5 h-3.5 text-teal-700" />
                                         <span>تم نقل الكفالة</span>
                                       </span>
+                                    </div>
+                                  ) : isEscaped ? (
+                                    <div className="space-y-0.5">
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 shadow-sm">
+                                        <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
+                                        <span>{reasonText.includes('هروب') ? reasonText : 'هروب أثناء التجربة'}</span>
+                                      </span>
+                                      {worker.escapeData?.escapeDate && (
+                                        <div className="text-xs font-bold text-amber-800 flex items-center gap-1">
+                                          <Calendar className="w-3 h-3 text-amber-600" />
+                                          <span>تاريخ الهروب: {formatDate(worker.escapeData.escapeDate)}</span>
+                                        </div>
+                                      )}
+                                      {worker.escapeData?.notes && (
+                                        <p className="text-xs text-amber-700 font-medium truncate" title={worker.escapeData.notes}>
+                                          {worker.escapeData.notes}
+                                        </p>
+                                      )}
                                     </div>
                                   ) : isDeport ? (
                                     <div className="space-y-0.5">
