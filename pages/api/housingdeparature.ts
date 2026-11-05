@@ -759,6 +759,21 @@ export default async function handler(
           } as any,
         });
 
+        // إذا كانت مرتبطة بسجل homemaid يتم تحديث حالتها
+        if (workerBeforeUpdate.homeMaid_id) {
+          try {
+            await prisma.homemaid.update({
+              where: { id: workerBeforeUpdate.homeMaid_id },
+              data: {
+                bookingstatus: 'غادرت السكن',
+                isApproved: false,
+              },
+            });
+          } catch (maidErr) {
+            console.error('Error updating homemaid on external departure:', maidErr);
+          }
+        }
+
         // إضافة ملاحظة في سجل الملاحظات
         const userInfo = getUserFromCookies(req);
         try {
@@ -955,11 +970,129 @@ export default async function handler(
         }
       }
 
+      // ربط بيانات العاملة الخارجية والكفيل المتنازل في حال المغادرة لتجربة نقل كفالة
+      let oldClientIdResolved: number | null = null;
+      let bridgedHomeMaidId: number | null = workerBeforeUpdate.homeMaid_id;
+      const isExtDeparture = Boolean(
+        req.body.isExternalWorker ||
+        workerBeforeUpdate.externalHomedmaidId ||
+        workerBeforeUpdate.isExternal
+      );
+
+      if (deparatureType === 'trial_transfer' && isExtDeparture) {
+        finalReason = deparatureReason || 'تجربة نقل كفالة';
+        const extWorkerData = req.body.externalWorkerData || {};
+        const curSponsorData = req.body.currentSponsorData || {};
+
+        // 1) إيجاد أو إنشاء الكفيل الحالي (المتنازل) في جدول Client
+        if (curSponsorData.nationalId) {
+          const found = await prisma.client.findFirst({
+            where: { nationalId: String(curSponsorData.nationalId).trim() },
+          });
+          if (found) oldClientIdResolved = found.id;
+        }
+        if (!oldClientIdResolved && curSponsorData.phonenumber) {
+          const found = await prisma.client.findFirst({
+            where: { phonenumber: String(curSponsorData.phonenumber).trim() },
+          });
+          if (found) oldClientIdResolved = found.id;
+        }
+
+        if (!oldClientIdResolved && (curSponsorData.fullname || curSponsorData.nationalId || curSponsorData.phonenumber)) {
+          try {
+            const newOldClient = await prisma.client.create({
+              data: {
+                fullname: curSponsorData.fullname || 'كفيل حالي (متنازل)',
+                nationalId: curSponsorData.nationalId || null,
+                phonenumber: curSponsorData.phonenumber || null,
+                city: curSponsorData.city || 'المدينة المنورة',
+                Source: 'كفيل متنازل (عاملة خارجية)',
+              },
+            });
+            oldClientIdResolved = newOldClient.id;
+          } catch (createClientErr) {
+            console.error('Error creating old client for external worker:', createClientErr);
+          }
+        }
+
+        // 2) تحديث بيانات العاملة الخارجية في جدول externalHomedmaid وربطها بالكفيل المتنازل
+        if (workerBeforeUpdate.externalHomedmaidId) {
+          try {
+            await prisma.externalHomedmaid.update({
+              where: { id: workerBeforeUpdate.externalHomedmaidId },
+              data: {
+                name: extWorkerData.name || undefined,
+                passportNumber: extWorkerData.passportNumber || undefined,
+                nationality: extWorkerData.nationality || undefined,
+                phone: extWorkerData.phone || undefined,
+                clientId: oldClientIdResolved || undefined,
+              },
+            });
+          } catch (extUpErr) {
+            console.error('Error updating externalHomedmaid:', extUpErr);
+          }
+        }
+
+        // 3) إنشاء أو إيجاد سجل في homemaid لربط علاقة نقل الكفالة Prisma (isExternal: true)
+        if (!bridgedHomeMaidId) {
+          let linkedMaid = null;
+          if (extWorkerData.passportNumber) {
+            linkedMaid = await prisma.homemaid.findFirst({
+              where: { Passportnumber: String(extWorkerData.passportNumber).trim() },
+            });
+          }
+          if (!linkedMaid && extWorkerData.name) {
+            linkedMaid = await prisma.homemaid.findFirst({
+              where: { Name: String(extWorkerData.name).trim(), isExternal: true },
+            });
+          }
+
+          if (linkedMaid) {
+            bridgedHomeMaidId = linkedMaid.id;
+            try {
+              await prisma.homemaid.update({
+                where: { id: linkedMaid.id },
+                data: {
+                  bookingstatus: 'في المرحلة التجريبية',
+                  isExternal: true,
+                  Nationalitycopy: extWorkerData.nationality || linkedMaid.Nationalitycopy,
+                  Passportnumber: extWorkerData.passportNumber || linkedMaid.Passportnumber,
+                  phone: extWorkerData.phone || linkedMaid.phone,
+                  job: extWorkerData.profession || linkedMaid.job,
+                },
+              });
+            } catch (maidUpErr) {
+              console.error('Error updating linked homemaid:', maidUpErr);
+            }
+          } else {
+            try {
+              const createdMaid = await prisma.homemaid.create({
+                data: {
+                  Name: extWorkerData.name || 'عاملة خارجية',
+                  Passportnumber: extWorkerData.passportNumber || null,
+                  Nationalitycopy: extWorkerData.nationality || null,
+                  phone: extWorkerData.phone || null,
+                  job: extWorkerData.profession || 'عاملة منزلية',
+                  isExternal: true,
+                  bookingstatus: 'في المرحلة التجريبية',
+                  Picture: extWorkerData.image ? { url: extWorkerData.image } : undefined,
+                  FullPicture: extWorkerData.image ? { url: extWorkerData.image } : undefined,
+                },
+              });
+              bridgedHomeMaidId = createdMaid.id;
+            } catch (createMaidErr) {
+              console.error('Error creating homemaid for external worker:', createMaidErr);
+            }
+          }
+        }
+      }
+
       // Immediate Departure Execution (for past/current flights, medical, or direct transfers)
       const updateData = await prisma.housedworker.update({
         where: { id: workerIdNum },
         data: {
           isActive: false,
+          homeMaid_id: bridgedHomeMaidId || undefined,
           deparatureReason: finalReason,
           deparatureHousingDate: finalHousingDate,
           transferSponsorshipData: transferSponsorshipData || null,
@@ -975,7 +1108,7 @@ export default async function handler(
         } as any,
       });
 
-      const actualHomeMaidId = updateData.homeMaid_id;
+      const actualHomeMaidId = updateData.homeMaid_id || bridgedHomeMaidId;
 
       // 🩺 مسار المغادرة المرضية
       if (deparatureType === 'medical' && actualHomeMaidId) {
@@ -1161,7 +1294,7 @@ export default async function handler(
 
       // 🔄 مسار تجربة نقل الخدمات / نقل الكفالة
       if (
-        (deparatureType === 'trial_transfer' || req.body.deparatureReason === 'نقل الكفالة') &&
+        (deparatureType === 'trial_transfer' || req.body.deparatureReason === 'نقل الكفالة' || req.body.deparatureReason === 'تجربة نقل كفالة') &&
         transferSponsorshipData &&
         actualHomeMaidId
       ) {
@@ -1185,11 +1318,13 @@ export default async function handler(
             },
           });
 
-          let oldClientId: number | null = null;
-          if (workerWithRelations?.externalHomedmaid?.clientId) {
-            oldClientId = workerWithRelations.externalHomedmaid.clientId;
-          } else if (workerWithRelations?.Order?.NewOrder?.[0]?.clientID) {
-            oldClientId = workerWithRelations.Order.NewOrder[0].clientID;
+          let oldClientId: number | null = oldClientIdResolved || null;
+          if (!oldClientId) {
+            if (workerWithRelations?.externalHomedmaid?.clientId) {
+              oldClientId = workerWithRelations.externalHomedmaid.clientId;
+            } else if (workerWithRelations?.Order?.NewOrder?.[0]?.clientID) {
+              oldClientId = workerWithRelations.Order.NewOrder[0].clientID;
+            }
           }
 
           // 2) إيجاد أو إنشاء الكفيل الجديد في جدول Client
@@ -1276,6 +1411,7 @@ export default async function handler(
               salaryCertificateFile: tsd.salaryCertificateFile || null,
               nationalAddressFile: tsd.nationalAddressFile || null,
               paymentReceiptFile: tsd.paymentReceiptFile || null,
+              promissoryNoteFile: tsd.promissoryNoteFile || null,
               transferStage: 'في المرحلة التجريبية',
               TransferingDate: req.body.deparatureHousingDate || null,
             };

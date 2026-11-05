@@ -810,20 +810,40 @@ const arabicRegionMap: { [key: string]: string } = {
 
           <CollapsibleSection title="الطلبات">
             <div className="flex flex-col gap-4">
-              <button
-                className="mx-auto bg-teal-800 text-white py-2 px-8 rounded-md hover:bg-teal-900 transition"
-                onClick={() =>
-                  router.push(
-                    `/admin/order-form?type=add-available&clientId=${router.query.id}&clientName=${encodeURIComponent(
-                      clientInfo.fullname || ''
-                    )}&clientPhone=${encodeURIComponent(clientInfo.phonenumber || '')}&clientCity=${encodeURIComponent(
-                      clientInfo.city || ''
-                    )}`
-                  )
-                }
-              >
-                إضافة طلب
-              </button>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200">
+                    طلبات الاستقدام ({orders.length})
+                  </span>
+                  {transfers.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        document.getElementById('transfers-table-section')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                      }}
+                      className="text-xs font-semibold px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 transition flex items-center gap-1.5 cursor-pointer"
+                      title="انتقال إلى معاملات نقل الكفالة"
+                    >
+                      <span>معاملات نقل الكفالة ({transfers.length})</span>
+                      <span className="text-emerald-600 font-bold">↓</span>
+                    </button>
+                  )}
+                </div>
+                <button
+                  className="bg-teal-800 text-white py-2 px-8 rounded-md hover:bg-teal-900 transition"
+                  onClick={() =>
+                    router.push(
+                      `/admin/order-form?type=add-available&clientId=${router.query.id}&clientName=${encodeURIComponent(
+                        clientInfo.fullname || ''
+                      )}&clientPhone=${encodeURIComponent(clientInfo.phonenumber || '')}&clientCity=${encodeURIComponent(
+                        clientInfo.city || ''
+                      )}`
+                    )
+                  }
+                >
+                  إضافة طلب
+                </button>
+              </div>
 
               {/* طلبات الاستقدام */}
               {orders.length > 0 && (
@@ -928,7 +948,7 @@ const arabicRegionMap: { [key: string]: string } = {
 
               {/* معاملات نقل الكفالة */}
               {transfers.length > 0 && (
-                <div className="flex flex-col gap-2">
+                <div id="transfers-table-section" className="flex flex-col gap-2">
                   <h4 className="font-bold text-teal-800 text-base mt-2">معاملات نقل الكفالة ({transfers.length})</h4>
                   <div className="overflow-x-auto rounded-lg border border-gray-200">
                     <table className="w-full text-right border-collapse table-fixed">

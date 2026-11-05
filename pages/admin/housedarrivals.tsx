@@ -22,6 +22,7 @@ import { getCountryFlagUrl } from 'lib/flagHelper';
 import { useSidebar } from 'utils/sidebarcontext';
 import Select from 'react-select';
 import CityAutocomplete from 'components/CityAutocomplete';
+import { saudiCities } from 'components/SaudiCityAutocomplete';
 import { DateInputField, TimeInputField } from 'components/admin/DateTimeInputs';
 import { tafqeet } from 'lib/tafqeet';
 
@@ -60,6 +61,7 @@ interface HousedWorker {
   visaType?: string | null;
   kingdomentryDate?: string | null;
   isExternal?: boolean | null;
+  externalHomedmaidId?: number | null;
   deportationData?: any;
   medicalDepartureData?: any;
   HousedWorkerNotes?: {
@@ -377,35 +379,41 @@ function NationalityFieldWithList({
 
   return (
     <div>
-      <label className="block text-md text-gray-700 mb-2">
+      <label className="block text-xs font-bold text-gray-700 mb-1.5">
         {label}
         {required ? <span className="text-red-500">*</span> : null}
       </label>
       {items.length > 0 ? (
         <div>
-          <select
-            value={selectValue}
-            onChange={(e) => {
-              const v = e.target.value;
-              if (v === '__other__') {
-                setOtherDraft(nTrim && !items.includes(nTrim) ? nTrim : '');
-                setPickingOther(true);
-                setOtherModalOpen(true);
-              } else {
-                setPickingOther(false);
-                onChange(v);
-              }
-            }}
-            className="w-full border border-gray-300 rounded-md text-right text-md bg-gray-50 p-2"
-          >
-            <option value="">{required ? 'اختر من القائمة' : '—'}</option>
-            {items.map((nat) => (
-              <option key={nat} value={nat}>
-                {nat}
-              </option>
-            ))}
-            <option value="__other__">أخرى</option>
-          </select>
+          <div className="relative">
+            <select
+              value={selectValue}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === '__other__') {
+                  setOtherDraft(nTrim && !items.includes(nTrim) ? nTrim : '');
+                  setPickingOther(true);
+                  setOtherModalOpen(true);
+                } else {
+                  setPickingOther(false);
+                  onChange(v);
+                }
+              }}
+              style={{ backgroundImage: 'none' }}
+              className="w-full appearance-none bg-white border border-gray-300 rounded-xl p-2.5 pr-3 pl-9 text-right text-sm font-medium text-gray-900 focus:ring-2 focus:ring-teal-600 focus:border-transparent outline-none transition-all cursor-pointer"
+            >
+              <option value="">{required ? 'اختر من القائمة' : '—'}</option>
+              {items.map((nat) => (
+                <option key={nat} value={nat}>
+                  {nat}
+                </option>
+              ))}
+              <option value="__other__">أخرى</option>
+            </select>
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+              <ChevronDown className="w-4 h-4" />
+            </div>
+          </div>
           {otherModalOpen && (
             <div
               className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
@@ -416,22 +424,22 @@ function NationalityFieldWithList({
               }}
             >
               <div
-                className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md"
+                className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md border border-gray-200"
                 onClick={(e) => e.stopPropagation()}
               >
-                <h3 className="text-lg font-medium text-gray-800 mb-4">إدخال الجنسية</h3>
+                <h3 className="text-base font-bold text-gray-900 mb-4">إدخال الجنسية</h3>
                 <input
                   type="text"
                   value={otherDraft}
                   onChange={(e) => setOtherDraft(e.target.value)}
-                  placeholder="اكتب الجنسية"
-                  className="w-full border border-gray-300 rounded-md p-2 text-right text-md mb-4"
+                  placeholder="اكتب الجنسية..."
+                  className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-right text-sm text-gray-900 focus:ring-2 focus:ring-teal-600 outline-none mb-4"
                   autoFocus
                 />
                 <div className="flex justify-end gap-2">
                   <button
                     type="button"
-                    className="px-4 py-2 border border-gray-300 rounded-md text-md"
+                    className="px-4 py-2 border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
                     onClick={() => {
                       setOtherModalOpen(false);
                       setPickingOther(false);
@@ -441,7 +449,7 @@ function NationalityFieldWithList({
                   </button>
                   <button
                     type="button"
-                    className="px-4 py-2 bg-teal-800 text-white rounded-md text-md"
+                    className="px-5 py-2 bg-teal-800 text-white rounded-xl text-sm font-semibold hover:bg-teal-900 transition-colors shadow-xs"
                     onClick={() => {
                       const t = otherDraft.trim();
                       if (required && !t) return;
@@ -463,7 +471,7 @@ function NationalityFieldWithList({
           value={nTrim}
           onChange={(e) => onChange(e.target.value)}
           placeholder="ادخل النص"
-          className="w-full border border-gray-300 rounded-md p-2 text-right text-md bg-gray-50"
+          className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-right text-sm text-gray-900 focus:ring-2 focus:ring-teal-600 outline-none"
         />
       )}
     </div>
@@ -938,6 +946,69 @@ useEffect(()=>{
     remainingAmount: '',
     notes: '',
   });
+
+  // New Client Search state for Trial Transfer
+  const [clientSearchResults, setClientSearchResults] = useState<any[]>([]);
+  const [isSearchingClient, setIsSearchingClient] = useState(false);
+  const [showClientSuggestions, setShowClientSuggestions] = useState(false);
+  const searchClientsTimerRef = useRef<any>(null);
+
+  const handleNewClientNameChange = (val: string) => {
+    setTrialTransferForm((prev) => ({ ...prev, newSponsorName: val }));
+
+    if (searchClientsTimerRef.current) {
+      clearTimeout(searchClientsTimerRef.current);
+    }
+
+    const trimmed = val.trim();
+    if (!trimmed || trimmed.length < 2) {
+      setClientSearchResults([]);
+      setShowClientSuggestions(false);
+      setIsSearchingClient(false);
+      return;
+    }
+
+    setIsSearchingClient(true);
+    searchClientsTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/clientssearch?query=${encodeURIComponent(trimmed)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            setClientSearchResults(data);
+            setShowClientSuggestions(data.length > 0);
+          } else {
+            setClientSearchResults([]);
+            setShowClientSuggestions(false);
+          }
+        } else {
+          setClientSearchResults([]);
+          setShowClientSuggestions(false);
+        }
+      } catch (err) {
+        console.error('Error searching clients:', err);
+        setClientSearchResults([]);
+        setShowClientSuggestions(false);
+      } finally {
+        setIsSearchingClient(false);
+      }
+    }, 250);
+  };
+
+  const handleSelectNewClient = (client: any) => {
+    setTrialTransferForm((prev) => ({
+      ...prev,
+      newSponsorName: client.fullname || '',
+      newSponsorId: client.nationalId || '',
+      newSponsorPhone: client.phonenumber || '',
+      newSponsorAltPhone: client.alternativePhone || '',
+      newSponsorCity: client.city || prev.newSponsorCity || '',
+      newSponsorDateOfBirth: client.dateofbirth ? new Date(client.dateofbirth).toISOString().split('T')[0] : '',
+    }));
+    setShowClientSuggestions(false);
+    setClientSearchResults([]);
+  };
+
   const [isUploadingSalaryCert, setIsUploadingSalaryCert] = useState(false);
   const [isUploadingNationalAddr, setIsUploadingNationalAddr] = useState(false);
   const [isUploadingPaymentReceipt, setIsUploadingPaymentReceipt] = useState(false);
@@ -968,6 +1039,22 @@ useEffect(()=>{
   const [newDepartureReason, setNewDepartureReason] = useState('');
   
   // External worker departure dedicated state
+  const [externalDepartureMode, setExternalDepartureMode] = useState<'normal' | 'trial_transfer'>('normal');
+  const [extWorkerForm, setExtWorkerForm] = useState({
+    name: '',
+    passportNumber: '',
+    nationality: '',
+    profession: 'عاملة منزلية',
+    phone: '',
+    image: '',
+  });
+  const [extOldSponsorForm, setExtOldSponsorForm] = useState({
+    fullname: '',
+    nationalId: '',
+    phonenumber: '',
+    city: 'المدينة المنورة',
+    contractNumber: '',
+  });
   const [externalDeparturePhoto, setExternalDeparturePhoto] = useState<string>('');
   const [externalDepartureNotes, setExternalDepartureNotes] = useState<string>('');
   const [isUploadingExternalDeparturePhoto, setIsUploadingExternalDeparturePhoto] = useState<boolean>(false);
@@ -1061,6 +1148,13 @@ useEffect(()=>{
     phone: '',
     city: '',
   });
+  // حالات البحث الذكي عن العاملات الخارجيات السابقات
+  const [selectedPreviousWorker, setSelectedPreviousWorker] = useState<any | null>(null);
+  const [existingExternalHomemaidId, setExistingExternalHomemaidId] = useState<number | null>(null);
+  const [smartSearchTerm, setSmartSearchTerm] = useState('');
+  const [smartSearchSuggestions, setSmartSearchSuggestions] = useState<any[]>([]);
+  const [isSearchingSmart, setIsSearchingSmart] = useState(false);
+  const smartSearchDebounceTimer = useRef<any>(null);
   const [isUploadingExternalPhoto, setIsUploadingExternalPhoto] = useState(false);
   const [isSubmittingInternalWorker, setIsSubmittingInternalWorker] = useState(false);
   const [showExternalExtraDetails, setShowExternalExtraDetails] = useState(false);
@@ -1320,6 +1414,10 @@ useEffect(()=>{
     // Clear external homemaid form when closing internal worker modal
     if (modalName === 'internalWorkerModal') {
       setExternalHousingStep(1);
+      setSelectedPreviousWorker(null);
+      setExistingExternalHomemaidId(null);
+      setSmartSearchTerm('');
+      setSmartSearchSuggestions([]);
       setExternalHomemaidForm({
         name: '',
         image: '',
@@ -2171,33 +2269,111 @@ const fetchDepartedHousedforExporting = async () => {
     return clean.substring(0, 5);
   };
 
-  const saudiCities = [
-    { value: 'الرياض', label: 'الرياض (Riyadh)' },
-    { value: 'جدة', label: 'جدة (Jeddah)' },
-    { value: 'الدمام', label: 'الدمام (Dammam)' },
-    { value: 'المدينة المنورة', label: 'المدينة المنورة (Madinah)' },
-    { value: 'مكة المكرمة', label: 'مكة المكرمة (Makkah)' },
-    { value: 'القصيم', label: 'القصيم (Qassim)' },
-    { value: 'أبها', label: 'أبها (Abha)' },
-    { value: 'تبوك', label: 'تبوك (Tabuk)' },
-    { value: 'جازان', label: 'جازان (Jazan)' },
-    { value: 'حائل', label: 'حائل (Hail)' },
-    { value: 'نجران', label: 'نجران (Najran)' },
-    { value: 'الطائف', label: 'الطائف (Taif)' },
-    { value: 'ينبع', label: 'ينبع (Yanbu)' },
-    { value: 'الأحساء', label: 'الأحساء (Al-Ahsa)' },
-    { value: 'الجوف', label: 'الجوف (Al-Jouf)' },
-    { value: 'عرعر', label: 'عرعر (Arar)' },
-    { value: 'الباحة', label: 'الباحة (Al-Baha)' },
-    { value: 'الدوادمي', label: 'الدوادمي (Ad-Dawadimi)' },
-    { value: 'وادي الدواسر', label: 'وادي الدواسر (Wadi Ad-Dawasir)' },
-    { value: 'شرورة', label: 'شرورة (Sharurah)' },
-    { value: 'بيشة', label: 'بيشة (Bisha)' },
-    { value: 'رفحاء', label: 'رفحاء (Rafha)' },
-    { value: 'طريف', label: 'طريف (Turaif)' },
-    { value: 'القريات', label: 'القريات (Al-Qurayyat)' },
-    { value: 'حفر الباطن', label: 'حفر الباطن (Hafr Al-Batin)' },
-  ];
+  const searchableSelectStyles = {
+    control: (provided: any, state: any) => ({
+      ...provided,
+      minHeight: '38px',
+      height: '38px',
+      backgroundColor: '#FFFFFF',
+      borderColor: state.isFocused ? '#0D5C63' : '#D1D5DB',
+      borderRadius: '0.5rem',
+      padding: '0 2px',
+      boxShadow: state.isFocused ? '0 0 0 2px rgba(13, 92, 99, 0.2)' : 'none',
+      '&:hover': {
+        borderColor: '#0D5C63',
+      },
+      fontSize: '0.75rem',
+      fontWeight: '700',
+      cursor: 'pointer',
+      textAlign: 'right' as const,
+      direction: 'rtl' as const,
+    }),
+    valueContainer: (provided: any) => ({
+      ...provided,
+      padding: '0 8px',
+      height: '38px',
+      display: 'flex',
+      alignItems: 'center',
+    }),
+    singleValue: (provided: any) => ({
+      ...provided,
+      fontSize: '0.75rem',
+      fontWeight: '700',
+      color: '#111827',
+      margin: 0,
+      textAlign: 'right' as const,
+      direction: 'rtl' as const,
+    }),
+    placeholder: (provided: any) => ({
+      ...provided,
+      fontSize: '0.75rem',
+      fontWeight: '700',
+      color: '#9CA3AF',
+      margin: 0,
+      textAlign: 'right' as const,
+      direction: 'rtl' as const,
+    }),
+    input: (provided: any) => ({
+      ...provided,
+      margin: 0,
+      padding: 0,
+      fontSize: '0.75rem',
+      fontWeight: '700',
+      textAlign: 'right' as const,
+      direction: 'rtl' as const,
+    }),
+    indicatorsContainer: (provided: any) => ({
+      ...provided,
+      height: '38px',
+    }),
+    indicatorSeparator: () => ({
+      display: 'none',
+    }),
+    dropdownIndicator: (provided: any) => ({
+      ...provided,
+      padding: '4px 8px',
+      color: '#9CA3AF',
+      '&:hover': {
+        color: '#0D5C63',
+      },
+    }),
+    clearIndicator: (provided: any) => ({
+      ...provided,
+      padding: '4px',
+      color: '#9CA3AF',
+      '&:hover': {
+        color: '#EF4444',
+      },
+    }),
+    menu: (provided: any) => ({
+      ...provided,
+      zIndex: 9999,
+      borderRadius: '0.5rem',
+      boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15)',
+      border: '1px solid #E5E7EB',
+      backgroundColor: '#FFFFFF',
+      marginTop: '4px',
+      direction: 'rtl' as const,
+      textAlign: 'right' as const,
+    }),
+    menuList: (provided: any) => ({
+      ...provided,
+      maxHeight: '180px',
+      padding: '4px',
+    }),
+    option: (provided: any, state: any) => ({
+      ...provided,
+      fontSize: '0.75rem',
+      fontWeight: '700',
+      padding: '6px 12px',
+      borderRadius: '0.375rem',
+      backgroundColor: state.isSelected ? '#0D5C63' : state.isFocused ? '#F0FDFA' : 'transparent',
+      color: state.isSelected ? '#FFFFFF' : state.isFocused ? '#0D5C63' : '#1F2937',
+      cursor: 'pointer',
+      textAlign: 'right' as const,
+      direction: 'rtl' as const,
+    }),
+  };
 
   const getSelectCityStyles = (hasError: boolean = false) => ({
     control: (provided: any, state: any) => ({
@@ -2327,10 +2503,41 @@ const fetchDepartedHousedforExporting = async () => {
     setSelectedDepartureWorker(worker);
 
     // Reset external worker departure fields
+    setExternalDepartureMode('normal');
     setExternalDeparturePhoto('');
     setExternalDepartureNotes('');
     setExternalDeparturePhotoError('');
     setExternalDepartureNotesError('');
+
+    if (professionsList.length === 0) {
+      fetch('/api/professions')
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setProfessionsList(data);
+          }
+        })
+        .catch((err) => console.error('Error loading professions from DB:', err));
+    }
+
+    // Pre-fill extWorkerForm from worker?.externalHomedmaid
+    setExtWorkerForm({
+      name: worker?.externalHomedmaid?.name || name || '',
+      passportNumber: worker?.externalHomedmaid?.passportNumber || '',
+      nationality: worker?.externalHomedmaid?.nationality || '',
+      profession: (worker?.externalHomedmaid as any)?.profession || 'عاملة منزلية',
+      phone: worker?.externalHomedmaid?.phone || '',
+      image: worker?.externalHomedmaid?.image || '',
+    });
+
+    // Pre-fill extOldSponsorForm from worker?.externalHomedmaid?.Client
+    setExtOldSponsorForm({
+      fullname: worker?.externalHomedmaid?.Client?.fullname || '',
+      nationalId: worker?.externalHomedmaid?.Client?.nationalId || '',
+      phonenumber: worker?.externalHomedmaid?.Client?.phonenumber || '',
+      city: worker?.externalHomedmaid?.Client?.city || 'المدينة المنورة',
+      contractNumber: (worker?.externalHomedmaid as any)?.contractNumber || '',
+    });
 
     // Smart default tab based on worker's actionTaken or reason
     let defaultType: 'medical' | 'trial_transfer' | 'deportation' | 'final_transfer' = 'deportation';
@@ -2391,6 +2598,9 @@ const fetchDepartedHousedforExporting = async () => {
       remainingAmount: '',
       notes: '',
     });
+
+    setShowClientSuggestions(false);
+    setClientSearchResults([]);
 
     setDeportationForm({
       externaldeparatureCity: 'الرياض',
@@ -2673,6 +2883,7 @@ const fetchDepartedHousedforExporting = async () => {
     if (!selectedWorkerId) return;
 
     const isExternalWorker = Boolean(
+      selectedDepartureWorker?.externalHomedmaidId ||
       selectedDepartureWorker?.externalHomedmaid || 
       selectedDepartureWorker?.isExternal
     );
@@ -2687,50 +2898,175 @@ const fetchDepartedHousedforExporting = async () => {
 
     // التحقق والمغادرة المخصصة للعاملة الخارجية
     if (isExternalWorker) {
-      let hasError = false;
-      if (!departureHousingDate) {
-        showNotification('يرجى تحديد تاريخ المغادرة من السكن', 'error');
-        hasError = true;
-      }
-      if (!externalDeparturePhoto || !externalDeparturePhoto.trim()) {
-        setExternalDeparturePhotoError('صورة المغادرة مطلوبة بشكل إجباري');
-        showNotification('يرجى إرفاق صورة المغادرة (إجباري للعاملة الخارجية)', 'error');
-        hasError = true;
-      }
-      if (!externalDepartureNotes || !externalDepartureNotes.trim()) {
-        setExternalDepartureNotesError('ملاحظات المغادرة مطلوبة بشكل إجباري');
-        showNotification('يرجى إدخال ملاحظات المغادرة (إجباري للعاملة الخارجية)', 'error');
-        hasError = true;
-      }
+      if (externalDepartureMode === 'normal') {
+        let hasError = false;
+        if (!departureHousingDate) {
+          showNotification('يرجى تحديد تاريخ المغادرة من السكن', 'error');
+          hasError = true;
+        }
+        if (!externalDeparturePhoto || !externalDeparturePhoto.trim()) {
+          setExternalDeparturePhotoError('صورة المغادرة مطلوبة بشكل إجباري');
+          showNotification('يرجى إرفاق صورة المغادرة (إجباري للعاملة الخارجية)', 'error');
+          hasError = true;
+        }
+        if (!externalDepartureNotes || !externalDepartureNotes.trim()) {
+          setExternalDepartureNotesError('ملاحظات المغادرة مطلوبة بشكل إجباري');
+          showNotification('يرجى إدخال ملاحظات المغادرة (إجباري للعاملة الخارجية)', 'error');
+          hasError = true;
+        }
 
-      if (hasError) return;
+        if (hasError) return;
 
-      setIsSubmittingDeparture(true);
-      try {
-        const payload = {
-          homeMaid: selectedWorkerId,
-          deparatureType: 'external_departure',
-          deparatureHousingDate: departureHousingDate,
-          deparatureReason: 'مغادرة عاملة خارجية',
-          externalDepartureData: {
-            departurePhoto: externalDeparturePhoto.trim(),
-            notes: externalDepartureNotes.trim(),
-            departureReason: 'مغادرة عاملة خارجية',
-          },
+        setIsSubmittingDeparture(true);
+        try {
+          const payload = {
+            homeMaid: selectedWorkerId,
+            deparatureType: 'external_departure',
+            deparatureHousingDate: departureHousingDate,
+            deparatureReason: 'مغادرة عاملة خارجية',
+            externalDepartureData: {
+              departurePhoto: externalDeparturePhoto.trim(),
+              notes: externalDepartureNotes.trim(),
+              departureReason: 'مغادرة عاملة خارجية',
+            },
+          };
+
+          const res = await axios.put('/api/housingdeparature', payload);
+          showNotification(res.data?.message || 'تم تسجيل مغادرة العاملة الخارجية بنجاح');
+          closeModal('workerDeparture');
+          fetchWorkers();
+          fetchLocations();
+        } catch (err: any) {
+          console.error('Error submitting external departure:', err);
+          showNotification(err.response?.data?.error || 'حدث خطأ أثناء حفظ المغادرة', 'error');
+        } finally {
+          setIsSubmittingDeparture(false);
+        }
+        return;
+      } else if (externalDepartureMode === 'trial_transfer') {
+        // التحقق من بيانات العاملة الخارجية الإلزامية
+        if (!extWorkerForm.name.trim()) {
+          showNotification('يرجى إدخال الاسم الكامل للعاملة الخارجية', 'error');
+          return;
+        }
+        if (!extWorkerForm.passportNumber.trim()) {
+          showNotification('يرجى إدخال رقم جواز سفر العاملة', 'error');
+          return;
+        }
+        if (!extWorkerForm.nationality.trim()) {
+          showNotification('يرجى اختيار أو كتابة جنسية العاملة', 'error');
+          return;
+        }
+        if (!extWorkerForm.profession.trim()) {
+          showNotification('يرجى اختيار مهنة العاملة', 'error');
+          return;
+        }
+
+        // التحقق من بيانات الكفيل الحالي (المتنازل)
+        if (!extOldSponsorForm.fullname.trim()) {
+          showNotification('يرجى إدخال اسم الكفيل الحالي (المتنازل)', 'error');
+          return;
+        }
+        const cleanOldId = extOldSponsorForm.nationalId.replace(/\D/g, '');
+        if (!cleanOldId || cleanOldId.length !== 10) {
+          showNotification('رقم هوية الكفيل الحالي يجب أن يتكون من 10 أرقام', 'error');
+          return;
+        }
+        const cleanOldPhone = extOldSponsorForm.phonenumber.replace(/\D/g, '');
+        if (!cleanOldPhone || cleanOldPhone.length !== 10) {
+          showNotification('رقم جوال الكفيل الحالي يجب أن يتكون من 10 أرقام (مثال: 05xxxxxxxx)', 'error');
+          return;
+        }
+
+        // التحقق من بيانات الكفيل الجديد
+        if (!trialTransferForm.newSponsorName.trim()) {
+          showNotification('يرجى إدخال اسم الكفيل الجديد', 'error');
+          return;
+        }
+        const cleanNewPhone = trialTransferForm.newSponsorPhone.replace(/\D/g, '');
+        if (!cleanNewPhone || cleanNewPhone.length !== 10) {
+          showNotification('رقم جوال الكفيل الجديد يجب أن يتكون من 10 أرقام (مثال: 05xxxxxxxx)', 'error');
+          return;
+        }
+        const cleanNewId = trialTransferForm.newSponsorId.replace(/\D/g, '');
+        if (cleanNewId && cleanNewId.length !== 10) {
+          showNotification('رقم هوية الكفيل الجديد يجب أن يتكون من 10 أرقام في حال إدخاله', 'error');
+          return;
+        }
+
+        if (!departureHousingDate) {
+          showNotification('يرجى تحديد تاريخ المغادرة وبدء التجربة', 'error');
+          return;
+        }
+
+        const calcEndDate = (sDate: string, days: string) => {
+          if (!sDate || !days) return '';
+          const d = new Date(sDate);
+          if (isNaN(d.getTime())) return '';
+          d.setDate(d.getDate() + (parseInt(days, 10) || 0));
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         };
 
-        const res = await axios.put('/api/housingdeparature', payload);
-        showNotification(res.data?.message || 'تم تسجيل مغادرة العاملة الخارجية بنجاح');
-        closeModal('workerDeparture');
-        fetchWorkers();
-        fetchLocations();
-      } catch (err: any) {
-        console.error('Error submitting external departure:', err);
-        showNotification(err.response?.data?.error || 'حدث خطأ أثناء حفظ المغادرة', 'error');
-      } finally {
-        setIsSubmittingDeparture(false);
+        setIsSubmittingDeparture(true);
+        try {
+          const payload = {
+            homeMaid: selectedWorkerId,
+            deparatureType: 'trial_transfer',
+            deparatureHousingDate: departureHousingDate,
+            deparatureReason: 'تجربة نقل كفالة',
+            isExternalWorker: true,
+            externalWorkerData: {
+              name: extWorkerForm.name.trim(),
+              passportNumber: extWorkerForm.passportNumber.trim(),
+              nationality: extWorkerForm.nationality.trim(),
+              profession: extWorkerForm.profession.trim() || 'عاملة منزلية',
+              phone: extWorkerForm.phone.trim(),
+              image: extWorkerForm.image || undefined,
+            },
+            currentSponsorData: {
+              fullname: extOldSponsorForm.fullname.trim(),
+              nationalId: cleanOldId,
+              phonenumber: cleanOldPhone,
+              city: extOldSponsorForm.city.trim() || 'المدينة المنورة',
+            },
+            transferSponsorshipData: {
+              trialStartDate: departureHousingDate,
+              trialPeriodDays: trialTransferForm.trialPeriodDays,
+              trialEndDate: calcEndDate(departureHousingDate, trialTransferForm.trialPeriodDays),
+              dailyCost: trialTransferForm.dailyCost,
+              newSponsorName: trialTransferForm.newSponsorName.trim(),
+              newSponsorId: cleanNewId,
+              newSponsorPhone: cleanNewPhone,
+              newSponsorAltPhone: trialTransferForm.newSponsorAltPhone.trim(),
+              newSponsorCity: trialTransferForm.newSponsorCity.trim(),
+              newSponsorDateOfBirth: trialTransferForm.newSponsorDateOfBirth,
+              salaryCertificateFile: trialTransferForm.salaryCertificateFile,
+              nationalAddressFile: trialTransferForm.nationalAddressFile,
+              paymentReceiptFile: trialTransferForm.paymentReceiptFile,
+              totalCost: trialTransferForm.totalCost,
+              paidAmount: trialTransferForm.paidAmount,
+              remainingAmount: trialTransferForm.remainingAmount || (
+                trialTransferForm.totalCost && trialTransferForm.paidAmount
+                  ? String(Math.max(0, Number(trialTransferForm.totalCost) - Number(trialTransferForm.paidAmount)))
+                  : ''
+              ),
+              notes: trialTransferForm.notes.trim(),
+            },
+          };
+
+          const res = await axios.put('/api/housingdeparature', payload);
+          showNotification(res.data?.message || 'تم تسجيل مغادرة العاملة الخارجية لتجربة نقل الكفالة بنجاح');
+          closeModal('workerDeparture');
+          fetchWorkers();
+          fetchLocations();
+        } catch (err: any) {
+          console.error('Error submitting external trial transfer departure:', err);
+          showNotification(err.response?.data?.error || 'حدث خطأ أثناء حفظ المغادرة', 'error');
+        } finally {
+          setIsSubmittingDeparture(false);
+        }
+        return;
       }
-      return;
     }
 
     if (activeDepartureType === 'trial_transfer') {
@@ -3105,6 +3441,10 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
         medicalCheckDone: 'unknown',
         visaType: 'غير معروف',
       });
+      setSelectedPreviousWorker(null);
+      setExistingExternalHomemaidId(null);
+      setSmartSearchTerm('');
+      setSmartSearchSuggestions([]);
       setExternalHomemaidForm({
         name: '',
         image: '',
@@ -3125,27 +3465,90 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
       openModal('internalWorkerModal');
     }
   };
-  // جلب الجنسيات الفريدة من قاعدة البيانات عند تحميل الصفحة
+  // جلب دول المكاتب الخارجية المعتمدة في النظام (من صفحة إعدادات النظام - TAB إدارة المكاتب الخارجية)
   useEffect(() => {
-    fetch('/api/housing/unique-nationalities')
+    fetch('/api/office_list')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data?.nationalities && Array.isArray(data.nationalities)) {
-          setUniqueNationalities(data.nationalities);
+        if (data?.finder && Array.isArray(data.finder)) {
+          const officeCountries: string[] = Array.from(
+            new Set<string>(
+              data.finder
+                .map((o: any) => String(o.Country || '').trim())
+                .filter(Boolean)
+            )
+          );
+          if (officeCountries.length > 0) {
+            setUniqueNationalities(officeCountries);
+          }
         }
       })
-      .catch((err) => console.error('Error loading nationalities from DB:', err));
+      .catch((err) => console.error('Error loading external offices countries:', err));
+
+    fetch('/api/professions')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setProfessionsList(data);
+        }
+      })
+      .catch((err) => console.error('Error loading professions from DB:', err));
   }, []);
 
-  // الاسم حروف فقط (عربي وإنجليزي ومسافات)
+  const nationalityOptions = React.useMemo(() => {
+    const list = uniqueNationalities && uniqueNationalities.length > 0
+      ? uniqueNationalities
+      : [
+          'Philippines - الفلبين',
+          'Bangladesh - بنغلاديش',
+          'Kenya - كينيا',
+          'Ethiopia - إثيوبيا',
+          'Pakistan - باكستان',
+          'Uganda - أوغندا',
+          'Burundi - بوروندي',
+          'India - الهند',
+        ];
+
+    return Array.from(new Set(list.filter(Boolean))).map((nat) => ({
+      value: nat,
+      label: nat,
+    }));
+  }, [uniqueNationalities]);
+
+  const professionSelectOptions = React.useMemo(() => {
+    if (professionsList && professionsList.length > 0) {
+      return professionsList.map((p) => ({ value: p.name, label: p.name }));
+    }
+    return [
+      { value: 'عاملة منزلية', label: 'عاملة منزلية' },
+      { value: 'عامل منزلي', label: 'عامل منزلي' },
+      { value: 'سائق خاص', label: 'سائق خاص' },
+    ];
+  }, [professionsList]);
+
+  // الاسم حروف فقط عند الحفظ (عربي وإنجليزي ومسافات)
   const NAME_LETTERS_ONLY = /^[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FFa-zA-Z\s]*$/;
+  // حقل الاسم أثناء الإدخال والبحث: يقبل الحروف والأرقام لتمكين البحث برقم الجواز أو هوية الكفيل أو جواله
+  const SEARCH_NAME_INPUT_ALLOWED = /^[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FFa-zA-Z0-9\s\-_/]*$/;
   const handleExternalNameChange = (val: string) => {
-    if (NAME_LETTERS_ONLY.test(val)) setExternalHomemaidForm((p) => ({ ...p, name: val }));
+    if (SEARCH_NAME_INPUT_ALLOWED.test(val)) {
+      setExternalHomemaidForm((p) => ({ ...p, name: val }));
+      if (selectedPreviousWorker && val.trim() !== selectedPreviousWorker.name?.trim()) {
+        setSelectedPreviousWorker(null);
+        setExistingExternalHomemaidId(null);
+      }
+      handleSmartSearch(val);
+    }
   };
   // رقم الجواز: لا يقبل حروف عربي (أرقام وحروف إنجليزي و - / فقط)
   const PASSPORT_NO_ARABIC = /^[0-9a-zA-Z\-\/]*$/;
   const handleExternalPassportChange = (val: string) => {
-    if (PASSPORT_NO_ARABIC.test(val)) setExternalHomemaidForm((p) => ({ ...p, passportNumber: val }));
+    if (PASSPORT_NO_ARABIC.test(val)) {
+      setExternalHomemaidForm((p) => ({ ...p, passportNumber: val }));
+      if (val.trim().length >= 2) {
+        handleSmartSearch(val);
+      }
+    }
   };
   // رقم الجوال: أرقام و + فقط (لا يقبل حروف)
   const PHONE_NUMBERS_PLUS = /^[0-9+]*$/;
@@ -3201,7 +3604,7 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
       return false;
     }
     if (!NAME_LETTERS_ONLY.test(externalHomemaidForm.name.trim())) {
-      showNotification('اسم العاملة يجب أن يحتوي على حروف فقط', 'error');
+      showNotification('اسم العاملة يجب أن يحتوي على حروف فقط (لا يمكن حفظ الأرقام كاسم للعاملة). يرجى اختيار العاملة من نتائج البحث أو كتابة اسمها بالحروف.', 'error');
       return false;
     }
     if (!externalHomemaidForm.image || !externalHomemaidForm.image.trim()) {
@@ -3258,6 +3661,7 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
     setIsSubmittingInternalWorker(true);
     try {
       const formData = {
+        existingExternalHomemaidId: existingExternalHomemaidId || undefined,
         name: externalHomemaidForm.name.trim(),
         image: externalHomemaidForm.image.trim(),
         nationality: externalHomemaidForm.nationality.trim() || undefined,
@@ -3353,6 +3757,81 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
     }
   };
   
+  // البحث الذكي الموسع عن العاملات الخارجيات السابقات (بالاسم، الجواز، أو اسم/جوال الكفيل الحالي أو السابق)
+  const handleSmartSearch = (value: string) => {
+    setSmartSearchTerm(value);
+    if (smartSearchDebounceTimer.current) {
+      clearTimeout(smartSearchDebounceTimer.current);
+    }
+    if (!value.trim() || value.trim().length < 2) {
+      setSmartSearchSuggestions([]);
+      setIsSearchingSmart(false);
+      return;
+    }
+    setIsSearchingSmart(true);
+    smartSearchDebounceTimer.current = setTimeout(async () => {
+      try {
+        const res = await axios.get(`/api/housing/search-previous-external-workers?query=${encodeURIComponent(value.trim())}`);
+        if (res.data?.success) {
+          setSmartSearchSuggestions(res.data.workers || []);
+        } else {
+          setSmartSearchSuggestions([]);
+        }
+      } catch (err) {
+        console.error('Error searching previous external workers:', err);
+        setSmartSearchSuggestions([]);
+      } finally {
+        setIsSearchingSmart(false);
+      }
+    }, 350);
+  };
+
+  const handleSelectSmartWorker = (worker: any) => {
+    setSelectedPreviousWorker(worker);
+    setExistingExternalHomemaidId(worker.externalHomemaidId || worker.id);
+    setSmartSearchSuggestions([]);
+    setSmartSearchTerm(worker.name || '');
+
+    // ملء بيانات العاملة تلقائياً
+    setExternalHomemaidForm((prev) => ({
+      ...prev,
+      name: worker.name || prev.name,
+      image: worker.image || prev.image,
+      passportNumber: worker.passportNumber || prev.passportNumber,
+      nationality: worker.nationality || prev.nationality,
+      phone: worker.phone || prev.phone,
+      passportStartDate: worker.passportStartDate || prev.passportStartDate,
+      passportEndDate: worker.passportEndDate || prev.passportEndDate,
+      dateofbirth: worker.dateofbirth || prev.dateofbirth,
+    }));
+
+    // ملء بيانات الكفيل الحالي أو السابق
+    if (worker.currentClient) {
+      setExternalClientForm({
+        name: worker.currentClient.name || '',
+        phone: worker.currentClient.phone || '',
+        city: worker.currentClient.city || '',
+      });
+    } else if (worker.previousClient) {
+      setExternalClientForm({
+        name: worker.previousClient.name || '',
+        phone: worker.previousClient.phone || '',
+        city: '',
+      });
+    }
+
+    // فتح الحقول الإضافية تلقائياً ليراجعها المستخدم بحرية
+    setShowExternalExtraDetails(true);
+    showNotification(`تم التعرف على العاملة (${worker.name}) واقتراح كفيلها بنجاح`);
+  };
+
+  const handleClearSmartWorker = () => {
+    setSelectedPreviousWorker(null);
+    setExistingExternalHomemaidId(null);
+    setSmartSearchTerm('');
+    setSmartSearchSuggestions([]);
+  };
+
   // Handle external worker search input - with debounce
   const handleExternalWorkerSearch = (value: string) => {
     setExternalWorkerSearchTerm(value);
@@ -4302,7 +4781,7 @@ const confirmDeleteNote = async () => {
                             const phone = worker.Order?.phone || worker.externalHomedmaid?.phone || '';
                             const profileId = worker.Order?.id || worker.homeMaid_id;
                             const workerPhoto = worker.externalHomedmaid?.image;
-                            const isExt = Boolean(worker.externalHomedmaid);
+                            const isExt = Boolean(worker.externalHomedmaid || worker.isExternal || (worker as any).externalHomedmaidId);
 
                             return (
                               <td className="py-2 px-2 text-right text-md leading-tight">
@@ -4320,6 +4799,11 @@ const confirmDeleteNote = async () => {
                                         title="انقر لعرض الصورة بالحجم الكامل"
                                         loading="lazy"
                                       />
+                                      {isExt && (
+                                        <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-teal-700 text-white rounded-full flex items-center justify-center text-[8px] font-bold shadow-xs">
+                                          خ
+                                        </span>
+                                      )}
                                     </div>
                                   ) : flagUrl ? (
                                     <img
@@ -4347,8 +4831,8 @@ const confirmDeleteNote = async () => {
                                     </span>
                                   )}
                                   {isExt && (
-                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-300">
-                                      {worker.expectedStayDuration ? `مؤقت: ${worker.expectedStayDuration}` : 'خارجي'}
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-teal-100 text-teal-800 border border-teal-300">
+                                      عاملة خارجية
                                     </span>
                                   )}
                                 </div>
@@ -4503,15 +4987,19 @@ const confirmDeleteNote = async () => {
                                       <span>{stayDays} يوم</span>
                                     </span>
                                   )}
-                                  {worker.expectedStayDuration && (
+                                </div>
+
+                                {/* سطر مدة البقاء المتوقعة (تحت مدة السكن الحالية) */}
+                                {worker.expectedStayDuration && (
+                                  <div className="mt-1 flex items-center justify-start">
                                     <span
                                       className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200"
                                       title={`مدة البقاء المتوقعة: ${worker.expectedStayDuration}`}
                                     >
                                       <span>المتوقع: {worker.expectedStayDuration}</span>
                                     </span>
-                                  )}
-                                </div>
+                                  </div>
+                                )}
                               </td>
                             );
                           })()}
@@ -8159,6 +8647,7 @@ const confirmDeleteNote = async () => {
             {/* Worker Departure Modal */}
             {modals.workerDeparture && (() => {
               const isExternalWorker = Boolean(
+                selectedDepartureWorker?.externalHomedmaidId ||
                 selectedDepartureWorker?.externalHomedmaid || 
                 selectedDepartureWorker?.isExternal
               );
@@ -8207,301 +8696,1522 @@ const confirmDeleteNote = async () => {
                     <form onSubmit={handleDepartureSubmit} className="flex-1 overflow-y-auto p-4 space-y-3">
                       {isExternalWorker ? (
                         /* ============================================================== */
-                        /* 🏢 مسار مغادرة مخصصة للعاملة الخارجية (فقط مغادرة مع صورة وملاحظات إجبارية) */
+                        /* 🏢 مسار مغادرة مخصصة للعاملة الخارجية */
                         /* ============================================================== */
-                        <div className="space-y-3">
-                          {/* بطاقة معلومات العاملة الخارجية */}
-                          <div className="bg-teal-50/70 border border-teal-200 rounded-xl p-2.5 px-3.5 flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-3">
-                              <div className="relative">
-                                {selectedDepartureWorker?.externalHomedmaid?.image ? (
-                                  <img
-                                    src={selectedDepartureWorker.externalHomedmaid.image}
-                                    alt={selectedDepartureWorker.externalHomedmaid.name || ''}
-                                    className="w-10 h-10 rounded-lg object-cover border border-teal-400 shadow-xs"
-                                  />
-                                ) : (
-                                  <div className="w-10 h-10 rounded-lg bg-teal-100 border border-teal-300 flex items-center justify-center text-teal-800">
-                                    <User className="w-5 h-5" />
+                        <div className="space-y-4">
+                          {/* خياري مسار مغادرة العاملة الخارجية */}
+                          <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-2">نوع ومسار مغادرة العاملة الخارجية:</label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              {/* الخيار 1: مغادرة عادية */}
+                              <button
+                                type="button"
+                                onClick={() => setExternalDepartureMode('normal')}
+                                className={`p-3.5 rounded-xl border text-right transition-all flex items-center justify-between cursor-pointer ${
+                                  externalDepartureMode === 'normal'
+                                    ? 'border-2 border-teal-600 bg-teal-50/90 text-teal-950 shadow-xs ring-1 ring-teal-500/20'
+                                    : 'border-gray-200 bg-gray-50/70 hover:bg-gray-100 text-gray-700'
+                                }`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                                    externalDepartureMode === 'normal' ? 'bg-teal-700 text-white' : 'bg-gray-200 text-gray-600'
+                                  }`}>
+                                    <LogOut className="w-4 h-4" />
                                   </div>
+                                  <div>
+                                    <h4 className="text-xs font-bold text-gray-900">مغادرة عادية (تسليم/إرجاع)</h4>
+                                    <p className="text-[11px] text-gray-500 mt-0.5">تسجيل خروج بالصورة والملاحظات (الوضع الافتراضي)</p>
+                                  </div>
+                                </div>
+                                {externalDepartureMode === 'normal' && (
+                                  <span className="w-2.5 h-2.5 rounded-full bg-teal-600 shrink-0"></span>
                                 )}
-                                <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-teal-700 text-white rounded-full flex items-center justify-center text-[9px] font-bold shadow-xs">
-                                  خ
-                                </span>
-                              </div>
-                              <div className="space-y-0.5 text-right">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="font-bold text-gray-900 text-sm">
-                                    {selectedDepartureWorker?.externalHomedmaid?.name || selectedWorkerName}
-                                  </span>
-                                  {selectedDepartureWorker?.externalHomedmaid?.nationality && (
-                                    <span className="text-[11px] font-semibold bg-white text-gray-700 px-1.5 py-0.2 rounded border border-gray-200">
-                                      {selectedDepartureWorker.externalHomedmaid.nationality}
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2 text-[11px] text-gray-600 flex-wrap">
-                                  {selectedDepartureWorker?.externalHomedmaid?.passportNumber && (
-                                    <span>جواز: <strong className="font-mono text-gray-800">{selectedDepartureWorker.externalHomedmaid.passportNumber}</strong></span>
-                                  )}
-                                  {selectedDepartureWorker?.externalHomedmaid?.Client?.fullname && (
-                                    <span>العميل: <strong className="text-gray-800">{selectedDepartureWorker.externalHomedmaid.Client.fullname}</strong></span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
+                              </button>
 
-                            <div className="text-right text-xs shrink-0">
-                              <span className="font-bold text-teal-900 bg-teal-100/90 px-2 py-0.5 rounded-md border border-teal-300 text-[11px]">
-                                {locations.find((loc) => loc.id === selectedDepartureWorker?.location_id)?.location || 'غير محدد'}
-                              </span>
+                              {/* الخيار 2: تجربة نقل كفالة */}
+                              <button
+                                type="button"
+                                onClick={() => setExternalDepartureMode('trial_transfer')}
+                                className={`p-3.5 rounded-xl border text-right transition-all flex items-center justify-between cursor-pointer ${
+                                  externalDepartureMode === 'trial_transfer'
+                                    ? 'border-2 border-teal-600 bg-teal-50/90 text-teal-950 shadow-xs ring-1 ring-teal-500/20'
+                                    : 'border-gray-200 bg-gray-50/70 hover:bg-gray-100 text-gray-700'
+                                }`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div
+                                    className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                                      externalDepartureMode === 'trial_transfer' ? 'text-white' : 'bg-gray-200 text-gray-600'
+                                    }`}
+                                    style={{ backgroundColor: externalDepartureMode === 'trial_transfer' ? '#0D5C63' : undefined }}
+                                  >
+                                    <FaExchangeAlt className="w-4 h-4" />
+                                  </div>
+                                  <div>
+                                    <h4 className="text-xs font-bold text-gray-900">تجربة نقل كفالة لكفيل جديد</h4>
+                                    <p className="text-[11px] text-gray-500 mt-0.5">استكمال كافة بيانات العاملة والكفيلين وبدء التجربة</p>
+                                  </div>
+                                </div>
+                                {externalDepartureMode === 'trial_transfer' && (
+                                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: '#0D5C63' }}></span>
+                                )}
+                              </button>
                             </div>
                           </div>
 
-                          {/* الحقل 1: تاريخ المغادرة من السكن مع حسبة مدة الإقامة الديناميكية */}
-                          {(() => {
-                            const entryDateRaw = selectedDepartureWorker?.houseentrydate || (selectedDepartureWorker as any)?.housingDate || (selectedDepartureWorker as any)?.createdAt;
-                            let stayDaysText = '';
-                            let stayDaysCount: number | null = null;
-                            let entryDateFormatted = '';
+                          {externalDepartureMode === 'normal' ? (
+                            /* ----------------------------------------------------------- */
+                            /* المسار العادي: بيانات مختصرة + تاريخ + صورة المغادرة + ملاحظات */
+                            /* ----------------------------------------------------------- */
+                            <div className="space-y-3">
+                              {/* بطاقة معلومات العاملة الخارجية */}
+                              <div className="bg-teal-50/70 border border-teal-200 rounded-xl p-2.5 px-3.5 flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-3">
+                                  <div className="relative">
+                                    {selectedDepartureWorker?.externalHomedmaid?.image ? (
+                                      <img
+                                        src={selectedDepartureWorker.externalHomedmaid.image}
+                                        alt={selectedDepartureWorker.externalHomedmaid.name || ''}
+                                        className="w-10 h-10 rounded-lg object-cover border border-teal-400 shadow-xs"
+                                      />
+                                    ) : (
+                                      <div className="w-10 h-10 rounded-lg bg-teal-100 border border-teal-300 flex items-center justify-center text-teal-800">
+                                        <User className="w-5 h-5" />
+                                      </div>
+                                    )}
+                                    <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-teal-700 text-white rounded-full flex items-center justify-center text-[9px] font-bold shadow-xs">
+                                      خ
+                                    </span>
+                                  </div>
+                                  <div className="space-y-0.5 text-right">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="font-bold text-gray-900 text-sm">
+                                        {selectedDepartureWorker?.externalHomedmaid?.name || selectedWorkerName}
+                                      </span>
+                                      {selectedDepartureWorker?.externalHomedmaid?.nationality && (
+                                        <span className="text-[11px] font-semibold bg-white text-gray-700 px-1.5 py-0.2 rounded border border-gray-200">
+                                          {selectedDepartureWorker.externalHomedmaid.nationality}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-2 text-[11px] text-gray-600 flex-wrap">
+                                      {selectedDepartureWorker?.externalHomedmaid?.passportNumber && (
+                                        <span>جواز: <strong className="font-mono text-gray-800">{selectedDepartureWorker.externalHomedmaid.passportNumber}</strong></span>
+                                      )}
+                                      {selectedDepartureWorker?.externalHomedmaid?.Client?.fullname && (
+                                        <span>العميل: <strong className="text-gray-800">{selectedDepartureWorker.externalHomedmaid.Client.fullname}</strong></span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
 
-                            if (entryDateRaw) {
-                              try {
-                                const entry = new Date(entryDateRaw);
-                                if (!isNaN(entry.getTime())) {
-                                  const y = entry.getFullYear();
-                                  const m = String(entry.getMonth() + 1).padStart(2, '0');
-                                  const d = String(entry.getDate()).padStart(2, '0');
-                                  entryDateFormatted = `${y}/${m}/${d}`;
+                                <div className="text-right text-xs shrink-0">
+                                  <span className="font-bold text-teal-900 bg-teal-100/90 px-2 py-0.5 rounded-md border border-teal-300 text-[11px]">
+                                    {locations.find((loc) => loc.id === selectedDepartureWorker?.location_id)?.location || 'غير محدد'}
+                                  </span>
+                                </div>
+                              </div>
 
-                                  if (departureHousingDate) {
-                                    const dep = new Date(departureHousingDate);
-                                    if (!isNaN(dep.getTime())) {
-                                      const entryStart = new Date(entry.getFullYear(), entry.getMonth(), entry.getDate()).getTime();
-                                      const depStart = new Date(dep.getFullYear(), dep.getMonth(), dep.getDate()).getTime();
-                                      const diffCalendarDays = Math.round((depStart - entryStart) / (1000 * 60 * 60 * 24));
-                                      
-                                      if (diffCalendarDays < 0) {
-                                        stayDaysText = 'تاريخ المغادرة يسبق تاريخ التسكين';
-                                        stayDaysCount = -1;
-                                      } else {
-                                        // احتساب مدة البقاء شاملة أيام الإقامة (مطابق للجدول الرئيسي)
-                                        const totalDays = diffCalendarDays + 1;
-                                        stayDaysCount = totalDays;
-                                        if (totalDays === 1) {
-                                          stayDaysText = 'يوم واحد';
-                                        } else if (totalDays === 2) {
-                                          stayDaysText = 'يومان';
-                                        } else if (totalDays >= 3 && totalDays <= 10) {
-                                          stayDaysText = `${totalDays} أيام`;
-                                        } else {
-                                          stayDaysText = `${totalDays} يوم`;
+                              {/* الحقل 1: تاريخ المغادرة من السكن مع حسبة مدة الإقامة الديناميكية */}
+                              {(() => {
+                                const entryDateRaw = selectedDepartureWorker?.houseentrydate || (selectedDepartureWorker as any)?.housingDate || (selectedDepartureWorker as any)?.createdAt;
+                                let stayDaysText = '';
+                                let stayDaysCount: number | null = null;
+                                let entryDateFormatted = '';
+
+                                if (entryDateRaw) {
+                                  try {
+                                    const entry = new Date(entryDateRaw);
+                                    if (!isNaN(entry.getTime())) {
+                                      const y = entry.getFullYear();
+                                      const m = String(entry.getMonth() + 1).padStart(2, '0');
+                                      const d = String(entry.getDate()).padStart(2, '0');
+                                      entryDateFormatted = `${y}/${m}/${d}`;
+
+                                      if (departureHousingDate) {
+                                        const dep = new Date(departureHousingDate);
+                                        if (!isNaN(dep.getTime())) {
+                                          const entryStart = new Date(entry.getFullYear(), entry.getMonth(), entry.getDate()).getTime();
+                                          const depStart = new Date(dep.getFullYear(), dep.getMonth(), dep.getDate()).getTime();
+                                          const diffCalendarDays = Math.round((depStart - entryStart) / (1000 * 60 * 60 * 24));
+                                          
+                                          if (diffCalendarDays < 0) {
+                                            stayDaysText = 'تاريخ المغادرة يسبق تاريخ التسكين';
+                                            stayDaysCount = -1;
+                                          } else {
+                                            const totalDays = diffCalendarDays + 1;
+                                            stayDaysCount = totalDays;
+                                            if (totalDays === 1) {
+                                              stayDaysText = 'يوم واحد';
+                                            } else if (totalDays === 2) {
+                                              stayDaysText = 'يومان';
+                                            } else if (totalDays >= 3 && totalDays <= 10) {
+                                              stayDaysText = `${totalDays} أيام`;
+                                            } else {
+                                              stayDaysText = `${totalDays} يوم`;
+                                            }
+                                          }
                                         }
                                       }
                                     }
+                                  } catch (e) {
+                                    console.error('Error calculating stay days:', e);
                                   }
                                 }
-                              } catch (e) {
-                                console.error('Error calculating stay days:', e);
-                              }
-                            }
 
-                            return (
-                              <div className="bg-teal-50/50 border border-teal-200 rounded-xl p-2.5 space-y-2">
-                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                                  <div className="flex items-center gap-2">
-                                    <Calendar className="w-4 h-4 text-teal-700 shrink-0" />
-                                    <label className="text-xs font-bold text-teal-950">
-                                      تاريخ المغادرة من السكن <span className="text-red-500">*</span>
-                                    </label>
-                                  </div>
-                                  <input
-                                    type="date"
-                                    dir="ltr"
-                                    required
-                                    max={new Date().toISOString().split('T')[0]}
-                                    value={departureHousingDate}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      const todayStr = new Date().toISOString().split('T')[0];
-                                      if (val > todayStr) {
-                                        showNotification('لا يمكن اختيار تاريخ في المستقبل لتسجيل المغادرة', 'error');
-                                        return;
-                                      }
-                                      setDepartureHousingDate(val);
-                                    }}
-                                    className="bg-white border border-teal-300 rounded-lg px-2.5 py-1 text-xs text-gray-900 font-mono font-bold focus:ring-2 focus:ring-teal-600 outline-none w-full sm:w-auto text-center cursor-pointer"
-                                    style={{ fontVariantNumeric: 'lining-nums' }}
-                                  />
-                                </div>
-
-                                {/* شريط حسبة مدة البقاء في السكن */}
-                                <div className="pt-2 border-t border-teal-200/60 flex items-center justify-between gap-2 flex-wrap text-xs">
-                                  <div className="flex items-center gap-1.5 text-gray-600">
-                                    <Clock className="w-3.5 h-3.5 text-teal-700 shrink-0" />
-                                    <span>تاريخ التسكين: <strong className="font-mono text-gray-800">{entryDateFormatted || 'غير محدد'}</strong></span>
-                                  </div>
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-gray-600">مدة البقاء بالسكن:</span>
-                                    {stayDaysText ? (
-                                      <span className={`inline-flex items-center gap-1 font-bold px-2.5 py-0.5 rounded-md text-xs shadow-2xs ${
-                                        stayDaysCount != null && stayDaysCount < 0 
-                                          ? 'bg-red-100 text-red-800 border border-red-300' 
-                                          : 'bg-teal-800 text-white'
-                                      }`}>
-                                        {stayDaysText}
-                                      </span>
-                                    ) : (
-                                      <span className="text-gray-400 font-medium">—</span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })()}
-
-                          {/* الحقل 2: صورة المغادرة */}
-                          <div className={`border rounded-xl p-3 transition-all ${
-                            externalDeparturePhotoError 
-                              ? 'border-red-400 bg-red-50/40' 
-                              : externalDeparturePhoto 
-                                ? 'border-emerald-300 bg-emerald-50/30' 
-                                : 'border-dashed border-gray-300 bg-gray-50/60 hover:bg-gray-50'
-                          }`}>
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-1.5">
-                                <Camera className="w-4 h-4 text-teal-700" />
-                                <label className="text-xs font-bold text-gray-900">
-                                  صورة المغادرة / إثبات الخروج <span className="text-red-500">*</span>
-                                </label>
-                              </div>
-                              {externalDeparturePhoto && (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                                  <Check className="w-3 h-3" />
-                                  تم الإرفاق
-                                </span>
-                              )}
-                            </div>
-
-                            {externalDeparturePhoto ? (
-                              <div className="flex items-center gap-3 bg-white p-2.5 rounded-lg border border-gray-200">
-                                <div className="relative group shrink-0">
-                                  <img
-                                    src={externalDeparturePhoto}
-                                    alt="صورة المغادرة"
-                                    className="w-16 h-16 rounded-lg object-cover border border-emerald-400 shadow-2xs"
-                                  />
-                                  <a
-                                    href={externalDeparturePhoto}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 rounded-lg flex items-center justify-center text-white text-[10px] font-bold transition-opacity"
-                                  >
-                                    تكبير
-                                  </a>
-                                </div>
-                                <div className="space-y-1 text-right flex-1">
-                                  <div className="text-xs font-bold text-emerald-900">تم رفع وحفظ صورة المغادرة</div>
-                                  <div className="flex items-center gap-2 pt-0.5">
-                                    <label className="inline-flex items-center gap-1 px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] font-bold rounded cursor-pointer transition-colors">
-                                      <Upload className="w-3 h-3" />
-                                      <span>استبدال</span>
+                                return (
+                                  <div className="bg-teal-50/50 border border-teal-200 rounded-xl p-2.5 space-y-2">
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                                      <div className="flex items-center gap-2">
+                                        <Calendar className="w-4 h-4 text-teal-700 shrink-0" />
+                                        <label className="text-xs font-bold text-teal-950">
+                                          تاريخ المغادرة من السكن <span className="text-red-500">*</span>
+                                        </label>
+                                      </div>
                                       <input
-                                        type="file"
-                                        accept="image/*"
-                                        className="hidden"
-                                        disabled={isUploadingExternalDeparturePhoto}
-                                        onChange={handleExternalDeparturePhotoUpload}
+                                        type="date"
+                                        dir="ltr"
+                                        required
+                                        max={new Date().toISOString().split('T')[0]}
+                                        value={departureHousingDate}
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          const todayStr = new Date().toISOString().split('T')[0];
+                                          if (val > todayStr) {
+                                            showNotification('لا يمكن اختيار تاريخ في المستقبل لتسجيل المغادرة', 'error');
+                                            return;
+                                          }
+                                          setDepartureHousingDate(val);
+                                        }}
+                                        className="bg-white border border-teal-300 rounded-lg px-2.5 py-1 text-xs text-gray-900 font-mono font-bold focus:ring-2 focus:ring-teal-600 outline-none w-full sm:w-auto text-center cursor-pointer"
+                                        style={{ fontVariantNumeric: 'lining-nums' }}
                                       />
-                                    </label>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setExternalDeparturePhoto('');
-                                        setExternalDeparturePhotoError('صورة المغادرة مطلوبة بشكل إجباري');
-                                      }}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 text-[11px] font-bold rounded transition-colors cursor-pointer"
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                      <span>حذف</span>
-                                    </button>
+                                    </div>
+
+                                    {/* شريط حسبة مدة البقاء في السكن */}
+                                    <div className="pt-2 border-t border-teal-200/60 flex items-center justify-between gap-2 flex-wrap text-xs">
+                                      <div className="flex items-center gap-1.5 text-gray-600">
+                                        <Clock className="w-3.5 h-3.5 text-teal-700 shrink-0" />
+                                        <span>تاريخ التسكين: <strong className="font-mono text-gray-800">{entryDateFormatted || 'غير محدد'}</strong></span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-gray-600">مدة البقاء بالسكن:</span>
+                                        {stayDaysText ? (
+                                          <span className={`inline-flex items-center gap-1 font-bold px-2.5 py-0.5 rounded-md text-xs shadow-2xs ${
+                                            stayDaysCount != null && stayDaysCount < 0 
+                                              ? 'bg-red-100 text-red-800 border border-red-300' 
+                                              : 'bg-teal-800 text-white'
+                                          }`}>
+                                            {stayDaysText}
+                                          </span>
+                                        ) : (
+                                          <span className="text-gray-400 font-medium">—</span>
+                                        )}
+                                      </div>
+                                    </div>
                                   </div>
+                                );
+                              })()}
+
+                              {/* الحقل 2: صورة المغادرة */}
+                              <div className={`border rounded-xl p-3 transition-all ${
+                                externalDeparturePhotoError 
+                                  ? 'border-red-400 bg-red-50/40' 
+                                  : externalDeparturePhoto 
+                                    ? 'border-emerald-300 bg-emerald-50/30' 
+                                    : 'border-dashed border-gray-300 bg-gray-50/60 hover:bg-gray-50'
+                              }`}>
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-1.5">
+                                    <Camera className="w-4 h-4 text-teal-700" />
+                                    <label className="text-xs font-bold text-gray-900">
+                                      صورة المغادرة / إثبات الخروج <span className="text-red-500">*</span>
+                                    </label>
+                                  </div>
+                                  {externalDeparturePhoto && (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                                      <Check className="w-3 h-3" />
+                                      تم الإرفاق
+                                    </span>
+                                  )}
                                 </div>
-                              </div>
-                            ) : (
-                              <label className="flex items-center justify-center gap-2.5 py-3 px-4 bg-white border border-gray-200 rounded-lg cursor-pointer hover:border-teal-500 hover:bg-teal-50/20 transition-all group">
-                                {isUploadingExternalDeparturePhoto ? (
-                                  <div className="flex items-center gap-2 text-teal-800 py-1">
-                                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-teal-700 border-t-transparent"></div>
-                                    <span className="text-xs font-bold">جاري رفع الصورة...</span>
+
+                                {externalDeparturePhoto ? (
+                                  <div className="flex items-center gap-3 bg-white p-2.5 rounded-lg border border-gray-200">
+                                    <div className="relative group shrink-0">
+                                      <img
+                                        src={externalDeparturePhoto}
+                                        alt="صورة المغادرة"
+                                        className="w-16 h-16 rounded-lg object-cover border border-emerald-400 shadow-2xs"
+                                      />
+                                      <a
+                                        href={externalDeparturePhoto}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 rounded-lg flex items-center justify-center text-white text-[10px] font-bold transition-opacity"
+                                      >
+                                        تكبير
+                                      </a>
+                                    </div>
+                                    <div className="space-y-1 text-right flex-1">
+                                      <div className="text-xs font-bold text-emerald-900">تم رفع وحفظ صورة المغادرة</div>
+                                      <div className="flex items-center gap-2 pt-0.5">
+                                        <label className="inline-flex items-center gap-1 px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] font-bold rounded cursor-pointer transition-colors">
+                                          <Upload className="w-3 h-3" />
+                                          <span>استبدال</span>
+                                          <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            disabled={isUploadingExternalDeparturePhoto}
+                                            onChange={handleExternalDeparturePhotoUpload}
+                                          />
+                                        </label>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setExternalDeparturePhoto('');
+                                            setExternalDeparturePhotoError('صورة المغادرة مطلوبة بشكل إجباري');
+                                          }}
+                                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 text-[11px] font-bold rounded transition-colors cursor-pointer"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                          <span>حذف</span>
+                                        </button>
+                                      </div>
+                                    </div>
                                   </div>
                                 ) : (
-                                  <>
-                                    <div className="w-7 h-7 rounded-full bg-teal-100 text-teal-800 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                                      <Upload className="w-4 h-4" />
-                                    </div>
-                                    <span className="text-xs font-bold text-teal-950 group-hover:text-teal-800">
-                                      انقر هنا لرفع أو التقاط صورة المغادرة (JPG, PNG)
-                                    </span>
-                                  </>
+                                  <label className="flex items-center justify-center gap-2.5 py-3 px-4 bg-white border border-gray-200 rounded-lg cursor-pointer hover:border-teal-500 hover:bg-teal-50/20 transition-all group">
+                                    {isUploadingExternalDeparturePhoto ? (
+                                      <div className="flex items-center gap-2 text-teal-800 py-1">
+                                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-teal-700 border-t-transparent"></div>
+                                        <span className="text-xs font-bold">جاري رفع الصورة...</span>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <div className="w-7 h-7 rounded-full bg-teal-100 text-teal-800 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                                          <Upload className="w-4 h-4" />
+                                        </div>
+                                        <span className="text-xs font-bold text-teal-950 group-hover:text-teal-800">
+                                          انقر هنا لرفع أو التقاط صورة المغادرة (JPG, PNG)
+                                        </span>
+                                      </>
+                                    )}
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      className="hidden"
+                                      disabled={isUploadingExternalDeparturePhoto}
+                                      onChange={handleExternalDeparturePhotoUpload}
+                                    />
+                                  </label>
                                 )}
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  disabled={isUploadingExternalDeparturePhoto}
-                                  onChange={handleExternalDeparturePhotoUpload}
-                                />
-                              </label>
-                            )}
 
-                            {externalDeparturePhotoError && (
-                              <div className="flex items-center gap-1 text-[11px] text-red-600 font-bold mt-1.5">
-                                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                                <span>{externalDeparturePhotoError}</span>
+                                {externalDeparturePhotoError && (
+                                  <div className="flex items-center gap-1 text-[11px] text-red-600 font-bold mt-1.5">
+                                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                    <span>{externalDeparturePhotoError}</span>
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
 
-                          {/* الحقل 3: ملاحظات المغادرة */}
-                          <div className={`border rounded-xl p-3 transition-all ${
-                            externalDepartureNotesError 
-                              ? 'border-red-400 bg-red-50/40' 
-                              : 'border-gray-200 bg-white'
-                          }`}>
-                            <div className="flex items-center justify-between mb-1.5">
-                              <div className="flex items-center gap-1.5">
-                                <Edit3 className="w-3.5 h-3.5 text-teal-700" />
-                                <label className="text-xs font-bold text-gray-900">
-                                  ملاحظات وتفاصيل المغادرة <span className="text-red-500">*</span>
-                                </label>
-                              </div>
-                              <span className="text-[10px] text-gray-400">يرجى توضيح كافة التفاصيل</span>
-                            </div>
-                            <textarea
-                              rows={2}
-                              required
-                              placeholder="اكتب ملاحظات وتفاصيل المغادرة (السبب، من استلم العاملة، تسليم المقتنيات، إلخ)..."
-                              value={externalDepartureNotes}
-                              onChange={(e) => {
-                                setExternalDepartureNotes(e.target.value);
-                                if (e.target.value.trim()) {
-                                  setExternalDepartureNotesError('');
-                                }
-                              }}
-                              className={`w-full bg-gray-50/50 border rounded-lg p-2 text-right text-xs outline-none transition-all ${
+                              {/* الحقل 3: ملاحظات المغادرة */}
+                              <div className={`border rounded-xl p-3 transition-all ${
                                 externalDepartureNotesError 
-                                  ? 'border-red-300 focus:ring-2 focus:ring-red-400 bg-white' 
-                                  : 'border-gray-300 focus:ring-2 focus:ring-teal-600 focus:bg-white'
-                              }`}
-                            />
-                            {externalDepartureNotesError && (
-                              <div className="flex items-center gap-1 text-[11px] text-red-600 font-bold mt-1">
-                                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                                <span>{externalDepartureNotesError}</span>
+                                  ? 'border-red-400 bg-red-50/40' 
+                                  : 'border-gray-200 bg-white'
+                              }`}>
+                                <div className="flex items-center justify-between mb-1.5">
+                                  <div className="flex items-center gap-1.5">
+                                    <Edit3 className="w-3.5 h-3.5 text-teal-700" />
+                                    <label className="text-xs font-bold text-gray-900">
+                                      ملاحظات وتفاصيل المغادرة <span className="text-red-500">*</span>
+                                    </label>
+                                  </div>
+                                  <span className="text-[10px] text-gray-400">يرجى توضيح كافة التفاصيل</span>
+                                </div>
+                                <textarea
+                                  rows={2}
+                                  required
+                                  placeholder="اكتب ملاحظات وتفاصيل المغادرة (السبب، من استلم العاملة، تسليم المقتنيات، إلخ)..."
+                                  value={externalDepartureNotes}
+                                  onChange={(e) => {
+                                    setExternalDepartureNotes(e.target.value);
+                                    if (e.target.value.trim()) {
+                                      setExternalDepartureNotesError('');
+                                    }
+                                  }}
+                                  className={`w-full bg-gray-50/50 border rounded-lg p-2 text-right text-xs outline-none transition-all ${
+                                    externalDepartureNotesError 
+                                      ? 'border-red-300 focus:ring-2 focus:ring-red-400 bg-white' 
+                                      : 'border-gray-300 focus:ring-2 focus:ring-teal-600 focus:bg-white'
+                                  }`}
+                                />
+                                {externalDepartureNotesError && (
+                                  <div className="flex items-center gap-1 text-[11px] text-red-600 font-bold mt-1">
+                                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                    <span>{externalDepartureNotesError}</span>
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
+                            </div>
+                          ) : (
+                            /* ----------------------------------------------------------- */
+                            /* مسار تجربة نقل الكفالة لعاملة خارجية: إدخال كافة البيانات الإلزامية */
+                            (() => {
+                              const currentTrialStartDate = departureHousingDate || trialTransferForm.trialStartDate || new Date().toISOString().split('T')[0];
+                              const currentDays = parseInt(trialTransferForm.trialPeriodDays, 10) || 0;
+                              
+                              let calculatedEndDateFormatted = '';
+                              if (currentTrialStartDate && currentDays > 0) {
+                                const d = new Date(currentTrialStartDate);
+                                if (!isNaN(d.getTime())) {
+                                  d.setDate(d.getDate() + currentDays);
+                                  calculatedEndDateFormatted = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+                                }
+                              }
+
+                              const totalCostNum = parseFloat(trialTransferForm.totalCost) || 0;
+                              const paidAmountNum = parseFloat(trialTransferForm.paidAmount) || 0;
+                              const remainingAmountCalc = Math.max(0, totalCostNum - paidAmountNum);
+                              const dailyCostNum = parseFloat(trialTransferForm.dailyCost) || 0;
+                              const calculatedTotalTrialCost = dailyCostNum * currentDays;
+
+                              return (
+                                <div className="space-y-4">
+                                  {/* تنبيه توجيهي */}
+                                  <div className="bg-teal-50 border border-teal-200 rounded-xl p-3 flex items-start gap-2.5 text-teal-900 text-xs">
+                                    <AlertCircle className="w-4 h-4 text-teal-700 shrink-0 mt-0.5" />
+                                    <div className="leading-relaxed">
+                                      <strong>مسار تجربة نقل كفالة لعاملة خارجية:</strong>
+                                      <span className="mr-1">
+                                        نظراً لأن العاملة مسجلة كعاملة خارجية، يرجى استكمال بيانات العاملة والكفيل المتنازل والكفيل الجديد لبدء التجربة وإدراجها بنجاح في سجل نقل الكفالة.
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* ------------------------------------------------------------- */}
+                                  {/* القسم 1 & 2: بيانات العاملة والكفيل المتنازل جنباً إلى جنب */}
+                                  {/* ------------------------------------------------------------- */}
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {/* بطاقة بيانات العاملة الضرورية */}
+                                    <div className="bg-teal-50 border border-teal-200 rounded-xl p-3 space-y-2.5">
+                                      <div className="flex items-center gap-1.5 text-teal-800 font-bold text-xs border-b border-teal-200 pb-1.5">
+                                        <User className="w-3.5 h-3.5 text-teal-700" />
+                                        <span>القسم الأول: بيانات العاملة</span>
+                                      </div>
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                        <div className="sm:col-span-2">
+                                          <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                                            اسم العاملة الكامل <span className="text-red-500">*</span>
+                                          </label>
+                                          <input
+                                            type="text"
+                                            required
+                                            placeholder="الاسم كما في الجواز..."
+                                            value={extWorkerForm.name}
+                                            onChange={(e) => setExtWorkerForm({ ...extWorkerForm, name: e.target.value })}
+                                            className="w-full bg-white border border-gray-300 rounded-lg p-2 text-right text-xs focus:ring-2 focus:ring-teal-600 outline-none"
+                                          />
+                                        </div>
+
+                                        <div>
+                                          <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                                            رقم الجواز <span className="text-red-500">*</span>
+                                          </label>
+                                          <input
+                                            type="text"
+                                            dir="ltr"
+                                            required
+                                            placeholder="A1234567"
+                                            value={extWorkerForm.passportNumber}
+                                            onChange={(e) => setExtWorkerForm({ ...extWorkerForm, passportNumber: e.target.value.toUpperCase().trim() })}
+                                            className="w-full bg-white border border-gray-300 rounded-lg p-2 text-center text-xs font-mono font-bold text-gray-900 focus:ring-2 focus:ring-teal-600 outline-none"
+                                          />
+                                        </div>
+
+                                        <div>
+                                          <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                                            الجنسية <span className="text-red-500">*</span>
+                                          </label>
+                                          <Select
+                                            options={nationalityOptions}
+                                            placeholder="ابحث أو اختر الجنسية..."
+                                            menuPlacement="bottom"
+                                            maxMenuHeight={180}
+                                            isSearchable
+                                            value={
+                                              extWorkerForm.nationality
+                                                ? nationalityOptions.find((n) => n.value === extWorkerForm.nationality || n.label === extWorkerForm.nationality) || {
+                                                    value: extWorkerForm.nationality,
+                                                    label: extWorkerForm.nationality,
+                                                  }
+                                                : null
+                                            }
+                                            onChange={(selectedOption: any) =>
+                                              setExtWorkerForm({
+                                                ...extWorkerForm,
+                                                nationality: selectedOption ? selectedOption.value : '',
+                                              })
+                                            }
+                                            styles={searchableSelectStyles}
+                                            noOptionsMessage={() => 'لا توجد جنسية مطابقة'}
+                                          />
+                                        </div>
+
+                                        <div>
+                                          <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                                            المهنة <span className="text-red-500">*</span>
+                                          </label>
+                                          <Select
+                                            options={professionSelectOptions}
+                                            placeholder="ابحث أو اختر المهنة..."
+                                            menuPlacement="bottom"
+                                            maxMenuHeight={180}
+                                            isSearchable
+                                            value={
+                                              extWorkerForm.profession
+                                                ? professionSelectOptions.find((p) => p.value === extWorkerForm.profession) || {
+                                                    value: extWorkerForm.profession,
+                                                    label: extWorkerForm.profession,
+                                                  }
+                                                : null
+                                            }
+                                            onChange={(selectedOption: any) =>
+                                              setExtWorkerForm({
+                                                ...extWorkerForm,
+                                                profession: selectedOption ? selectedOption.value : '',
+                                              })
+                                            }
+                                            styles={searchableSelectStyles}
+                                            noOptionsMessage={() => 'لا توجد مهنة مطابقة'}
+                                          />
+                                        </div>
+
+                                        <div>
+                                          <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                                            رقم جوال العاملة (إن وجد)
+                                          </label>
+                                          <input
+                                            type="tel"
+                                            dir="ltr"
+                                            placeholder="05xxxxxxxx (اختياري)"
+                                            value={extWorkerForm.phone}
+                                            onChange={(e) => setExtWorkerForm({ ...extWorkerForm, phone: e.target.value })}
+                                            className="w-full bg-white border border-gray-300 rounded-lg p-2 text-center text-xs font-mono focus:ring-2 focus:ring-teal-600 outline-none"
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* بطاقة بيانات الكفيل المتنازل */}
+                                    <div className="bg-teal-50 border border-teal-200 rounded-xl p-3 space-y-2.5">
+                                      <div className="flex items-center gap-1.5 text-teal-800 font-bold text-xs border-b border-teal-200 pb-1.5">
+                                        <Users className="w-3.5 h-3.5 text-teal-700" />
+                                        <span>القسم الثاني: بيانات الكفيل القديم (المتنازل)</span>
+                                      </div>
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                        <div className="sm:col-span-2">
+                                          <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                                            اسم الكفيل الحالي (المتنازل) <span className="text-red-500">*</span>
+                                          </label>
+                                          <input
+                                            type="text"
+                                            required
+                                            placeholder="الاسم الرباعي للكفيل..."
+                                            value={extOldSponsorForm.fullname}
+                                            onChange={(e) => setExtOldSponsorForm({ ...extOldSponsorForm, fullname: e.target.value })}
+                                            className="w-full bg-white border border-gray-300 rounded-lg p-2 text-right text-xs focus:ring-2 focus:ring-teal-600 outline-none"
+                                          />
+                                        </div>
+
+                                        <div>
+                                          <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                                            رقم الهوية الوطنية / الإقامة <span className="text-red-500">*</span>
+                                          </label>
+                                          <input
+                                            type="text"
+                                            dir="ltr"
+                                            inputMode="numeric"
+                                            maxLength={10}
+                                            required
+                                            placeholder="1xxxxxxxxx (10 أرقام)"
+                                            value={extOldSponsorForm.nationalId}
+                                            onChange={(e) => {
+                                              const val = e.target.value
+                                                .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1632 + 48))
+                                                .replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1776 + 48))
+                                                .replace(/\D/g, '');
+                                              setExtOldSponsorForm({ ...extOldSponsorForm, nationalId: val });
+                                            }}
+                                            className="w-full bg-white border border-gray-300 rounded-lg p-2 text-center text-xs font-mono font-bold text-gray-900 focus:ring-2 focus:ring-teal-600 outline-none"
+                                          />
+                                        </div>
+
+                                        <div>
+                                          <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                                            رقم الجوال <span className="text-red-500">*</span>
+                                          </label>
+                                          <input
+                                            type="tel"
+                                            dir="ltr"
+                                            inputMode="numeric"
+                                            maxLength={10}
+                                            required
+                                            placeholder="05xxxxxxxx (10 أرقام)"
+                                            value={extOldSponsorForm.phonenumber}
+                                            onChange={(e) => {
+                                              const val = e.target.value
+                                                .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1632 + 48))
+                                                .replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1776 + 48))
+                                                .replace(/\D/g, '')
+                                                .slice(0, 10);
+                                              setExtOldSponsorForm({ ...extOldSponsorForm, phonenumber: val });
+                                            }}
+                                            className="w-full bg-white border border-gray-300 rounded-lg p-2 text-center text-xs font-mono font-bold text-gray-900 focus:ring-2 focus:ring-teal-600 outline-none"
+                                          />
+                                        </div>
+
+                                        <div className="sm:col-span-2">
+                                          <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                                            مدينة الإقامة
+                                          </label>
+                                          <Select
+                                            options={saudiCities}
+                                            placeholder="ابحث أو اختر مدينة الكفيل..."
+                                            menuPlacement="bottom"
+                                            maxMenuHeight={180}
+                                            isSearchable
+                                            value={
+                                              extOldSponsorForm.city
+                                                ? saudiCities.find((c) => c.value === extOldSponsorForm.city || c.label.includes(extOldSponsorForm.city)) || {
+                                                    value: extOldSponsorForm.city,
+                                                    label: extOldSponsorForm.city,
+                                                  }
+                                                : null
+                                            }
+                                            onChange={(selectedOption: any) =>
+                                              setExtOldSponsorForm({
+                                                ...extOldSponsorForm,
+                                                city: selectedOption ? selectedOption.value : '',
+                                              })
+                                            }
+                                            styles={searchableSelectStyles}
+                                            noOptionsMessage={() => 'لا توجد مدينة مطابقة'}
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* ------------------------------------------------------------- */}
+                                  {/* القسم 3: بيانات الكفيل الجديد والمرفقات */}
+                                  {/* ------------------------------------------------------------- */}
+                                  <div className="border border-teal-200 bg-white rounded-xl p-4 space-y-3 shadow-sm">
+                                    <div className="flex items-center gap-2 text-teal-800 font-bold text-xs border-b border-gray-100 pb-2">
+                                      <UserCheck className="w-4 h-4 text-teal-700" />
+                                      <span>القسم الثالث: بيانات الكفيل الجديد والمرفقات</span>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                      {/* اسم الكفيل الجديد */}
+                                      <div className="relative">
+                                        <label className="block text-xs font-bold text-gray-700 mb-1">
+                                          اسم الكفيل الجديد <span className="text-red-500">*</span>
+                                        </label>
+                                        <div className="relative">
+                                          <input
+                                            type="text"
+                                            required
+                                            placeholder="ابحث بالاسم، الجوال، أو رقم الهوية..."
+                                            value={trialTransferForm.newSponsorName}
+                                            onChange={(e) => handleNewClientNameChange(e.target.value)}
+                                            onFocus={() => {
+                                              if (clientSearchResults.length > 0) setShowClientSuggestions(true);
+                                            }}
+                                            onBlur={() => {
+                                              setTimeout(() => setShowClientSuggestions(false), 250);
+                                            }}
+                                            className="w-full bg-white border border-gray-300 rounded-lg p-2 pl-8 text-right text-xs focus:ring-2 focus:ring-teal-600 outline-none"
+                                          />
+                                          <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                            {isSearchingClient ? (
+                                              <div className="w-3.5 h-3.5 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+                                            ) : (
+                                              <Search className="w-3.5 h-3.5 text-gray-400" />
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        {/* قائمة العملاء المطابقين المنسدلة */}
+                                        {showClientSuggestions && clientSearchResults.length > 0 && (
+                                          <div className="absolute top-full right-0 left-0 mt-1 bg-white rounded-xl shadow-2xl border border-teal-200 z-50 max-h-56 overflow-y-auto">
+                                            <div className="p-2 bg-teal-50/90 border-b border-teal-100 flex items-center justify-between text-[11px] font-bold text-teal-900">
+                                              <span>عملاء مسجلين مطابقين ({clientSearchResults.length}):</span>
+                                              <span className="text-[10px] text-teal-700 font-normal">انقر للتعبئة التلقائية</span>
+                                            </div>
+                                            {clientSearchResults.map((client: any) => (
+                                              <div
+                                                key={client.id}
+                                                onMouseDown={() => handleSelectNewClient(client)}
+                                                className="p-2.5 hover:bg-teal-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors text-right"
+                                              >
+                                                <div className="flex items-center justify-between gap-2">
+                                                  <span className="font-bold text-xs text-teal-950">{client.fullname}</span>
+                                                  {client.city && (
+                                                    <span className="text-[10px] font-semibold bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded">
+                                                      {client.city}
+                                                    </span>
+                                                  )}
+                                                </div>
+                                                <div className="flex items-center gap-3 text-[11px] text-gray-600 mt-1 flex-wrap">
+                                                  {client.phonenumber && (
+                                                    <span>جوال: <strong className="font-mono text-gray-800" dir="ltr">{client.phonenumber}</strong></span>
+                                                  )}
+                                                  {client.nationalId && (
+                                                    <span>هوية: <strong className="font-mono text-gray-800" dir="ltr">{client.nationalId}</strong></span>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* رقم الهوية الوطنية */}
+                                      <div>
+                                        <label className="block text-xs font-bold text-gray-700 mb-1">
+                                          رقم الهوية الوطنية / الإقامة
+                                        </label>
+                                        <input
+                                          type="text"
+                                          dir="ltr"
+                                          inputMode="numeric"
+                                          maxLength={10}
+                                          placeholder="1xxxxxxxxx"
+                                          value={trialTransferForm.newSponsorId}
+                                          onChange={(e) => {
+                                            const val = e.target.value
+                                              .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1632 + 48))
+                                              .replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1776 + 48))
+                                              .replace(/\D/g, '');
+                                            setTrialTransferForm({ ...trialTransferForm, newSponsorId: val });
+                                          }}
+                                          className="w-full bg-white border border-gray-300 rounded-lg p-2 text-center text-xs font-bold text-gray-900 focus:ring-2 focus:ring-blue-600 outline-none"
+                                          style={{ fontFamily: 'Inter, system-ui, Arial, sans-serif', fontVariantNumeric: 'lining-nums' }}
+                                        />
+                                      </div>
+
+                                      {/* رقم الجوال الأساسي */}
+                                      <div>
+                                        <label className="block text-xs font-bold text-gray-700 mb-1">
+                                          رقم الجوال الأساسي <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                          type="tel"
+                                          dir="ltr"
+                                          inputMode="numeric"
+                                          maxLength={10}
+                                          required
+                                          placeholder="05xxxxxxxx"
+                                          value={trialTransferForm.newSponsorPhone}
+                                          onChange={(e) => {
+                                            const val = e.target.value
+                                              .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1632 + 48))
+                                              .replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1776 + 48))
+                                              .replace(/\D/g, '')
+                                              .slice(0, 10);
+                                            setTrialTransferForm({ ...trialTransferForm, newSponsorPhone: val });
+                                          }}
+                                          className="w-full bg-white border border-gray-300 rounded-lg p-2 text-center text-xs font-bold text-gray-900 focus:ring-2 focus:ring-blue-600 outline-none"
+                                          style={{ fontFamily: 'Inter, system-ui, Arial, sans-serif', fontVariantNumeric: 'lining-nums' }}
+                                        />
+                                      </div>
+
+                                      {/* رقم جوال بديل */}
+                                      <div>
+                                        <label className="block text-xs font-bold text-gray-700 mb-1">
+                                          رقم جوال بديل / إضافي
+                                        </label>
+                                        <input
+                                          type="tel"
+                                          dir="ltr"
+                                          inputMode="numeric"
+                                          maxLength={10}
+                                          placeholder="05xxxxxxxx (اختياري)"
+                                          value={trialTransferForm.newSponsorAltPhone}
+                                          onChange={(e) => {
+                                            const val = e.target.value
+                                              .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1632 + 48))
+                                              .replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1776 + 48))
+                                              .replace(/\D/g, '')
+                                              .slice(0, 10);
+                                            setTrialTransferForm({ ...trialTransferForm, newSponsorAltPhone: val });
+                                          }}
+                                          className="w-full bg-white border border-gray-300 rounded-lg p-2 text-center text-xs font-bold text-gray-900 focus:ring-2 focus:ring-blue-600 outline-none"
+                                          style={{ fontFamily: 'Inter, system-ui, Arial, sans-serif', fontVariantNumeric: 'lining-nums' }}
+                                        />
+                                      </div>
+
+                                      {/* مدينة الإقامة */}
+                                      <div>
+                                        <label className="block text-xs font-bold text-gray-700 mb-1">
+                                          مدينة الإقامة / السكن
+                                        </label>
+                                        <Select
+                                          options={saudiCities}
+                                          placeholder="ابحث أو اختر مدينة الإقامة..."
+                                          menuPlacement="bottom"
+                                          maxMenuHeight={180}
+                                          isSearchable
+                                          value={
+                                            trialTransferForm.newSponsorCity
+                                              ? saudiCities.find((c) => c.value === trialTransferForm.newSponsorCity || c.label.includes(trialTransferForm.newSponsorCity)) || {
+                                                  value: trialTransferForm.newSponsorCity,
+                                                  label: trialTransferForm.newSponsorCity,
+                                                }
+                                              : null
+                                          }
+                                          onChange={(selectedOption: any) =>
+                                            setTrialTransferForm({
+                                              ...trialTransferForm,
+                                              newSponsorCity: selectedOption ? selectedOption.value : '',
+                                            })
+                                          }
+                                          styles={searchableSelectStyles}
+                                          noOptionsMessage={() => 'لا توجد مدينة مطابقة'}
+                                        />
+                                      </div>
+
+                                      {/* تاريخ الميلاد */}
+                                      <div>
+                                        <label className="block text-xs font-bold text-gray-700 mb-1">
+                                          تاريخ الميلاد للكفيل
+                                        </label>
+                                        <div 
+                                          className="w-full h-[38px] bg-white border border-gray-300 rounded-lg px-3 flex items-center justify-center gap-2 text-xs font-bold text-gray-900 focus-within:border-teal-600 focus-within:ring-2 focus-within:ring-teal-100 transition-all cursor-pointer relative select-none"
+                                          style={{ fontFamily: 'Inter, system-ui, Arial, sans-serif', fontVariantNumeric: 'lining-nums' }}
+                                          onClick={(e) => {
+                                            const input = e.currentTarget.querySelector('input[type="date"]');
+                                            if (input) {
+                                              try { (input as any).showPicker?.(); } catch {}
+                                            }
+                                          }}
+                                        >
+                                          <Calendar className="w-3.5 h-3.5 text-gray-500 shrink-0 pointer-events-none" />
+                                          <span dir="ltr" className="tracking-wide pointer-events-none">
+                                            {trialTransferForm.newSponsorDateOfBirth ? trialTransferForm.newSponsorDateOfBirth.replace(/-/g, '/') : 'YYYY/MM/DD'}
+                                          </span>
+                                          <input
+                                            type="date"
+                                            value={trialTransferForm.newSponsorDateOfBirth}
+                                            onChange={(e) => setTrialTransferForm({ ...trialTransferForm, newSponsorDateOfBirth: e.target.value })}
+                                            onClick={(e) => {
+                                              try {
+                                                (e.target as any).showPicker?.();
+                                              } catch {}
+                                            }}
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                            style={{ zIndex: 10 }}
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* المرفقات: تعريف الراتب + العنوان الوطني */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-gray-100">
+                                      {/* مرفق تعريف الراتب */}
+                                      <div className="space-y-1 flex flex-col">
+                                        <div className="flex items-center justify-between">
+                                          <label className="text-xs font-bold text-gray-700 flex items-center gap-1">
+                                            <FileText className="w-3.5 h-3.5 text-teal-700" />
+                                            <span>تعريف الراتب / الشهادة البنكية</span>
+                                          </label>
+                                          {trialTransferForm.salaryCertificateFile && (
+                                            <span className="text-[10px] text-teal-700 font-bold bg-teal-100 px-1.5 py-0.5 rounded">تم الإرفاق</span>
+                                          )}
+                                        </div>
+
+                                        <input
+                                          type="file"
+                                          id="trial-salary-cert-upload-ext"
+                                          accept=".pdf,image/*"
+                                          disabled={isUploadingSalaryCert}
+                                          onChange={handleSalaryCertUpload}
+                                          className="hidden"
+                                        />
+
+                                        <label
+                                          htmlFor="trial-salary-cert-upload-ext"
+                                          className={`min-h-[58px] bg-white border-2 border-dashed rounded-lg px-2.5 py-2 flex items-center justify-center text-center cursor-pointer transition-all ${
+                                            trialTransferForm.salaryCertificateFile 
+                                              ? 'border-teal-400 bg-teal-50/30 hover:bg-teal-50/60' 
+                                              : 'border-teal-300 hover:border-teal-500 hover:bg-teal-50/40'
+                                          } ${isUploadingSalaryCert ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                        >
+                                          {isUploadingSalaryCert ? (
+                                            <div className="flex items-center gap-1.5 text-xs text-teal-700 font-bold">
+                                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-teal-700 border-t-transparent"></div>
+                                              <span>جاري الرفع...</span>
+                                            </div>
+                                          ) : trialTransferForm.salaryCertificateFile ? (
+                                            <div className="flex items-center justify-between w-full px-1 gap-1">
+                                              <div className="flex items-center gap-1.5 text-teal-800 text-xs font-bold min-w-0">
+                                                <CheckCircle2 className="w-4 h-4 text-teal-700 shrink-0" />
+                                                <span 
+                                                  className="text-[11px] font-bold text-teal-900 truncate max-w-[120px] sm:max-w-[150px] inline-block" 
+                                                  dir="ltr"
+                                                  title={trialTransferForm.salaryCertificateFileName || trialTransferForm.salaryCertificateFile.split('/').pop() || 'الملف المرفق'}
+                                                >
+                                                  {trialTransferForm.salaryCertificateFileName || trialTransferForm.salaryCertificateFile.split('/').pop() || 'الملف المرفق'}
+                                                </span>
+                                              </div>
+                                              <div className="flex items-center gap-1 shrink-0">
+                                                <a
+                                                  href={trialTransferForm.salaryCertificateFile}
+                                                  target="_blank"
+                                                  rel="noreferrer"
+                                                  onClick={(e) => e.stopPropagation()}
+                                                  className="p-1 rounded text-teal-700 hover:text-teal-900 hover:bg-teal-100 transition-colors"
+                                                  title="معاينة الملف"
+                                                >
+                                                  <Eye className="w-4 h-4" />
+                                                </a>
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    setDeleteFileConfirm({
+                                                      isOpen: true,
+                                                      fileUrl: trialTransferForm.salaryCertificateFile,
+                                                      fileName: trialTransferForm.salaryCertificateFileName || trialTransferForm.salaryCertificateFile.split('/').pop() || 'تعريف الراتب',
+                                                      onSuccessClear: () => setTrialTransferForm((prev) => ({ ...prev, salaryCertificateFile: '', salaryCertificateFileName: '' })),
+                                                      isDeleting: false,
+                                                    });
+                                                  }}
+                                                  className="p-1 rounded text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors"
+                                                  title="حذف الملف"
+                                                >
+                                                  <Trash2 className="w-4 h-4" />
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div className="flex items-center gap-2 text-teal-800">
+                                              <div className="w-7 h-7 rounded-full bg-teal-50 flex items-center justify-center text-teal-700 shrink-0">
+                                                <UploadCloud className="w-4 h-4" />
+                                              </div>
+                                              <div className="text-right">
+                                                <span className="text-[11px] font-bold block text-teal-900 leading-tight">اضغط لرفع تعريف الراتب</span>
+                                                <span className="text-[9px] text-gray-500 block leading-tight">PDF أو صورة المستند</span>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </label>
+                                      </div>
+
+                                      {/* مرفق العنوان الوطني */}
+                                      <div className="space-y-1 flex flex-col">
+                                        <div className="flex items-center justify-between">
+                                          <label className="text-xs font-bold text-gray-700 flex items-center gap-1">
+                                            <HomeIcon className="w-3.5 h-3.5 text-teal-700" />
+                                            <span>العنوان الوطني للكفيل</span>
+                                          </label>
+                                          {trialTransferForm.nationalAddressFile && (
+                                            <span className="text-[10px] text-teal-700 font-bold bg-teal-100 px-1.5 py-0.5 rounded">تم الإرفاق</span>
+                                          )}
+                                        </div>
+
+                                        <input
+                                          type="file"
+                                          id="trial-national-address-upload-ext"
+                                          accept=".pdf,image/*"
+                                          disabled={isUploadingNationalAddr}
+                                          onChange={handleNationalAddressUpload}
+                                          className="hidden"
+                                        />
+
+                                        <label
+                                          htmlFor="trial-national-address-upload-ext"
+                                          className={`min-h-[58px] bg-white border-2 border-dashed rounded-lg px-2.5 py-2 flex items-center justify-center text-center cursor-pointer transition-all ${
+                                            trialTransferForm.nationalAddressFile 
+                                              ? 'border-teal-400 bg-teal-50/30 hover:bg-teal-50/60' 
+                                              : 'border-teal-300 hover:border-teal-500 hover:bg-teal-50/40'
+                                          } ${isUploadingNationalAddr ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                        >
+                                          {isUploadingNationalAddr ? (
+                                            <div className="flex items-center gap-1.5 text-xs text-teal-700 font-bold">
+                                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-teal-700 border-t-transparent"></div>
+                                              <span>جاري الرفع...</span>
+                                            </div>
+                                          ) : trialTransferForm.nationalAddressFile ? (
+                                            <div className="flex items-center justify-between w-full px-1 gap-1">
+                                              <div className="flex items-center gap-1.5 text-teal-800 text-xs font-bold min-w-0">
+                                                <CheckCircle2 className="w-4 h-4 text-teal-700 shrink-0" />
+                                                <span 
+                                                  className="text-[11px] font-bold text-teal-900 truncate max-w-[120px] sm:max-w-[150px] inline-block" 
+                                                  dir="ltr"
+                                                  title={trialTransferForm.nationalAddressFileName || trialTransferForm.nationalAddressFile.split('/').pop() || 'الملف المرفق'}
+                                                >
+                                                  {trialTransferForm.nationalAddressFileName || trialTransferForm.nationalAddressFile.split('/').pop() || 'الملف المرفق'}
+                                                </span>
+                                              </div>
+                                              <div className="flex items-center gap-1 shrink-0">
+                                                <a
+                                                  href={trialTransferForm.nationalAddressFile}
+                                                  target="_blank"
+                                                  rel="noreferrer"
+                                                  onClick={(e) => e.stopPropagation()}
+                                                  className="p-1 rounded text-teal-700 hover:text-teal-900 hover:bg-teal-100 transition-colors"
+                                                  title="معاينة الملف"
+                                                >
+                                                  <Eye className="w-4 h-4" />
+                                                </a>
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    setDeleteFileConfirm({
+                                                      isOpen: true,
+                                                      fileUrl: trialTransferForm.nationalAddressFile,
+                                                      fileName: trialTransferForm.nationalAddressFileName || trialTransferForm.nationalAddressFile.split('/').pop() || 'العنوان الوطني',
+                                                      onSuccessClear: () => setTrialTransferForm((prev) => ({ ...prev, nationalAddressFile: '', nationalAddressFileName: '' })),
+                                                      isDeleting: false,
+                                                    });
+                                                  }}
+                                                  className="p-1 rounded text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors"
+                                                  title="حذف الملف"
+                                                >
+                                                  <Trash2 className="w-4 h-4" />
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div className="flex items-center gap-2 text-teal-800">
+                                              <div className="w-7 h-7 rounded-full bg-teal-50 flex items-center justify-center text-teal-700 shrink-0">
+                                                <UploadCloud className="w-4 h-4" />
+                                              </div>
+                                              <div className="text-right">
+                                                <span className="text-[11px] font-bold block text-teal-900 leading-tight">اضغط لرفع العنوان الوطني</span>
+                                                <span className="text-[9px] text-gray-500 block leading-tight">PDF أو صورة العنوان</span>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </label>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* ------------------------------------------------------------- */}
+                                  {/* القسم 4: تفاصيل فترة التجربة واحتساب المدة */}
+                                  {/* ------------------------------------------------------------- */}
+                                  <div className="border border-teal-200 bg-white rounded-xl p-4 space-y-3 shadow-sm">
+                                    <div className="flex items-center gap-2 text-teal-800 font-bold text-xs border-b border-gray-100 pb-2">
+                                      <Clock className="w-4 h-4 text-teal-700" />
+                                      <span>القسم الرابع: تفاصيل فترة التجربة واحتساب المدة</span>
+                                    </div>
+
+                                    {/* شريط المخطط الزمني الكامل بتصميم موحد تماماً مع أرقام إنجليزية */}
+                                    <div className="border border-gray-200 rounded-lg p-3 bg-gray-50 space-y-2">
+                                      {/* عناوين الحقول الثلاثة */}
+                                      <div className="grid grid-cols-3 gap-3 text-center">
+                                        <label className="block text-xs font-bold text-gray-700">
+                                          تاريخ بدء التجربة (مغادرة السكن) <span className="text-red-500">*</span>
+                                        </label>
+                                        <label className="block text-xs font-bold text-gray-700">
+                                          مدة التجربة (بالأيام) <span className="text-red-500">*</span>
+                                        </label>
+                                        <label className="block text-xs font-bold text-gray-700">
+                                          تاريخ انتهاء التجربة (تلقائي)
+                                        </label>
+                                      </div>
+
+                                      {/* صف الحقول الثلاثة والأسهم بمحاذاة أفقية متطابقة تماماً */}
+                                      <div className="flex items-center gap-2 md:gap-3">
+                                        {/* 1. تاريخ بدء التجربة (اليمين) */}
+                                        <div className="flex-1">
+                                          <div 
+                                            className="w-full h-10 bg-white border border-gray-300 rounded-lg px-3 flex items-center justify-center gap-2 text-xs font-bold text-gray-900 focus-within:border-teal-600 focus-within:ring-2 focus-within:ring-teal-100 transition-all cursor-pointer relative select-none"
+                                            style={{ fontFamily: 'Inter, system-ui, Arial, sans-serif', fontVariantNumeric: 'lining-nums' }}
+                                            onClick={(e) => {
+                                              const input = e.currentTarget.querySelector('input[type="date"]');
+                                              if (input) {
+                                                try { (input as any).showPicker?.(); } catch {}
+                                              }
+                                            }}
+                                          >
+                                            <Calendar className="w-3.5 h-3.5 text-gray-500 shrink-0 pointer-events-none" />
+                                            <span dir="ltr" className="tracking-wide pointer-events-none">
+                                              {departureHousingDate ? departureHousingDate.replace(/-/g, '/') : 'YYYY/MM/DD'}
+                                            </span>
+                                            <input
+                                              type="date"
+                                              required
+                                              max={new Date().toISOString().split('T')[0]}
+                                              value={departureHousingDate}
+                                              onChange={(e) => {
+                                                const val = e.target.value;
+                                                const todayStr = new Date().toISOString().split('T')[0];
+                                                if (val > todayStr) {
+                                                  showNotification('لا يمكن اختيار تاريخ في المستقبل لتسجيل المغادرة', 'error');
+                                                  return;
+                                                }
+                                                setDepartureHousingDate(val);
+                                                const days = trialTransferForm.trialPeriodDays;
+                                                const calcEnd = (sDate: string, dCount: string) => {
+                                                  if (!sDate || !dCount) return '';
+                                                  const d = new Date(sDate);
+                                                  if (!isNaN(d.getTime())) {
+                                                    d.setDate(d.getDate() + (parseInt(dCount, 10) || 0));
+                                                    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                                                  }
+                                                  return '';
+                                                };
+                                                setTrialTransferForm((prev) => ({
+                                                  ...prev,
+                                                  trialStartDate: val,
+                                                  trialEndDate: calcEnd(val, days),
+                                                }));
+                                              }}
+                                              onClick={(e) => {
+                                                try { (e.target as any).showPicker?.(); } catch {}
+                                              }}
+                                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                              style={{ zIndex: 10 }}
+                                            />
+                                          </div>
+                                        </div>
+
+                                        {/* سهم الربط الأول */}
+                                        <div className="text-gray-400 shrink-0 flex items-center justify-center">
+                                          <ArrowLeft className="w-5 h-5 stroke-[2.5]" />
+                                        </div>
+
+                                        {/* 2. مدة التجربة بالأيام (الوسط) مع أزرار الخيارات السريعة 10 و 7 */}
+                                        <div className="flex-1">
+                                          <div className="relative flex items-center bg-white border border-gray-300 rounded-lg h-10 overflow-hidden focus-within:ring-2 focus-within:ring-teal-600 focus-within:border-teal-600">
+                                            <input
+                                              type="text"
+                                              inputMode="numeric"
+                                              dir="ltr"
+                                              placeholder="مثال: 7"
+                                              value={trialTransferForm.trialPeriodDays}
+                                              onChange={(e) => {
+                                                const normalized = e.target.value
+                                                  .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1632 + 48))
+                                                  .replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1776 + 48))
+                                                  .replace(/\D/g, '');
+                                                const calcEnd = (sDate: string, days: string) => {
+                                                  if (!sDate || !days) return '';
+                                                  const d = new Date(sDate);
+                                                  if (isNaN(d.getTime())) return '';
+                                                  d.setDate(d.getDate() + (parseInt(days, 10) || 0));
+                                                  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                                                };
+                                                setTrialTransferForm((prev) => ({
+                                                  ...prev,
+                                                  trialPeriodDays: normalized,
+                                                  trialEndDate: calcEnd(departureHousingDate || prev.trialStartDate, normalized),
+                                                }));
+                                              }}
+                                              className="flex-1 min-w-0 h-full bg-transparent border-none px-2 text-center text-xs font-bold text-gray-900 outline-none focus:ring-0"
+                                              style={{ fontFamily: 'Inter, system-ui, Arial, sans-serif', fontVariantNumeric: 'lining-nums' }}
+                                            />
+
+                                            {/* أزرار الخيارات السريعة 10 و 7 */}
+                                            <div className="flex items-stretch h-full border-r border-gray-300 shrink-0 bg-gray-50/80" dir="ltr">
+                                              {['10', '7'].map((daysVal, idx) => {
+                                                const isActive = trialTransferForm.trialPeriodDays === daysVal;
+                                                return (
+                                                  <button
+                                                    key={daysVal}
+                                                    type="button"
+                                                    onClick={() => {
+                                                      const calcEnd = (sDate: string, days: string) => {
+                                                        if (!sDate || !days) return '';
+                                                        const d = new Date(sDate);
+                                                        if (isNaN(d.getTime())) return '';
+                                                        d.setDate(d.getDate() + (parseInt(days, 10) || 0));
+                                                        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                                                      };
+                                                      setTrialTransferForm((prev) => ({
+                                                        ...prev,
+                                                        trialPeriodDays: daysVal,
+                                                        trialEndDate: calcEnd(departureHousingDate || prev.trialStartDate, daysVal),
+                                                      }));
+                                                    }}
+                                                    className={`h-full w-10 shrink-0 flex items-center justify-center text-center text-xs font-bold transition-all cursor-pointer select-none ${
+                                                      idx > 0 ? 'border-l border-gray-300' : ''
+                                                    } ${
+                                                      isActive
+                                                        ? 'bg-teal-700 text-white font-extrabold shadow-inner'
+                                                        : 'text-teal-800 hover:bg-teal-100/80 hover:text-teal-900'
+                                                    }`}
+                                                    style={{ fontFamily: 'Inter, system-ui, Arial, sans-serif', fontVariantNumeric: 'lining-nums' }}
+                                                    title={`تحديد ${daysVal} أيام`}
+                                                  >
+                                                    <span className="inline-block tracking-tight">{daysVal}</span>
+                                                  </button>
+                                                );
+                                              })}
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        {/* سهم الربط الثاني */}
+                                        <div className="text-gray-400 shrink-0 flex items-center justify-center">
+                                          <ArrowLeft className="w-5 h-5 stroke-[2.5]" />
+                                        </div>
+
+                                        {/* 3. تاريخ انتهاء التجربة (اليسار) */}
+                                        <div className="flex-1">
+                                          <div 
+                                            className="w-full h-10 bg-white border border-gray-300 rounded-lg px-3 flex items-center justify-center gap-2 text-xs font-bold text-gray-900"
+                                            style={{ fontFamily: 'Inter, system-ui, Arial, sans-serif', fontVariantNumeric: 'lining-nums' }}
+                                          >
+                                            <Calendar className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                                            <span dir="ltr" className="tracking-wide">{calculatedEndDateFormatted || 'YYYY/MM/DD'}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* التكلفة اليومية وإجمالي فترة التجربة المحتسب تلقائياً */}
+                                    <div className="border border-gray-200 rounded-lg p-2.5 bg-gray-50 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+                                      <div className="space-y-0.5">
+                                        <label className="block text-xs font-bold text-gray-800">
+                                          احتساب تكلفة فترة التجربة
+                                        </label>
+                                        <span className="text-[11px] text-gray-500 block">
+                                          تحديد التكلفة اليومية واحتساب الإجمالي تلقائياً
+                                        </span>
+                                      </div>
+
+                                      <div className="flex items-center gap-2.5 w-full md:w-auto">
+                                        {/* التكلفة اليومية */}
+                                        <div className="space-y-1">
+                                          <label className="block text-[11px] font-bold text-gray-700 text-right sm:text-center">
+                                            التكلفة اليومية (ر.س/يوم)
+                                          </label>
+                                          <input
+                                            type="text"
+                                            inputMode="decimal"
+                                            dir="ltr"
+                                            placeholder="0.00"
+                                            value={trialTransferForm.dailyCost}
+                                            onChange={(e) => {
+                                              const normalized = e.target.value
+                                                .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1632 + 48))
+                                                .replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1776 + 48))
+                                                .replace(/[^0-9.]/g, '');
+                                              setTrialTransferForm({ ...trialTransferForm, dailyCost: normalized });
+                                            }}
+                                            className="w-full sm:w-36 h-10 bg-white border border-gray-300 rounded-lg px-3 text-center text-xs font-bold text-gray-900 focus:border-teal-600 focus:ring-2 focus:ring-teal-100 outline-none"
+                                            style={{ fontFamily: 'Inter, system-ui, Arial, sans-serif', fontVariantNumeric: 'lining-nums' }}
+                                          />
+                                        </div>
+
+                                        {/* إجمالي فترة التجربة تلقائي */}
+                                        <div className="space-y-1">
+                                          <label className="block text-[11px] font-bold text-gray-700 text-right sm:text-center">
+                                            إجمالي التجربة (تلقائي)
+                                          </label>
+                                          <div 
+                                            className="w-full sm:w-44 h-10 bg-white border border-gray-300 rounded-lg px-3 flex items-center justify-center gap-1.5 text-xs font-bold text-teal-900"
+                                            style={{ fontFamily: 'Inter, system-ui, Arial, sans-serif', fontVariantNumeric: 'lining-nums' }}
+                                          >
+                                            <span dir="ltr" className="font-mono text-sm tracking-wide">
+                                              {calculatedTotalTrialCost > 0 
+                                                ? calculatedTotalTrialCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) 
+                                                : '0.00'}
+                                            </span>
+                                            <span className="text-xs font-bold text-teal-700">ر.س</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* ------------------------------------------------------------- */}
+                                  {/* القسم 5: البيانات المالية وسند الدفع */}
+                                  {/* ------------------------------------------------------------- */}
+                                  <div className="border border-teal-200 bg-white rounded-xl p-4 space-y-3.5 shadow-sm">
+                                    <div className="flex items-center gap-2 text-teal-800 font-bold text-xs border-b border-gray-100 pb-2">
+                                      <DollarSign className="w-4 h-4 text-teal-700" />
+                                      <span>القسم الخامس: البيانات المالية وسند الدفع</span>
+                                    </div>
+
+                                    {/* السطر الأول: الحقول المالية الثلاثة جنباً إلى جنب */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                      {/* 1. المبلغ المتفق عليه */}
+                                      <div className="space-y-1">
+                                        <label className="block text-xs font-bold text-gray-700">
+                                          المبلغ المتفق عليه لنقل الكفالة (ر.س)
+                                        </label>
+                                        <input
+                                          type="text"
+                                          inputMode="decimal"
+                                          dir="ltr"
+                                          placeholder="0.00"
+                                          value={trialTransferForm.totalCost}
+                                          onChange={(e) => {
+                                            const val = e.target.value
+                                              .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1632 + 48))
+                                              .replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1776 + 48))
+                                              .replace(/[^0-9.]/g, '');
+                                            const tot = parseFloat(val) || 0;
+                                            const currentPaid = parseFloat(trialTransferForm.paidAmount) || 0;
+
+                                            let adjustedPaid = trialTransferForm.paidAmount;
+                                            if (tot <= 0) {
+                                              adjustedPaid = '';
+                                            } else if (currentPaid > tot) {
+                                              adjustedPaid = String(tot);
+                                            }
+
+                                            const finalPaid = parseFloat(adjustedPaid) || 0;
+                                            setTrialTransferForm((prev) => ({
+                                              ...prev,
+                                              totalCost: val,
+                                              paidAmount: adjustedPaid,
+                                              remainingAmount: String(Math.max(0, tot - finalPaid)),
+                                            }));
+                                          }}
+                                          className="w-full h-10 bg-white border border-gray-300 rounded-lg px-3 text-center text-xs font-bold text-gray-900 focus:ring-2 focus:ring-teal-600 outline-none"
+                                          style={{ fontFamily: 'Inter, system-ui, Arial, sans-serif', fontVariantNumeric: 'lining-nums' }}
+                                        />
+                                        {parseFloat(trialTransferForm.totalCost) > 0 && (
+                                          <div className="text-[11px] text-teal-950 font-bold bg-teal-50 border border-teal-200 rounded-lg p-1.5 flex items-start gap-1.5 shadow-2xs">
+                                            <span className="text-teal-700 shrink-0 text-xs">✍️</span>
+                                            <span className="leading-tight text-right flex-1">{tafqeet(trialTransferForm.totalCost)}</span>
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* 2. المبلغ المدفوع مع خيارات النسبة السريعة */}
+                                      <div className="space-y-1">
+                                        <label className="block text-xs font-bold text-gray-700">
+                                          المبلغ المدفوع (ر.س)
+                                        </label>
+                                        <div className="relative flex items-center bg-white border border-gray-300 rounded-lg h-10 overflow-hidden focus-within:ring-2 focus-within:ring-teal-600 focus-within:border-teal-600">
+                                          <input
+                                            type="text"
+                                            inputMode="decimal"
+                                            dir="ltr"
+                                            placeholder="0.00"
+                                            value={trialTransferForm.paidAmount}
+                                            onChange={(e) => {
+                                              const val = e.target.value
+                                                .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1632 + 48))
+                                                .replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1776 + 48))
+                                                .replace(/[^0-9.]/g, '');
+                                              const tot = parseFloat(trialTransferForm.totalCost) || 0;
+                                              let enteredPaid = parseFloat(val) || 0;
+                                              let finalPaidStr = val;
+
+                                              if (tot <= 0) {
+                                                finalPaidStr = '';
+                                                enteredPaid = 0;
+                                              } else if (enteredPaid > tot) {
+                                                finalPaidStr = String(tot);
+                                                enteredPaid = tot;
+                                              }
+
+                                              setTrialTransferForm((prev) => ({
+                                                ...prev,
+                                                paidAmount: finalPaidStr,
+                                                remainingAmount: String(Math.max(0, tot - enteredPaid)),
+                                              }));
+                                            }}
+                                            className="flex-1 min-w-0 h-full bg-transparent border-none px-2 text-center text-xs font-bold text-teal-800 outline-none focus:ring-0"
+                                            style={{ fontFamily: 'Inter, system-ui, Arial, sans-serif', fontVariantNumeric: 'lining-nums' }}
+                                          />
+
+                                          <div className="flex items-stretch h-full border-r border-gray-300 shrink-0 bg-gray-50/80" dir="ltr">
+                                            {[50, 25].map((pct, idx) => {
+                                              const tot = parseFloat(trialTransferForm.totalCost) || 0;
+                                              const targetVal = tot > 0 ? Math.round((tot * pct) / 100 * 100) / 100 : null;
+                                              const currentVal = parseFloat(trialTransferForm.paidAmount);
+                                              const isActive = targetVal !== null && currentVal === targetVal;
+
+                                              return (
+                                                <button
+                                                  key={pct}
+                                                  type="button"
+                                                  disabled={tot <= 0}
+                                                  onClick={() => {
+                                                    const totCost = parseFloat(trialTransferForm.totalCost) || 0;
+                                                    if (totCost <= 0) return;
+                                                    const calcPaid = Math.round((totCost * pct) / 100 * 100) / 100;
+                                                    const paidStr = calcPaid > 0 ? String(calcPaid) : '0';
+                                                    setTrialTransferForm((prev) => ({
+                                                      ...prev,
+                                                      paidAmount: paidStr,
+                                                      remainingAmount: String(Math.max(0, totCost - calcPaid)),
+                                                    }));
+                                                  }}
+                                                  className={`h-full w-11 shrink-0 flex items-center justify-center text-center text-xs font-bold transition-all select-none ${
+                                                    idx > 0 ? 'border-l border-gray-300' : ''
+                                                  } ${
+                                                    isActive
+                                                      ? 'bg-teal-700 text-white font-extrabold shadow-inner'
+                                                      : 'text-teal-800 hover:bg-teal-100/80 hover:text-teal-900 disabled:opacity-40 disabled:hover:bg-transparent'
+                                                  }`}
+                                                  style={{ fontFamily: 'Inter, system-ui, Arial, sans-serif', fontVariantNumeric: 'lining-nums' }}
+                                                  title={`دفع ${pct}%`}
+                                                >
+                                                  <span className="inline-block tracking-tight">%{pct}</span>
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                        {parseFloat(trialTransferForm.paidAmount) > 0 && (
+                                          <div className="text-[11px] text-teal-950 font-bold bg-teal-50 border border-teal-200 rounded-lg p-1.5 flex items-start gap-1.5 shadow-2xs">
+                                            <span className="text-teal-700 shrink-0 text-xs">✍️</span>
+                                            <span className="leading-tight text-right flex-1">{tafqeet(trialTransferForm.paidAmount)}</span>
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* 3. المبلغ المتبقي (محسوب تلقائياً) */}
+                                      <div className="space-y-1">
+                                        <label className="block text-xs font-bold text-gray-700">
+                                          المبلغ المتبقي (تلقائي)
+                                        </label>
+                                        <div 
+                                          className="w-full h-10 bg-gray-50 border border-gray-300 rounded-lg px-3 flex items-center justify-center gap-1.5 text-xs font-bold text-teal-950 shadow-inner"
+                                          style={{ fontFamily: 'Inter, system-ui, Arial, sans-serif', fontVariantNumeric: 'lining-nums' }}
+                                        >
+                                          <span dir="ltr" className="font-mono text-sm tracking-wide">
+                                            {remainingAmountCalc > 0 
+                                              ? remainingAmountCalc.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) 
+                                              : '0.00'}
+                                          </span>
+                                          <span className="text-xs font-bold text-teal-700">ر.س</span>
+                                        </div>
+                                        {remainingAmountCalc > 0 && (
+                                          <div className="text-[11px] text-amber-950 font-bold bg-amber-50 border border-amber-200 rounded-lg p-1.5 flex items-start gap-1.5 shadow-2xs">
+                                            <span className="text-amber-700 shrink-0 text-xs">✍️</span>
+                                            <span className="leading-tight text-right flex-1">{tafqeet(String(remainingAmountCalc))}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* السطر الثاني: سند الدفع + الملاحظات */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-gray-100">
+                                      {/* مرفق سند الدفع */}
+                                      <div className="space-y-1 flex flex-col">
+                                        <div className="flex items-center justify-between">
+                                          <label className="text-xs font-bold text-gray-700 flex items-center gap-1">
+                                            <FileText className="w-3.5 h-3.5 text-teal-700" />
+                                            <span>سند الدفع / التحويل (اختياري)</span>
+                                          </label>
+                                          {trialTransferForm.paymentReceiptFile && (
+                                            <span className="text-[10px] text-teal-700 font-bold bg-teal-100 px-1.5 py-0.5 rounded">تم الإرفاق</span>
+                                          )}
+                                        </div>
+
+                                        <input
+                                          type="file"
+                                          id="trial-payment-receipt-upload-ext"
+                                          accept=".pdf,image/*"
+                                          disabled={isUploadingPaymentReceipt}
+                                          onChange={handlePaymentReceiptUpload}
+                                          className="hidden"
+                                        />
+
+                                        <label
+                                          htmlFor="trial-payment-receipt-upload-ext"
+                                          className={`min-h-[58px] bg-white border-2 border-dashed rounded-lg px-2.5 py-2 flex items-center justify-center text-center cursor-pointer transition-all ${
+                                            trialTransferForm.paymentReceiptFile 
+                                              ? 'border-teal-400 bg-teal-50/30 hover:bg-teal-50/60' 
+                                              : 'border-teal-300 hover:border-teal-500 hover:bg-teal-50/40'
+                                          } ${isUploadingPaymentReceipt ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                        >
+                                          {isUploadingPaymentReceipt ? (
+                                            <div className="flex items-center gap-1.5 text-xs text-teal-700 font-bold">
+                                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-teal-700 border-t-transparent"></div>
+                                              <span>جاري الرفع...</span>
+                                            </div>
+                                          ) : trialTransferForm.paymentReceiptFile ? (
+                                            <div className="flex items-center justify-between w-full px-1 gap-1">
+                                              <div className="flex items-center gap-1.5 text-teal-800 text-xs font-bold min-w-0">
+                                                <CheckCircle2 className="w-4 h-4 text-teal-700 shrink-0" />
+                                                <span 
+                                                  className="text-[11px] font-bold text-teal-900 truncate max-w-[120px] sm:max-w-[150px] inline-block" 
+                                                  dir="ltr"
+                                                  title={trialTransferForm.paymentReceiptFileName || trialTransferForm.paymentReceiptFile.split('/').pop() || 'سند الدفع'}
+                                                >
+                                                  {trialTransferForm.paymentReceiptFileName || trialTransferForm.paymentReceiptFile.split('/').pop() || 'سند الدفع'}
+                                                </span>
+                                              </div>
+                                              <div className="flex items-center gap-1 shrink-0">
+                                                <a
+                                                  href={trialTransferForm.paymentReceiptFile}
+                                                  target="_blank"
+                                                  rel="noreferrer"
+                                                  onClick={(e) => e.stopPropagation()}
+                                                  className="p-1 rounded text-teal-700 hover:text-teal-900 hover:bg-teal-100 transition-colors"
+                                                  title="معاينة الملف"
+                                                >
+                                                  <Eye className="w-4 h-4" />
+                                                </a>
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    setDeleteFileConfirm({
+                                                      isOpen: true,
+                                                      fileUrl: trialTransferForm.paymentReceiptFile,
+                                                      fileName: trialTransferForm.paymentReceiptFileName || trialTransferForm.paymentReceiptFile.split('/').pop() || 'سند الدفع',
+                                                      onSuccessClear: () => setTrialTransferForm((prev) => ({ ...prev, paymentReceiptFile: '', paymentReceiptFileName: '' })),
+                                                      isDeleting: false,
+                                                    });
+                                                  }}
+                                                  className="p-1 rounded text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors"
+                                                  title="حذف الملف"
+                                                >
+                                                  <Trash2 className="w-4 h-4" />
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div className="flex items-center gap-2 text-teal-800">
+                                              <div className="w-7 h-7 rounded-full bg-teal-50 flex items-center justify-center text-teal-700 shrink-0">
+                                                <UploadCloud className="w-4 h-4" />
+                                              </div>
+                                              <div className="text-right">
+                                                <span className="text-[11px] font-bold block text-teal-900 leading-tight">اضغط لرفع سند الدفع</span>
+                                                <span className="text-[9px] text-gray-500 block leading-tight">PDF أو صورة (اختياري)</span>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </label>
+                                      </div>
+
+                                      {/* ملاحظات إضافية */}
+                                      <div className="space-y-1 flex flex-col">
+                                        <label className="text-xs font-bold text-gray-700">ملاحظات إضافية (اختياري)</label>
+                                        <textarea
+                                          placeholder="أدخل أي ملاحظات إضافية على المعاملة أو التجربة..."
+                                          value={trialTransferForm.notes}
+                                          onChange={(e) => setTrialTransferForm({ ...trialTransferForm, notes: e.target.value })}
+                                          className="w-full flex-1 min-h-[58px] bg-white border border-gray-300 rounded-lg p-2 text-right text-xs focus:ring-2 focus:ring-teal-600 outline-none resize-none"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })()
+                          )}
                         </div>
                       ) : (
                         /* ============================================================== */
@@ -9084,18 +10794,67 @@ const confirmDeleteNote = async () => {
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                               {/* اسم الكفيل الجديد */}
-                              <div>
+                              <div className="relative">
                                 <label className="block text-xs font-bold text-gray-700 mb-1">
                                   اسم الكفيل الجديد <span className="text-red-500">*</span>
                                 </label>
-                                <input
-                                  type="text"
-                                  required
-                                  placeholder="الاسم الرباعي للكفيل..."
-                                  value={trialTransferForm.newSponsorName}
-                                  onChange={(e) => setTrialTransferForm({ ...trialTransferForm, newSponsorName: e.target.value })}
-                                  className="w-full bg-white border border-gray-300 rounded-lg p-2 text-right text-xs focus:ring-2 focus:ring-blue-600 outline-none"
-                                />
+                                <div className="relative">
+                                  <input
+                                    type="text"
+                                    required
+                                    placeholder="ابحث بالاسم، الجوال، أو رقم الهوية..."
+                                    value={trialTransferForm.newSponsorName}
+                                    onChange={(e) => handleNewClientNameChange(e.target.value)}
+                                    onFocus={() => {
+                                      if (clientSearchResults.length > 0) setShowClientSuggestions(true);
+                                    }}
+                                    onBlur={() => {
+                                      setTimeout(() => setShowClientSuggestions(false), 250);
+                                    }}
+                                    className="w-full bg-white border border-gray-300 rounded-lg p-2 pl-8 text-right text-xs focus:ring-2 focus:ring-teal-600 outline-none"
+                                  />
+                                  <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                    {isSearchingClient ? (
+                                      <div className="w-3.5 h-3.5 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                      <Search className="w-3.5 h-3.5 text-gray-400" />
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* قائمة العملاء المطابقين المنسدلة */}
+                                {showClientSuggestions && clientSearchResults.length > 0 && (
+                                  <div className="absolute top-full right-0 left-0 mt-1 bg-white rounded-xl shadow-2xl border border-teal-200 z-50 max-h-56 overflow-y-auto">
+                                    <div className="p-2 bg-teal-50/90 border-b border-teal-100 flex items-center justify-between text-[11px] font-bold text-teal-900">
+                                      <span>عملاء مسجلين مطابقين ({clientSearchResults.length}):</span>
+                                      <span className="text-[10px] text-teal-700 font-normal">انقر للتعبئة التلقائية</span>
+                                    </div>
+                                    {clientSearchResults.map((client: any) => (
+                                      <div
+                                        key={client.id}
+                                        onMouseDown={() => handleSelectNewClient(client)}
+                                        className="p-2.5 hover:bg-teal-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors text-right"
+                                      >
+                                        <div className="flex items-center justify-between gap-2">
+                                          <span className="font-bold text-xs text-teal-950">{client.fullname}</span>
+                                          {client.city && (
+                                            <span className="text-[10px] font-semibold bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded">
+                                              {client.city}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-3 text-[11px] text-gray-600 mt-1 flex-wrap">
+                                          {client.phonenumber && (
+                                            <span>جوال: <strong className="font-mono text-gray-800" dir="ltr">{client.phonenumber}</strong></span>
+                                          )}
+                                          {client.nationalId && (
+                                            <span>هوية: <strong className="font-mono text-gray-800" dir="ltr">{client.nationalId}</strong></span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
 
                               {/* رقم الهوية الوطنية */}
@@ -9179,19 +10938,17 @@ const confirmDeleteNote = async () => {
                                   مدينة الإقامة / السكن
                                 </label>
                                 <Select
-                                  options={[
-                                    'الرياض', 'جدة', 'الدمام', 'مكة المكرمة', 'المدينة المنورة', 
-                                    'الخبر', 'الجبيل', 'الخرج', 'القصيم', 'أبها', 'تبوك', 
-                                    'جازان', 'حائل', 'نجران', 'الطائف', 'ينبع', 'الأحساء', 
-                                    'الجوف', 'عرعر', 'الباحة', 'الدوادمي', 'وادي الدواسر', 
-                                    'شرورة', 'بيشة', 'رفحاء', 'طريف', 'القريات', 'حفر الباطن'
-                                  ].map((c) => ({ value: c, label: c }))}
-                                  placeholder="اختر مدينة الإقامة..."
+                                  options={saudiCities}
+                                  placeholder="ابحث أو اختر مدينة الإقامة..."
                                   menuPlacement="bottom"
                                   maxMenuHeight={180}
+                                  isSearchable
                                   value={
                                     trialTransferForm.newSponsorCity
-                                      ? { value: trialTransferForm.newSponsorCity, label: trialTransferForm.newSponsorCity }
+                                      ? saudiCities.find((c) => c.value === trialTransferForm.newSponsorCity || c.label.includes(trialTransferForm.newSponsorCity)) || {
+                                          value: trialTransferForm.newSponsorCity,
+                                          label: trialTransferForm.newSponsorCity,
+                                        }
                                       : null
                                   }
                                   onChange={(selectedOption: any) =>
@@ -9200,90 +10957,7 @@ const confirmDeleteNote = async () => {
                                       newSponsorCity: selectedOption ? selectedOption.value : '',
                                     })
                                   }
-                                  styles={{
-                                    control: (base: any, state: any) => ({
-                                      ...base,
-                                      minHeight: '38px',
-                                      height: '38px',
-                                      backgroundColor: '#FFFFFF',
-                                      borderColor: state.isFocused ? '#0D5C63' : '#D1D5DB',
-                                      borderRadius: '0.5rem',
-                                      boxShadow: state.isFocused ? '0 0 0 2px rgba(13, 92, 99, 0.2)' : 'none',
-                                      '&:hover': {
-                                        borderColor: '#0D5C63',
-                                      },
-                                      fontSize: '0.75rem',
-                                      fontWeight: '700',
-                                      cursor: 'pointer',
-                                      direction: 'rtl',
-                                    }),
-                                    valueContainer: (base: any) => ({
-                                      ...base,
-                                      padding: '0 10px',
-                                      height: '38px',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                    }),
-                                    singleValue: (base: any) => ({
-                                      ...base,
-                                      fontSize: '0.75rem',
-                                      fontWeight: '700',
-                                      color: '#111827',
-                                      margin: 0,
-                                      textAlign: 'right',
-                                    }),
-                                    placeholder: (base: any) => ({
-                                      ...base,
-                                      fontSize: '0.75rem',
-                                      fontWeight: '700',
-                                      color: '#9CA3AF',
-                                      margin: 0,
-                                      textAlign: 'right',
-                                    }),
-                                    indicatorsContainer: (base: any) => ({
-                                      ...base,
-                                      height: '38px',
-                                    }),
-                                    indicatorSeparator: () => ({
-                                      display: 'none',
-                                    }),
-                                    dropdownIndicator: (base: any) => ({
-                                      ...base,
-                                      padding: '4px 8px',
-                                      color: '#9CA3AF',
-                                      '&:hover': {
-                                        color: '#0D5C63',
-                                      },
-                                    }),
-                                    menu: (base: any) => ({
-                                      ...base,
-                                      zIndex: 9999,
-                                      borderRadius: '0.5rem',
-                                      boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15)',
-                                      border: '1px solid #E5E7EB',
-                                      backgroundColor: '#FFFFFF',
-                                      marginTop: '4px',
-                                      direction: 'rtl',
-                                      textAlign: 'right',
-                                    }),
-                                    menuList: (base: any) => ({
-                                      ...base,
-                                      maxHeight: '180px',
-                                      padding: '4px',
-                                    }),
-                                    option: (base: any, state: any) => ({
-                                      ...base,
-                                      fontSize: '0.75rem',
-                                      fontWeight: '700',
-                                      padding: '6px 12px',
-                                      borderRadius: '0.375rem',
-                                      backgroundColor: state.isSelected ? '#0D5C63' : state.isFocused ? '#F0FDFA' : 'transparent',
-                                      color: state.isSelected ? '#FFFFFF' : state.isFocused ? '#0D5C63' : '#1F2937',
-                                      cursor: 'pointer',
-                                      textAlign: 'right',
-                                    }),
-                                  }}
-                                  isSearchable
+                                  styles={searchableSelectStyles}
                                   noOptionsMessage={() => 'لا توجد مدينة مطابقة'}
                                 />
                               </div>
@@ -10366,9 +12040,9 @@ const confirmDeleteNote = async () => {
                       </button>
                         <button
                           type="submit"
-                          disabled={isSubmittingDeparture || isUploadingExternalDeparturePhoto}
+                          disabled={isSubmittingDeparture || (isExternalWorker && externalDepartureMode === 'normal' && isUploadingExternalDeparturePhoto)}
                           style={{ backgroundColor: '#0D5C63' }}
-                          className="text-white hover:bg-teal-700 rounded-xl px-5 py-2 text-xs font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                          className="text-white hover:opacity-90 rounded-xl px-5 py-2 text-xs font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-50"
                         >
                           {isSubmittingDeparture ? (
                             <>
@@ -10377,8 +12051,22 @@ const confirmDeleteNote = async () => {
                             </>
                           ) : (
                             <>
-                              <Check className="w-3.5 h-3.5" />
-                              <span>{isExternalWorker ? 'تأكيد تسجيل مغادرة العاملة الخارجية' : 'تأكيد تسجيل المغادرة'}</span>
+                              {isExternalWorker && externalDepartureMode === 'trial_transfer' ? (
+                                <>
+                                  <FaExchangeAlt className="w-3.5 h-3.5" />
+                                  <span>تأكيد تسجيل الخروج لتجربة نقل الكفالة</span>
+                                </>
+                              ) : isExternalWorker ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>تأكيد تسجيل مغادرة العاملة الخارجية</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>تأكيد تسجيل المغادرة</span>
+                                </>
+                              )}
                             </>
                           )}
                         </button>
@@ -11150,22 +12838,128 @@ const confirmDeleteNote = async () => {
                               )}
                             </div>
 
-                            {/* حقل اسم العاملة */}
-                            <div className="sm:col-span-8 space-y-4">
+                            {/* حقل اسم العاملة المدمج بالبحث الذكي */}
+                            <div className="sm:col-span-8 space-y-3">
                               <div>
-                                <label className="block text-sm font-bold text-gray-800 mb-1.5">
-                                  اسم العاملة الكامل <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                  type="text"
-                                  value={externalHomemaidForm.name}
-                                  onChange={(e) => handleExternalNameChange(e.target.value)}
-                                  placeholder="أدخل اسم العاملة (حروف فقط)"
-                                  disabled={isSubmittingInternalWorker}
-                                  className="w-full bg-white border border-gray-300 rounded-xl p-3 text-right text-sm font-semibold text-gray-900 focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all"
-                                />
+                                <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
+                                  <label className="block text-sm font-bold text-gray-800">
+                                    اسم العاملة الكامل <span className="text-red-500">*</span>
+                                  </label>
+                                  <span className="text-[11px] text-teal-700 font-medium">
+                                    اكتب للبحث (بالاسم أو الجواز أو هوية/اسم الكفيل) أو لإدخال اسم جديد
+                                  </span>
+                                </div>
+                                <div className="relative">
+                                  <input
+                                    type="text"
+                                    value={externalHomemaidForm.name}
+                                    onChange={(e) => handleExternalNameChange(e.target.value)}
+                                    placeholder="اكتب اسم العاملة، أو ابحث برقم الجواز / هوية الكفيل / الاسم..."
+                                    disabled={isSubmittingInternalWorker}
+                                    className="w-full bg-white border border-gray-300 rounded-xl p-3 pr-3.5 pl-10 text-right text-sm font-semibold text-gray-900 focus:ring-2 focus:ring-teal-600 focus:border-transparent outline-none transition-all placeholder:text-gray-400 placeholder:font-normal"
+                                  />
+                                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                                    {isSearchingSmart ? (
+                                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-teal-700 border-t-transparent"></div>
+                                    ) : (
+                                      <Search className="w-4 h-4 text-gray-400" />
+                                    )}
+                                  </div>
+
+                                  {/* قائمة الاقتراحات الذكية المنسدلة تحت حقل الاسم مباشرة */}
+                                  {smartSearchSuggestions.length > 0 && (
+                                    <div className="absolute top-full right-0 left-0 mt-1.5 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 max-h-72 overflow-y-auto divide-y divide-gray-100 animate-in fade-in zoom-in-95 duration-150">
+                                      <div className="p-2.5 bg-teal-800 text-white text-xs font-bold flex justify-between items-center rounded-t-xl px-3">
+                                        <span>عاملات سابقات تم التعرف عليهن ({smartSearchSuggestions.length})</span>
+                                        <span className="text-[10px] text-teal-100 font-normal">اختر للتعبئة والربط التلقائي</span>
+                                      </div>
+                                      {smartSearchSuggestions.map((worker) => (
+                                        <div
+                                          key={worker.id}
+                                          onClick={() => handleSelectSmartWorker(worker)}
+                                          className="p-3 hover:bg-gray-50 cursor-pointer transition-colors flex items-center justify-between gap-3 text-right"
+                                        >
+                                          <div className="flex items-center gap-3 min-w-0">
+                                            {worker.image ? (
+                                              <img
+                                                src={worker.image}
+                                                alt={worker.name}
+                                                className="w-11 h-11 rounded-xl object-cover border border-gray-200 shrink-0 shadow-xs"
+                                              />
+                                            ) : (
+                                              <div className="w-11 h-11 rounded-xl bg-gray-100 text-gray-700 flex items-center justify-center font-bold text-sm shrink-0 border border-gray-200">
+                                                {worker.name?.charAt(0) || '؟'}
+                                              </div>
+                                            )}
+                                            <div className="min-w-0">
+                                              <div className="font-bold text-sm text-gray-900 flex items-center gap-2 flex-wrap">
+                                                <span className="truncate">{worker.name}</span>
+                                                {worker.lastTransferStage && (
+                                                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0">
+                                                    {worker.lastTransferStage}
+                                                  </span>
+                                                )}
+                                              </div>
+                                              <div className="text-xs text-gray-500 flex items-center gap-2 mt-0.5 flex-wrap">
+                                                {worker.passportNumber && (
+                                                  <span className="inline-flex items-center gap-1">
+                                                    <span>جواز:</span>
+                                                    <strong className="text-gray-800 font-mono" dir="ltr">{worker.passportNumber}</strong>
+                                                  </span>
+                                                )}
+                                                {worker.nationality && (
+                                                  <span>| {worker.nationality}</span>
+                                                )}
+                                              </div>
+                                            </div>
+                                          </div>
+
+                                          {/* تفاصيل الكفيل المقترح */}
+                                          <div className="text-left shrink-0 pl-2">
+                                            {worker.currentClient ? (
+                                              <div className="text-xs bg-gray-50 p-1.5 px-2.5 rounded-lg border border-gray-200">
+                                                <span className="text-gray-500 block text-[10px]">الكفيل الحالي / الأخير:</span>
+                                                <span className="font-bold text-teal-800 block">{worker.currentClient.name}</span>
+                                                {worker.currentClient.phone && (
+                                                  <span className="text-gray-600 block font-mono text-[10px]" dir="ltr">
+                                                    {worker.currentClient.phone}
+                                                  </span>
+                                                )}
+                                              </div>
+                                            ) : worker.previousClient ? (
+                                              <div className="text-xs bg-gray-50 p-1.5 px-2.5 rounded-lg border border-gray-200">
+                                                <span className="text-gray-500 block text-[10px]">الكفيل السابق:</span>
+                                                <span className="font-semibold text-gray-700 block">{worker.previousClient.name}</span>
+                                              </div>
+                                            ) : null}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* شريط تأكيد الربط التلقائي عند التعرف على عاملة سابقة */}
+                                {selectedPreviousWorker && (
+                                  <div className="mt-2.5 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between gap-2 text-xs text-emerald-950 animate-in fade-in duration-150">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                                      <span className="truncate">
+                                        تم التعرف على العاملة السابقة {selectedPreviousWorker.currentClient ? `(الكفيل: ${selectedPreviousWorker.currentClient.name})` : ''} — سيتم إنشاء حركة تسكين جديدة وربط سجلاتها.
+                                      </span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={handleClearSmartWorker}
+                                      className="text-xs font-bold text-red-600 hover:text-red-700 hover:underline shrink-0 cursor-pointer"
+                                    >
+                                      إلغاء الربط
+                                    </button>
+                                  </div>
+                                )}
+
                                 <p className="text-xs text-gray-500 mt-1">
-                                  يقبل حروف اللغة العربية والإنجليزية فقط
+                                  يقبل البحث بالأرقام (كالجواز أو هوية الكفيل)، ولكن حفظ اسم العاملة يشترط حروفاً فقط
                                 </p>
                               </div>
 

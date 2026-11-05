@@ -95,7 +95,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // الاسم حروف فقط (عربي وإنجليزي ومسافات)
   const nameLettersOnly = /^[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FFa-zA-Z\s]+$/;
   if (!nameLettersOnly.test(String(name).trim())) {
-    return res.status(400).json({ error: "اسم العاملة يجب أن يحتوي على حروف فقط" });
+    return res.status(400).json({ error: "اسم العاملة يجب أن يحتوي على حروف فقط (لا يمكن حفظ الأرقام كاسم للعاملة)" });
   }
 
   if (!image || !String(image).trim()) {
@@ -190,21 +190,57 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       clientId = client.id;
     }
 
-    // 2. إنشاء سجل في externalHomedmaid
-    const externalHomemaid = await prisma.externalHomedmaid.create({
-      data: {
-        name: String(name).trim(),
-        image: String(image).trim(),
-        nationality: nationality?.trim() || null,
-        passportNumber: passportNumber?.trim() || null,
-        passportStartDate: passportStartDate || null,
-        passportEndDate: passportEndDate || null,
-        phone: phone?.trim() || null,
-        type: contractType || 'recruitment',
-        dateofbirth: dateofbirth ? new Date(dateofbirth) : null,
-        clientId: clientId,
-      } as any,
-    });
+    // 2. إيجاد أو تحديث أو إنشاء سجل في externalHomedmaid
+    let externalHomemaid: any = null;
+    const cleanPassport = passportNumber ? String(passportNumber).trim() : null;
+    const reqExtId = req.body.existingExternalHomemaidId ? Number(req.body.existingExternalHomemaidId) : null;
+
+    if (reqExtId) {
+      externalHomemaid = await prisma.externalHomedmaid.findUnique({
+        where: { id: reqExtId },
+      });
+    }
+
+    if (!externalHomemaid && cleanPassport) {
+      externalHomemaid = await prisma.externalHomedmaid.findFirst({
+        where: { passportNumber: cleanPassport },
+      });
+    }
+
+    if (externalHomemaid) {
+      // تحديث بيانات العاملة الخارجية إذا عدلها المستخدم مع ربط الكفيل الجديد إن توفر
+      externalHomemaid = await prisma.externalHomedmaid.update({
+        where: { id: externalHomemaid.id },
+        data: {
+          name: String(name).trim(),
+          ...(image ? { image: String(image).trim() } : {}),
+          ...(nationality ? { nationality: nationality.trim() } : {}),
+          ...(cleanPassport ? { passportNumber: cleanPassport } : {}),
+          ...(passportStartDate ? { passportStartDate } : {}),
+          ...(passportEndDate ? { passportEndDate } : {}),
+          ...(phone ? { phone: phone.trim() } : {}),
+          ...(contractType ? { type: contractType } : {}),
+          ...(dateofbirth ? { dateofbirth: new Date(dateofbirth) } : {}),
+          ...(clientId ? { clientId } : {}),
+        } as any,
+      });
+    } else {
+      // إنشاء سجل جديد في externalHomedmaid
+      externalHomemaid = await prisma.externalHomedmaid.create({
+        data: {
+          name: String(name).trim(),
+          image: String(image).trim(),
+          nationality: nationality?.trim() || null,
+          passportNumber: cleanPassport,
+          passportStartDate: passportStartDate || null,
+          passportEndDate: passportEndDate || null,
+          phone: phone?.trim() || null,
+          type: contractType || 'recruitment',
+          dateofbirth: dateofbirth ? new Date(dateofbirth) : null,
+          clientId: clientId,
+        } as any,
+      });
+    }
 
     // 3. إنشاء housedworker مربوط بـ externalHomedmaid (بدون محضر استلام)
     const housedWorker = await prisma.housedworker.create({
@@ -260,6 +296,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       } catch (noteErr) {
         console.error("Error creating initial note for external worker:", noteErr);
       }
+    }
+
+    // إذا كانت العاملة مسكنة سابقاً، نضيف ملاحظة توثيقية تربط بين التسكين الجديد وسجلها السابق
+    try {
+      const prevHousingCount = await prisma.housedworker.count({
+        where: {
+          externalHomedmaidId: externalHomemaid.id,
+          id: { not: housedWorker.id },
+        },
+      });
+
+      if (prevHousingCount > 0) {
+        await prisma.housedWorkerNotes.create({
+          data: {
+            notes: `[إعادة-تسكين عاملة خارجية] تم تسكين العاملة مجدداً مع الاحتفاظ بكافة سجلاتها وسوابقها ووثائقها السابقة. الكفيل المسجل: ${cleanClientName || 'غير محدد'}.`,
+            housedWorkerId: housedWorker.id,
+            employee: employee || "غير محدد",
+          },
+        });
+      }
+    } catch (rehousingNoteErr) {
+      console.error("Error logging rehousing note:", rehousingNoteErr);
     }
 
     const locationInfo = await prisma.inHouseLocation.findUnique({
